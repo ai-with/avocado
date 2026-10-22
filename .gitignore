@@ -1,0 +1,19 @@
+# env 관련 전부 (.example 포함, 예외/화이트리스트 두지 않음)
+.env*
+.dev.vars*
+# Claude/에이전트 로컬 작업물·지침 (저장소에 올리지 않음)
+.agent_work/
+.claude/
+.omc/
+/docs/
+AGENTS.md
+CLAUDE.md
+# 리버스엔지니어링 대상 바이너리·앱 원본 (저장소에 올리지 않음)
+targets/
+
+node_modules/
+dist/
+dist-dry/
+.wrangler/
+# 웹 SDK 빌드 산출물 (npm run sdk:build 로 생성)
+public/sdk/

@@ -1,0 +1,117 @@
+import { z } from "zod";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { getDb, type Db } from "../db";
+import { audioTracks, consents, guideInfluencers, guides, processingJobs, submissions } from "../db/schema";
+import { newId, now } from "../lib/ids";
+import { logEvent } from "../lib/events";
+import { JOB_STAGES, type JobStage } from "../../shared/review";
+import { StageSkip, jobWhere, type Ctx } from "./context";
+import { stageTranscribe } from "./stages/transcribe";
+import { stageTranslate } from "./stages/translate";
+import { stageDetect } from "./stages/detect";
+import { stageNotify } from "./stages/notify";
+
+// F-60 처리 파이프라인. Queue 메시지 { type: "process_submission", payload: { submissionId, stages? } }
+// 단계마다 processing_jobs 1행을 갱신하고, 한 단계가 실패해도 다음 단계는 가능한 범위에서 계속한다
+
+const payloadSchema = z.object({ submissionId: z.string(), stages: z.array(z.enum(JOB_STAGES)).optional() });
+type Payload = z.infer<typeof payloadSchema>;
+// 프레임·오디오는 업로드 완료 뒤 브라우저가 보내므로 큐 메시지가 먼저 올 수 있다. 오디오가 오거나 이 시간이 지날 때까지 다시 넣는다
+const WAIT_FOR_ANALYSIS_MS = 3 * 60 * 1000;
+const REQUEUE_DELAY_S = 20;
+const ERROR_MAX_CHARS = 300;
+const PROCESSABLE = ["uploaded", "processing", "ready", "failed"];
+
+const STAGE_FNS: Record<JobStage, (ctx: Ctx) => Promise<string | null>> = {
+  transcribe: stageTranscribe,
+  translate: stageTranslate,
+  detect: stageDetect,
+  notify: stageNotify,
+};
+
+async function loadCtx(env: Env, db: Db, submissionId: string): Promise<Ctx | null> {
+  const row = await db
+    .select({ sub: submissions, gi: guideInfluencers, guide: guides })
+    .from(submissions)
+    .innerJoin(guideInfluencers, eq(guideInfluencers.id, submissions.guideInfluencerId))
+    .innerJoin(guides, eq(guides.id, guideInfluencers.guideId))
+    .where(eq(submissions.id, submissionId))
+    .get();
+  if (!row || !PROCESSABLE.includes(row.sub.status)) return null;
+  return { env, db, sub: row.sub, guide: row.guide, workspaceId: row.guide.workspaceId, giId: row.gi.id };
+}
+
+// 전체 처리 요청인데 오디오가 아직 안 왔으면 잠시 뒤 다시 넣는다
+async function requeueIfEarly(ctx: Ctx, payload: Payload) {
+  if (payload.stages) return false;
+  const audio = await ctx.db.select({ id: audioTracks.id }).from(audioTracks).where(eq(audioTracks.submissionId, ctx.sub.id)).get();
+  if (audio || now() - (ctx.sub.uploadedAt ?? 0) >= WAIT_FOR_ANALYSIS_MS) return false;
+  await ctx.env.PIPELINE.send({ type: "process_submission", payload }, { delaySeconds: REQUEUE_DELAY_S });
+  return true;
+}
+
+async function queueStages(ctx: Ctx, stages: JobStage[]) {
+  for (const stage of stages)
+    await ctx.db
+      .insert(processingJobs)
+      .values({ id: newId(), submissionId: ctx.sub.id, stage, status: "queued" })
+      .onConflictDoUpdate({ target: [processingJobs.submissionId, processingJobs.stage], set: { status: "queued", attempts: 0, startedAt: null, finishedAt: null, error: null } });
+  await ctx.db.update(submissions).set({ status: "processing" }).where(eq(submissions.id, ctx.sub.id));
+}
+
+export async function processSubmission(raw: unknown, env: Env) {
+  const payload = payloadSchema.parse(raw);
+  const db = getDb(env.DB);
+  const ctx = await loadCtx(env, db, payload.submissionId);
+  if (!ctx) return;
+  if (await withdrawn(db, ctx.giId)) return cancelJobs(db, [ctx.sub.id]);
+  if (await requeueIfEarly(ctx, payload)) return;
+
+  const stages = payload.stages ?? [...JOB_STAGES];
+  await queueStages(ctx, stages);
+  for (const stage of stages) {
+    if (await withdrawn(db, ctx.giId)) return cancelJobs(db, [ctx.sub.id]);
+    await runStage(ctx, stage);
+  }
+  await db.update(submissions).set({ status: "ready" }).where(eq(submissions.id, ctx.sub.id));
+}
+
+async function runStage(ctx: Ctx, stage: JobStage) {
+  const { db, sub } = ctx;
+  const where = jobWhere(sub.id, stage);
+  const startedAt = now();
+  await db.update(processingJobs).set({ status: "running", startedAt }).where(where);
+  try {
+    const note = await STAGE_FNS[stage](ctx);
+    await db.update(processingJobs).set({ status: "done", finishedAt: now(), error: note }).where(where);
+    await logEvent(db, ctx.workspaceId, "processing_job_completed", { stage, duration_ms: now() - startedAt });
+  } catch (e) {
+    const skipped = e instanceof StageSkip;
+    const reason = e instanceof Error ? e.message.slice(0, ERROR_MAX_CHARS) : "unknown";
+    if (!skipped) console.error("[pipeline]", stage, sub.id, e);
+    await db.update(processingJobs).set({ status: skipped ? "skipped" : "failed", finishedAt: now(), error: reason }).where(where);
+    if (!skipped) await logEvent(db, ctx.workspaceId, "processing_job_failed", { stage, reason });
+  }
+}
+
+async function withdrawn(db: Db, giId: string) {
+  const active = await db.select({ id: consents.id }).from(consents).where(and(eq(consents.guideInfluencerId, giId), isNull(consents.withdrawnAt))).get();
+  return !active;
+}
+
+// 동의 철회 시 대기·진행 중인 작업을 멈춘다 (F-60 예외)
+export async function cancelJobs(db: Db, submissionIds: string[]) {
+  if (submissionIds.length === 0) return;
+  await db
+    .update(processingJobs)
+    .set({ status: "skipped", error: "withdrawn", finishedAt: now() })
+    .where(and(inArray(processingJobs.submissionId, submissionIds), inArray(processingJobs.status, ["queued", "running"])));
+}
+
+export async function cancelProcessingFor(db: Db, giId: string) {
+  const subs = await db.select({ id: submissions.id }).from(submissions).where(eq(submissions.guideInfluencerId, giId));
+  await cancelJobs(
+    db,
+    subs.map((s) => s.id),
+  );
+}

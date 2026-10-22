@@ -1,0 +1,22 @@
+.shell { display: flex; min-height: 100%; }
+.shell-content { flex: 1; min-width: 0; padding: var(--space-9) var(--space-11) var(--space-12); background: var(--color-bg); }
+.shell-content:focus { outline: none; }
+.shell-loading { max-width: 640px; margin: var(--space-12) auto; padding: 0 var(--layout-gutter); }
+@media (max-width: 1023px) { .shell-content { padding: var(--space-8) var(--layout-gutter) var(--space-11); } }
+
+.skip-link { position: absolute; left: var(--space-4); top: -100px; z-index: var(--z-toast); padding: var(--space-4) var(--space-6); background: var(--color-surface-inverted); color: var(--color-text-inverted); border-radius: var(--radius-sm); }
+.skip-link:focus { top: var(--space-4); }
+
+/* 휴대폰: 상단 바 + 서랍 메뉴 */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; height: var(--layout-topbar-height); z-index: var(--z-sticky);
+  display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4);
+  background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border);
+}
+.topbar-title { font-size: var(--text-label-size); font-weight: var(--weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-backdrop { position: fixed; inset: 0; z-index: calc(var(--z-drawer) - 1); background: var(--color-overlay); animation: fade-in var(--duration-base) var(--ease-out); }
+@media (max-width: 599px) {
+  .shell { display: block; }
+  .shell-content { padding-top: calc(var(--layout-topbar-height) + var(--space-7)); }
+}
+@keyframes fade-in { from { opacity: 0; } }

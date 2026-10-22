@@ -1,0 +1,12 @@
+.filter-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; margin-bottom: var(--space-6); }
+.filter-bar-fields { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+.filter-bar-fields > * { flex: 0 1 180px; min-width: 140px; }
+.filter-bar-fields .control { height: var(--control-height-sm); font-size: var(--text-body-sm-size); padding-left: var(--space-4); }
+.filter-bar-fields .field-label { font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+.filter-bar-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+@media (max-width: 599px) {
+  .filter-bar-fields { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .filter-bar-fields > * { min-width: 0; }
+  .filter-bar-fields > :first-child:has(input) { grid-column: 1 / -1; }
+}
+@media (pointer: coarse) { .filter-bar-fields .control { height: var(--touch-target); font-size: 16px; } }

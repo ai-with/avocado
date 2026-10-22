@@ -1,0 +1,10 @@
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-6); margin-bottom: var(--space-9); flex-wrap: wrap; }
+.page-header-text { min-width: 0; flex: 1 1 320px; }
+.page-header-back { display: inline-flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); font-size: var(--text-label-size); color: var(--color-text-tertiary); text-decoration: none; }
+.page-header-back:hover { color: var(--color-text-primary); }
+.page-header p { margin-top: var(--space-2); max-width: 72ch; }
+.page-header-actions { flex-wrap: wrap; }
+@media (max-width: 599px) {
+  .page-header { margin-bottom: var(--space-8); }
+  .page-header-actions { width: 100%; }
+}

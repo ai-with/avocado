@@ -1,0 +1,27 @@
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3);
+  border: 1px solid transparent; border-radius: var(--radius-button);
+  font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-medium);
+  white-space: nowrap; text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-md { height: var(--control-height); padding: 0 var(--space-6); }
+.btn-sm { height: var(--control-height-sm); padding: 0 var(--space-5); font-size: var(--text-caption-size); }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btn-secondary { background: var(--color-surface); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-subtle); }
+.btn-ghost { background: transparent; color: var(--color-text-secondary); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-surface-muted); color: var(--color-text-primary); }
+.btn-danger { background: var(--color-danger); color: var(--color-on-accent); }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.92); }
+/* 아이콘만 있는 버튼은 정사각형 */
+.btn-icon.btn-md { width: var(--control-height); padding: 0; }
+.btn-icon.btn-sm { width: var(--control-height-sm); padding: 0; }
+/* 손가락으로 누르는 기기에서는 보이는 크기와 상관없이 누르는 영역을 44px 이상으로 */
+@media (pointer: coarse) {
+  .btn { position: relative; }
+  .btn::after { content: ""; position: absolute; inset: 50% auto auto 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
+}

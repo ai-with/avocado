@@ -1,0 +1,49 @@
+/* 리드 수집 자료: 에디터, 원본 유형 카드, 뷰어 (TASK-025) */
+.doc-prose { font-size: 16px; line-height: 1.75; color: var(--color-text-primary); word-break: keep-all; overflow-wrap: anywhere; }
+.doc-prose h1 { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); margin: 1.4em 0 0.5em; }
+.doc-prose h2 { font-size: var(--text-h3-size); line-height: var(--text-h3-lh); margin: 1.3em 0 0.4em; }
+.doc-prose h3 { font-size: 20px; line-height: 28px; margin: 1.2em 0 0.4em; }
+.doc-prose p { margin: 0.4em 0; }
+.doc-prose ul, .doc-prose ol { padding-left: 1.4em; margin: 0.4em 0; }
+.doc-prose blockquote { border-left: 3px solid var(--color-border-strong); margin: 0.8em 0; padding: 0.1em 1em; color: var(--color-text-secondary); }
+.doc-prose hr { border: 0; border-top: 1px solid var(--color-border); margin: 1.6em 0; }
+.doc-prose img { max-width: 100%; height: auto; border-radius: var(--radius-md); display: block; margin: 1em 0; }
+.doc-prose a { color: var(--color-accent); text-decoration: underline; }
+.doc-prose > :first-child { margin-top: 0; }
+
+.block-editor { position: relative; }
+.block-editor .tiptap { min-height: 360px; outline: none; padding: var(--space-6) 0; }
+.block-editor .tiptap p.is-editor-empty:first-child::before,
+.block-editor .tiptap .is-empty::before { content: attr(data-placeholder); color: var(--color-text-muted); float: left; height: 0; pointer-events: none; }
+.block-editor .tiptap img.ProseMirror-selectednode { outline: 2px solid var(--color-accent); }
+.slash-menu { position: absolute; z-index: 20; width: 220px; max-height: 300px; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-raised); padding: var(--space-2); display: flex; flex-direction: column; }
+.slash-menu button { display: flex; justify-content: space-between; gap: var(--space-4); border: 0; background: none; text-align: left; padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-size: var(--text-body-sm-size); color: var(--color-text-primary); }
+.slash-menu button span { color: var(--color-text-tertiary); font-size: var(--text-caption-size); }
+.slash-menu button.active, .slash-menu button:hover { background: var(--color-surface-muted); }
+
+.source-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-5); }
+.source-card { text-align: left; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-card); padding: var(--space-7); cursor: pointer; display: flex; flex-direction: column; gap: var(--space-3); font: inherit; color: inherit; }
+.source-card:hover { border-color: var(--color-border-strong); }
+.source-card[aria-pressed="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); background: var(--color-accent-subtle); }
+.source-card p { color: var(--color-text-secondary); font-size: var(--text-body-sm-size); margin: 0; }
+
+.gate-timing input[type="range"] { width: 100%; accent-color: var(--color-accent); }
+.gate-timing-scale { display: flex; justify-content: space-between; font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+
+/* 뷰어: 화면 전체를 쓰고 본문 영역만 스크롤한다(미리보기도 같은 구조) */
+.dv { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: var(--color-surface-subtle); }
+.dv .viewer-bar { position: static; flex: none; }
+.dv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.dv-body.dv-pdf { background: var(--neutral-800); }
+.dv-body.dv-url { overflow: hidden; }
+.dv-article { max-width: 760px; margin: 0 auto; background: var(--color-surface); padding: var(--space-10) var(--space-8); min-height: 100%; box-sizing: border-box; }
+.dv-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--color-paper); }
+.dv-note { margin: var(--space-8) auto; text-align: center; align-items: center; }
+.dv-overlay { position: absolute; inset: 0; z-index: 30; background: var(--color-overlay); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow-y: auto; padding: var(--space-8) 16px; }
+.dv-dialog { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
+.dv-dialog-foot { display: flex; justify-content: center; }
+@media (max-width: 640px) { .dv-article { padding: var(--space-7) 16px; } }
+
+.dv-bar-text { display: flex; flex-direction: column; min-width: 0; }
+.doc-gate-panel { position: sticky; top: var(--space-6); }

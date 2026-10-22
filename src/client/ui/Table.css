@@ -1,0 +1,25 @@
+/* 넓은 표는 이 상자 안에서만 가로로 스크롤된다. 오른쪽 그림자는 더 볼 열이 있다는 신호 */
+.table-wrap {
+  position: relative; /* 안쪽 sr-only 같은 absolute 요소가 스크롤 상자 밖으로 새지 않게 */
+  overflow-x: auto; border-radius: var(--radius-md); box-shadow: var(--shadow-ring);
+  background:
+    linear-gradient(to right, var(--color-surface) 30%, transparent) left / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--color-surface) 30%, transparent) right / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--shadow-scroll-edge), transparent) left / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--shadow-scroll-edge), transparent) right / 10px 100% no-repeat scroll,
+    var(--color-surface);
+}
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-lh); }
+.table th {
+  text-align: left; font-weight: var(--weight-medium); color: var(--color-text-tertiary); font-size: var(--text-caption-size);
+  background: var(--color-surface-subtle); padding: var(--space-4) var(--space-6); white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+.table td { padding: var(--space-5) var(--space-6); border-top: 1px solid var(--color-border); vertical-align: middle; }
+.table tbody tr:first-child td { border-top: 0; }
+.table tbody tr { transition: background-color var(--duration-fast) var(--ease-out); }
+.table tbody tr:hover { background: var(--color-surface-subtle); }
+.table th.num, .table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* 긴 본문 칸이 너무 좁아지지 않게 */
+.table td.wrap { min-width: 200px; }
+.table caption { text-align: left; padding: var(--space-4) var(--space-6); color: var(--color-text-tertiary); font-size: var(--text-caption-size); }

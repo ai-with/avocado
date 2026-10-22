@@ -1,0 +1,8 @@
+.loading { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) 0; }
+.loading-line {
+  display: block; height: 16px; border-radius: var(--radius-xs); background: var(--color-surface-muted);
+  animation: loading-pulse 1.2s ease-in-out infinite;
+}
+.loading-line:first-of-type { width: 40%; height: 24px; }
+.loading-line:nth-of-type(3n) { width: 72%; }
+@keyframes loading-pulse { 50% { opacity: 0.5; } }

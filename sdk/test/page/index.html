@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 인라인 스크립트 없이 동작하는지 보기 위한 CSP. collect 주소는 page.js가 쿼리 api= 로 바꿀 수 있다 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:*; style-src 'self'">
+  <title>avocado SDK 테스트 페이지</title>
+  <link rel="stylesheet" href="page.css">
+  <!-- 스텁은 인라인 대신 별도 파일로 (CSP script-src 'self') -->
+  <script src="stub.js"></script>
+  <script async src="/sdk/v1.js" data-site="site_test_page" data-scroll="25,50,75,100"></script>
+  <script defer src="page.js"></script>
+</head>
+<body>
+  <header>
+    <h1>avocado SDK 테스트 페이지</h1>
+    <nav>
+      <a href="/pricing?utm_source=test#plans" data-route="/pricing">가격 (SPA 이동)</a>
+      <a href="/" data-route="/">처음 (SPA 이동)</a>
+      <a href="https://example.com/out?token=secret">외부 링크</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <button class="cta primary" id="buy">구매하기 (conversion)</button>
+      <button id="signup">가입 완료 (identify)</button>
+      <div role="button" data-avc-track="webinar_click">웨비나 신청 (data-avc-track)</div>
+      <div class="avc-no-capture"><button>수집 제외 버튼</button></div>
+      <button id="optin">동의 (consent granted)</button>
+      <button id="optout">거부 (optOut)</button>
+    </section>
+    <form id="lead-form">
+      <input name="email" type="email" placeholder="이메일">
+      <input name="password" type="password" placeholder="비밀번호">
+      <input name="card" autocomplete="cc-number" placeholder="카드">
+      <select name="plan"><option>pro</option></select>
+      <button type="submit">제출</button>
+    </form>
+    <article class="long"></article>
+  </main>
+  <pre id="log"></pre>
+</body>
+</html>

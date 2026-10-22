@@ -1,0 +1,11 @@
+/* TASK-022 성과표, 키워드 DM, 인스타그램 연결 */
+.perf-table th, .perf-table td { white-space: nowrap; }
+.perf-group { text-align: center; border-left: 1px solid var(--color-border); }
+.perf-missing { color: var(--color-text-tertiary); font-size: var(--text-caption-size); cursor: help; }
+.perf-export { text-decoration: none; display: inline-flex; align-items: center; }
+.kdm-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: var(--radius-sm); background: var(--color-surface-muted); display: inline-block; }
+.kdm-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-4); }
+.kdm-media button { border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-3); cursor: pointer; text-align: left; font-size: var(--text-caption-size); }
+.kdm-media button[aria-pressed="true"] { border-color: var(--color-accent); }
+.kdm-media button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.kdm-preview { white-space: pre-wrap; background: var(--color-surface-subtle); border-radius: var(--radius-md); padding: var(--space-5); font-size: var(--text-body-sm-size); }

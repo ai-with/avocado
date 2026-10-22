@@ -1,0 +1,4 @@
+.form-preview-pane { position: sticky; top: var(--space-6); }
+.form-preview { min-height: 0; border-radius: var(--radius-card); }
+.form-legend { margin-bottom: var(--space-3); }
+.file-pick { cursor: pointer; }

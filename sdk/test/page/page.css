@@ -1,0 +1,5 @@
+body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 720px; padding: 16px; }
+nav a, section > * { display: inline-block; margin: 4px 8px 4px 0; }
+form { display: grid; gap: 8px; margin: 24px 0; }
+.long { display: block; height: 4000px; background: linear-gradient(#fff, #cde); }
+#log { white-space: pre-wrap; font-size: 12px; }

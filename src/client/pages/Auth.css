@@ -1,0 +1,18 @@
+.auth { min-height: 100%; display: grid; place-items: center; padding: var(--space-9) var(--layout-gutter); background: var(--color-surface-subtle); }
+.auth-card { width: 100%; max-width: 400px; }
+.auth-card h3 { margin-bottom: var(--space-2); }
+.auth-card form { margin-top: var(--space-8); }
+/* 인증 화면의 주 버튼은 손가락으로 누르기 쉽게 카드 너비를 꽉 채운다 */
+.auth-card .btn-primary { width: 100%; }
+.auth-foot { margin-top: var(--space-7); text-align: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
+.form-error { color: var(--color-danger); font-size: var(--text-body-sm-size); }
+.public-page { max-width: var(--layout-content-max); margin: 0 auto; padding: var(--space-9) var(--layout-gutter); }
+/* TASK-024: 구글 로그인, 휴대폰 인증 */
+.auth-google { margin-top: var(--space-8); }
+.auth-google-btn { width: 100%; gap: var(--space-3); }
+.auth-divider { display: flex; align-items: center; gap: var(--space-4); color: var(--color-text-tertiary); font-size: var(--text-caption-size); }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid var(--color-border); }
+.auth-google + form { margin-top: var(--space-4); }
+.auth-forgot { align-self: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
+.auth-dev-code { padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); background: var(--color-surface-subtle); font-size: var(--text-body-sm-size); }
+.auth-loading { margin-top: var(--space-6); }

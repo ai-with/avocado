@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "avocado",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-10-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "minify": true,
+  "upload_source_maps": true,
+  "observability": { "enabled": true },
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/l/*", "/webhooks/*", "/collect"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "avocado-db",
+      // `npx wrangler d1 create avocado-db` 후 실제 ID로 바꾼다
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "avocado-files" }],
+  "queues": {
+    "producers": [
+      { "binding": "PIPELINE", "queue": "avocado-pipeline" },
+      // 웹 SDK 수집 봉투(docs/14 6-3). 영상 큐와 섞지 않는다
+      { "binding": "COLLECT", "queue": "avocado-collect" }
+    ],
+    "consumers": [
+      { "queue": "avocado-pipeline", "max_batch_size": 1, "max_retries": 3 },
+      { "queue": "avocado-collect", "max_batch_size": 100, "max_batch_timeout": 5, "max_retries": 3 }
+    ]
+  },
+  // 사이트 원본 이벤트(클릭 좌표 등). 3개월 보관, 화면 집계는 D1
+  "analytics_engine_datasets": [{ "binding": "SITE_EVENTS", "dataset": "avc_events" }],
+  "ai": { "binding": "AI" },
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": {
+    "APP_URL": "http://localhost:5173",
+    "PUBLIC_SHORT_BASE": "http://localhost:5173/l",
+    // 운영 값. 로컬은 .dev.vars 에 APP_ENV=development 를 넣어 덮어쓴다 (없으면 휴대폰 인증번호가 응답에 노출되지 않는다)
+    "APP_ENV": "production"
+  }
+  // 시크릿 목록과 용도는 README.md "시크릿" 절 참고 (wrangler secret put / 로컬은 .dev.vars)
+}

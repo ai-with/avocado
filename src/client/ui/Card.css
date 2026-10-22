@@ -1,0 +1,6 @@
+.card { background: var(--color-surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--layout-card-padding); }
+.section-card { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); }
+.section-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; }
+.section-card-title { min-width: 0; flex: 1 1 240px; }
+.section-card-head p { margin-top: var(--space-2); }
+@media (max-width: 599px) { .section-card { padding: var(--layout-card-padding); } }

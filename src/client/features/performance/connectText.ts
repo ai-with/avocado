@@ -1,0 +1,46 @@
+// 인플루언서 언어로 보여 줄 문구 (F-54). 공개 화면 전용
+export type Lang = "ko" | "en";
+
+export const CONNECT_TEXT = {
+  ko: {
+    title: "인스타그램 계정 연결",
+    lead: (brand: string) => `${brand}에서 게시물 성과를 자동으로 받을 수 있게 계정을 연결해 주세요.`,
+    agency: (a: string) => `요청한 대행사: ${a}. 대행사가 이 계정의 성과를 봐요.`,
+    optional: "연결은 선택이며, 하지 않아도 참여할 수 있습니다.",
+    takes: "가져오는 것",
+    takesList: ["캠페인 게시물의 뷰, 좋아요, 저장, 공유, 댓글 수, 도달, 리포스트", "계정 이름과 계정 유형(프로페셔널 계정인지)"],
+    notTakes: "가져가지 않는 것",
+    notTakesList: ["DM(메시지)", "비공개 계정 정보, 팔로워 개인 정보", "캠페인과 관계없는 게시물의 지표"],
+    period: "기간",
+    periodText: "캠페인이 끝나고 7일 뒤까지만 가져와요. 인스타그램 설정의 '앱 및 웹사이트'에서 언제든 연결을 해제할 수 있어요.",
+    pro: "개인 계정은 연결할 수 없어요. 프로페셔널 계정(비즈니스·크리에이터)으로 바꾸거나, 연결하지 않고 그대로 참여하면 돼요.",
+    connect: "인스타그램으로 연결하기",
+    preparing: "연결 준비 중이에요. 지금은 연결하지 않아도 공개 지표(뷰, 좋아요, 댓글)는 자동으로 모아요.",
+    done: "연결됐어요. 이 창을 닫아도 돼요.",
+    connectedAs: (u: string) => `@${u} 계정이 연결되어 있어요.`,
+    errors: { personal_account: "개인 계정이라 연결하지 못했어요. 프로페셔널 계정으로 바꾼 뒤 다시 시도해 주세요.", denied: "연결을 취소했어요. 연결하지 않아도 참여할 수 있어요.", not_configured: "연결 준비 중이에요.", other: "연결하지 못했어요. 잠시 후 다시 시도해 주세요." },
+    notFound: "링크를 찾을 수 없어요.",
+    toggle: "English",
+  },
+  en: {
+    title: "Connect your Instagram account",
+    lead: (brand: string) => `Connect your account so ${brand} can receive your post results automatically.`,
+    agency: (a: string) => `${a} (agency) will see this account's results.`,
+    optional: "Connecting is optional. You can take part without it.",
+    takes: "What we collect",
+    takesList: ["Views, likes, saves, shares, comments, reach and reposts of campaign posts", "Account name and account type (professional or not)"],
+    notTakes: "What we never collect",
+    notTakesList: ["Your DMs (messages)", "Private account details or follower personal data", "Metrics of posts unrelated to the campaign"],
+    period: "Period",
+    periodText: "Only until 7 days after the campaign ends. You can disconnect anytime in Instagram settings under 'Apps and websites'.",
+    pro: "Personal accounts cannot connect. Switch to a professional (business or creator) account, or simply take part without connecting.",
+    connect: "Connect with Instagram",
+    preparing: "Connection is not available yet. Public metrics (views, likes, comments) are still collected automatically.",
+    done: "Connected. You can close this window.",
+    connectedAs: (u: string) => `@${u} is connected.`,
+    errors: { personal_account: "This is a personal account. Switch to a professional account and try again.", denied: "You cancelled. You can still take part without connecting.", not_configured: "Connection is not available yet.", other: "Could not connect. Please try again later." },
+    notFound: "Link not found.",
+    toggle: "한국어",
+  },
+};
+export type ConnectText = (typeof CONNECT_TEXT)[Lang];

@@ -1,0 +1,53 @@
+import type { Hono } from "hono";
+import type { AppEnv } from "../types";
+import { authRoutes } from "./auth";
+import { workspacesRoutes } from "./workspaces";
+import { workspaceRoutes } from "./workspace";
+import { inviteRoutes } from "./invites";
+import { guidelineRoutes, guideRoutes, influencerRoutes, homeRoutes } from "./guides";
+import { publicGuideRoutes } from "./public-guide";
+import { guideLinkRoutes, linkRoutes } from "./links";
+import { documentRoutes } from "./documents";
+import { leadRoutes } from "./leads";
+import { formRoutes } from "./forms";
+import { publicLeadRoutes, shortLinkRedirect } from "./public-lead";
+import { automationRoutes, broadcastRoutes, messagingRoutes } from "./messaging";
+import { igRoutes, igWebhookRoutes } from "./instagram";
+import { performanceRoutes } from "./performance";
+import { keywordDmRoutes } from "./keyword-dm";
+import { fileRoutes, guideContentRoutes, publicFeedbackRoutes, reviewRoutes } from "./reviews";
+import { collectRoutes } from "./collect";
+import { siteRoutes } from "./sites";
+
+// 라우트는 한 줄씩 추가한다. 공개 경로(/l/*, /webhooks/*)도 여기서 등록한다
+export function registerRoutes(app: Hono<AppEnv>) {
+  app.route("/api/auth", authRoutes);
+  app.route("/api/workspaces", workspacesRoutes);
+  app.route("/api/workspace", workspaceRoutes);
+  app.route("/api/invites", inviteRoutes);
+  app.route("/api/guideline-sets", guidelineRoutes);
+  app.route("/api/guides", guideRoutes);
+  app.route("/api/influencers", influencerRoutes);
+  app.route("/api/home", homeRoutes);
+  app.route("/api/public", publicGuideRoutes);
+  app.route("/api/guides", guideLinkRoutes);
+  app.route("/api/links", linkRoutes);
+  app.route("/api/documents", documentRoutes);
+  app.route("/api/leads", leadRoutes);
+  app.route("/api/forms", formRoutes);
+  app.route("/api/public", publicLeadRoutes);
+  app.route("/l", shortLinkRedirect);
+  app.route("/api/automations", automationRoutes);
+  app.route("/api/broadcasts", broadcastRoutes);
+  app.route("/api/messaging", messagingRoutes);
+  app.route("/api/ig", igRoutes);
+  app.route("/webhooks", igWebhookRoutes);
+  app.route("/api/performance", performanceRoutes);
+  app.route("/api/keyword-dm", keywordDmRoutes);
+  app.route("/api/reviews", reviewRoutes);
+  app.route("/api/files", fileRoutes);
+  app.route("/api/guides", guideContentRoutes);
+  app.route("/api/public", publicFeedbackRoutes);
+  app.route("/collect", collectRoutes);
+  app.route("/api/sites", siteRoutes);
+}

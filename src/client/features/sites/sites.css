@@ -1,0 +1,22 @@
+/* 사이트 분석: 설치 스니펫과 처리방침 예시 문구 블록 */
+.site-snippet,
+.site-policy {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-lh);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.site-snippet {
+  font-family: var(--font-mono);
+}
+
+.site-policy {
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,23 @@
+.field { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.field-label { font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-medium); color: var(--color-text-primary); }
+.field-required { margin-left: var(--space-3); font-size: var(--text-caption-size); color: var(--color-text-tertiary); font-weight: var(--weight-regular); }
+.field-hint { font-size: var(--text-caption-size); line-height: var(--text-caption-lh); color: var(--color-text-tertiary); }
+.field-error { font-size: var(--text-caption-size); line-height: var(--text-caption-lh); color: var(--color-danger); }
+.control {
+  width: 100%; height: var(--control-height); padding: 0 var(--space-5);
+  background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-input);
+  font-size: var(--text-body-size);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.control:hover:not(:disabled):not(:focus) { border-color: var(--color-text-tertiary); }
+.control::placeholder { color: var(--color-text-tertiary); opacity: 0.85; }
+.control:focus { outline: none; border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+.control:disabled { background: var(--color-surface-subtle); color: var(--color-text-tertiary); cursor: not-allowed; }
+.control[aria-invalid="true"] { border-color: var(--color-danger); }
+.control[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px var(--color-danger-subtle); }
+.control-textarea { height: auto; min-height: 96px; padding: var(--space-4) var(--space-5); resize: vertical; line-height: var(--text-body-lh); }
+select.control { padding-right: var(--space-9); }
+.checkbox { display: inline-flex; align-items: center; gap: var(--space-4); font-size: var(--text-body-sm-size); cursor: pointer; min-height: 24px; }
+.checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--color-accent); }
+@media (max-width: 599px) { .control { font-size: 16px; } }
+@media (pointer: coarse) { .control { min-height: var(--touch-target); } .checkbox { min-height: var(--touch-target); } }

@@ -1,0 +1,4 @@
+.lead-bulk-select { width: 180px; }
+.lead-tag-input { width: 240px; max-width: 100%; }
+.lead-tag-remove { border: 0; background: none; padding: 0 var(--space-1); color: inherit; cursor: pointer; line-height: 1; }
+.lead-tag-remove:hover { color: var(--color-danger); }
