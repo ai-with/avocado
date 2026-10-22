@@ -17,7 +17,7 @@
       "binding": "DB",
       "database_name": "avocado-db",
       // `npx wrangler d1 create avocado-db` 후 실제 ID로 바꾼다
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "7f125f6a-53d1-4977-bc91-9c742e0b501c",
       "migrations_dir": "migrations"
     }
   ],
@@ -38,8 +38,8 @@
   "ai": { "binding": "AI" },
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": {
-    "APP_URL": "http://localhost:5173",
-    "PUBLIC_SHORT_BASE": "http://localhost:5173/l",
+    "APP_URL": "https://avocado.ycreator1000z.workers.dev",
+    "PUBLIC_SHORT_BASE": "https://avocado.ycreator1000z.workers.dev/l",
     // 운영 값. 로컬은 .dev.vars 에 APP_ENV=development 를 넣어 덮어쓴다 (없으면 휴대폰 인증번호가 응답에 노출되지 않는다)
     "APP_ENV": "production"
   }
