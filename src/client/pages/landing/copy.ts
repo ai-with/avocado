@@ -20,8 +20,6 @@ export const HERO = {
   title: "해외 인플루언서 숏폼,\n링크 하나로 받고 고칩니다",
   sub: "K뷰티 브랜드를 위한 해외 숏폼 가이드·검수 도구입니다. 대사 번역과 위반 후보를 먼저 보여 드리고 판단은 브랜드가 합니다.",
   primary: "시작하기",
-  secondary: "로그인",
-  tour: "어떻게 쓰는지 보기",
   checks: ["인플루언서는 가입하지 않습니다", "원본 영상은 그대로 보관합니다"],
 };
 
@@ -166,7 +164,7 @@ export const FINAL_CTA = {
 
 export const FOOTER_LINKS = [
   { to: "/login", label: "로그인" },
-  { to: "/signup", label: "가입" },
+  { to: "/signup", label: "시작하기" },
 ];
 export const FOOTER_PLACEHOLDERS = ["문의 이메일", "이용약관", "개인정보 처리방침"];
 

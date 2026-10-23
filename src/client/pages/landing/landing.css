@@ -5,7 +5,7 @@
   --landing-cta-height: 44px;
   background: var(--color-surface); color: var(--color-text-primary); min-height: 100%;
 }
-/* 히어로 "어떻게 쓰는지 보기"와 헤더 앵커가 부드럽게 내려간다. 움직임 줄이기는 base.css가 끈다 */
+/* 헤더 앵커가 부드럽게 내려간다. 움직임 줄이기는 base.css가 끈다 */
 html:has(.landing) { scroll-behavior: smooth; }
 .landing [id] { scroll-margin-top: var(--landing-header-height); }
 .landing-container { width: 100%; max-width: var(--layout-container-max); margin: 0 auto; padding: 0 var(--layout-gutter); }
