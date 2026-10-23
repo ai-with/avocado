@@ -32,10 +32,10 @@
 
 /* 검수 화면 목업 */
 /* 카드 열은 320px 아래로 줄지 않는다. 자리가 모자라면 릴스 열(최대 280px, 높이 약 500px)이 먼저 줄어든다 */
-.landing-mock { --landing-reel-max: 280px; --landing-mock-max: 760px; display: grid; grid-template-columns: minmax(0, var(--landing-reel-max)) minmax(320px, 1fr); align-items: start; gap: var(--space-6); padding: var(--space-6); border-radius: var(--radius-2xl); background: var(--color-surface-subtle); box-shadow: var(--shadow-ring); }
+.landing-mock { --landing-reel-max: 280px; --landing-mock-max: 760px; display: grid; grid-template-columns: minmax(0, var(--landing-reel-max)) minmax(320px, 1fr); align-items: stretch; gap: var(--space-6); padding: var(--space-6); border-radius: var(--radius-2xl); background: var(--color-surface-subtle); box-shadow: var(--shadow-ring); }
 /* 히어로 릴스 플레이어: 세로 9:16, 위에 태그·버튼·진행 바를 얹는다 */
-.landing-reel { --landing-reel-track: 3px; --landing-reel-marker: 8px; position: relative; aspect-ratio: 9 / 16; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface-inverted); }
-.landing-reel-video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.landing-reel { --landing-reel-track: 3px; --landing-reel-marker: 8px; position: relative; min-height: 360px; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface-inverted); }
+.landing-reel-video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
 .landing-reel-chip { padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); background: var(--color-overlay-strong); color: var(--color-text-inverted); font-size: var(--text-caption-size); }
 .landing-reel-tag { position: absolute; top: var(--space-5); left: var(--space-5); }
 /* 가운데 정렬을 transform으로 하면 .btn:active의 transform이 덮어써 누르는 순간 버튼이 밀려 클릭이 빠진다 */
@@ -128,7 +128,7 @@
 /* 목업 안 릴스와 카드를 세로로 쌓는다 */
 @media (max-width: 719px) {
   .landing-mock { --landing-reel-max: 240px; grid-template-columns: minmax(0, 1fr); }
-  .landing-reel { width: min(100%, var(--landing-reel-max)); justify-self: center; }
+  .landing-reel { width: min(100%, var(--landing-reel-max)); justify-self: center; aspect-ratio: 9 / 16; min-height: 0; }
 }
 @media (max-width: 599px) {
   .landing { --landing-sub-size: 17px; --landing-sub-lh: 26px; }
