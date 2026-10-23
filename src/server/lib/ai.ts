@@ -58,7 +58,7 @@ export async function translate(env: Env, text: string, from: string, to: string
 }
 
 // 모델이 JSON 을 객체로 풀어 줄 때와 문자열로 줄 때가 모두 있다
-function jsonOf(res: unknown): unknown {
+export function jsonOf(res: unknown): unknown {
   if (res && typeof res === "object") return res;
   const text = typeof res === "string" ? res : "";
   const start = text.indexOf("{");

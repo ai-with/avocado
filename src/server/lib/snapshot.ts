@@ -5,8 +5,9 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 export class SnapshotError extends Error {}
 
-async function readCapped(res: Response): Promise<string> {
-  if (Number(res.headers.get("content-length") ?? 0) > MAX_BYTES) throw new SnapshotError("too_large");
+// truncate 면 상한을 넘을 때 오류 대신 거기까지만 읽고 멈춘다 (앞부분 meta 만 필요할 때)
+export async function readCapped(res: Response, maxBytes = MAX_BYTES, truncate = false): Promise<string> {
+  if (!truncate && Number(res.headers.get("content-length") ?? 0) > maxBytes) throw new SnapshotError("too_large");
   const reader = res.body?.getReader();
   if (!reader) return "";
   const chunks: Uint8Array[] = [];
@@ -14,11 +15,14 @@ async function readCapped(res: Response): Promise<string> {
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    size += value.byteLength;
-    if (size > MAX_BYTES) {
+    if (size + value.byteLength > maxBytes) {
       await reader.cancel();
-      throw new SnapshotError("too_large");
+      if (!truncate) throw new SnapshotError("too_large");
+      chunks.push(value.subarray(0, maxBytes - size));
+      size = maxBytes;
+      break;
     }
+    size += value.byteLength;
     chunks.push(value);
   }
   const all = new Uint8Array(size);

@@ -1,5 +1,6 @@
 import { Input, SectionCard, Select, Textarea } from "../../../ui";
 import { lines, toDateInput, type GuideForm, type SetField } from "../useGuideForm";
+import { ProductImportRow } from "./ProductImportRow";
 
 type Props = { form: GuideForm; set: SetField; fields: Record<string, string> };
 
@@ -8,6 +9,7 @@ export function BasicInfoSection({ form, set, fields }: Props) {
   return (
     <SectionCard title="기본 정보">
       <div className="stack">
+        <ProductImportRow form={form} set={set} />
         <Input label="가이드 이름" value={form.name} onChange={(e) => set("name", e.target.value)} error={fields.name} placeholder="예: 여름 글로우 세럼 릴스" required maxLength={80} />
         <div className="grid-2">
           <Input label="제품 이름" value={form.product.name} onChange={(e) => setProduct({ name: e.target.value })} error={fields["product.name"]} />
