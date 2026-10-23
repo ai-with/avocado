@@ -5,9 +5,10 @@ import { LandingCta } from "./Cta";
 export function FinalCta() {
   return (
     <section className="landing-final landing-container">
-      <h2>{FINAL_CTA.title}</h2>
-      <LandingCta />
-      <p className="landing-note">{FINAL_CTA.note}</p>
+      <div className="landing-final-card">
+        <h2>{FINAL_CTA.title}</h2>
+        <LandingCta />
+      </div>
     </section>
   );
 }

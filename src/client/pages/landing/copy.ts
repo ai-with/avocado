@@ -163,7 +163,6 @@ export const FAQ = {
 // B12
 export const FINAL_CTA = {
   title: "다음 해외 시딩, 첫 캠페인부터 링크 하나로",
-  note: "첫 캠페인 1건은 무료입니다. 비용은 이용 방식을 고른 뒤에만 생깁니다.",
 };
 
 export const FOOTER_LINKS = [
