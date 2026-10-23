@@ -18,7 +18,7 @@ export const NAV: { title?: string; items: NavItem[] }[] = [
     items: [
       { to: "/dashboard/links", label: "리드 링크", icon: "link" },
       { to: "/dashboard/forms", label: "신청 폼", icon: "clipboard-list" },
-      { to: "/dashboard/keyword-dm", label: "댓글 키워드 DM", icon: "message-circle" },
+      { to: "/dashboard/keyword-dm", label: "자동 DM", icon: "message-circle" },
     ],
   },
   {

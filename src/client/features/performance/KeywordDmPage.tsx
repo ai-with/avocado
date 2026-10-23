@@ -10,7 +10,7 @@ import { RuleEditor } from "./sections/RuleEditor";
 import { SendsModal } from "./sections/SendsModal";
 import "./performance.css";
 
-const TITLE = "댓글 키워드 DM";
+const TITLE = "자동 DM";
 const DESCRIPTION = "브랜드 게시물에 키워드 댓글을 단 사람에게 리드 링크를 DM으로 한 번 보내요.";
 
 // /keyword-dm 댓글 키워드 자동 DM (F-64, W18)
