@@ -77,7 +77,6 @@ export function Hero() {
   return (
     <section className="landing-hero landing-container">
       <div className="landing-hero-text">
-        <Badge tone="accent">{HERO.badge}</Badge>
         <h1 className="landing-display">{HERO.title}</h1>
         <p className="landing-sub">{HERO.sub}</p>
         <HeroActions />
