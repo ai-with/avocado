@@ -10,7 +10,7 @@ export const NAV: { title?: string; items: NavItem[] }[] = [
     items: [
       { to: "/dashboard/guides", label: "가이드", icon: "file-text" },
       { to: "/dashboard/influencers", label: "인플루언서", icon: "users" },
-      { to: "/dashboard/reviews", label: "검수함", icon: "clipboard-check" },
+      { to: "/dashboard/reviews", label: "초안검수", icon: "clipboard-check" },
     ],
   },
   {

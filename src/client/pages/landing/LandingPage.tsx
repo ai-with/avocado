@@ -4,6 +4,7 @@ import { LandingHeader } from "./sections/Header";
 import { Hero } from "./sections/Hero";
 import { Features, Problem, Process } from "./sections/Features";
 import { Faq } from "./sections/Faq";
+import { Showcase } from "./sections/Showcase";
 import { FinalCta, LandingFooter } from "./sections/Footer";
 import "./landing.css";
 
@@ -20,6 +21,7 @@ export function LandingPage() {
       <main>
         <Hero />
         <Problem />
+        <Showcase />
         <Features />
         <Process />
         <Faq />

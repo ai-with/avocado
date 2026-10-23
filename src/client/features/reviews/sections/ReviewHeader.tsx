@@ -9,7 +9,7 @@ export function ReviewHeader({ d, onApprove }: { d: ReviewDetail; onApprove: () 
     <PageHeader
       title={`${d.influencer.displayName} · v${d.submission.version}`}
       description={d.guide.name}
-      back={{ to: "/dashboard/reviews", label: "검수함" }}
+      back={{ to: "/dashboard/reviews", label: "초안검수" }}
       actions={
         <>
           {d.submission.videoUrl && <ButtonAnchor href={`${d.submission.videoUrl}?download=1`}>원본 내려받기</ButtonAnchor>}

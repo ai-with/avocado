@@ -53,6 +53,15 @@
 .landing-chips li { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-full); font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
 .landing-note { font-size: var(--text-body-sm-size); color: var(--color-text-tertiary); max-width: var(--layout-content-max); }
 
+/* 소개 영상 (이렇게 씁니다) */
+.landing-showcase { --landing-showcase-max: 1100px; --landing-showcase-title-size: 40px; --landing-showcase-title-lh: 52px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-14); }
+.landing-showcase-item { display: flex; flex-direction: column; align-items: center; gap: var(--space-9); }
+.landing-showcase-head { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.landing-showcase-head h3 { font-size: var(--landing-showcase-title-size); line-height: var(--landing-showcase-title-lh); letter-spacing: var(--text-h1-ls); font-weight: var(--weight-semibold); }
+.landing-showcase-frame { position: relative; width: 100%; max-width: var(--landing-showcase-max); }
+.landing-showcase-video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-2xl); box-shadow: var(--shadow-card); background: var(--color-bg); }
+.landing-showcase-play { position: absolute; left: 50%; bottom: var(--space-8); transform: translateX(-50%); }
+
 /* FAQ */
 .landing-faq { display: flex; flex-direction: column; max-width: var(--layout-content-max); border-top: 1px solid var(--color-border); }
 .landing-faq-item { border-bottom: 1px solid var(--color-border); padding: var(--space-6) 0; }
@@ -75,4 +84,5 @@
   .landing-grid, .landing-grid.is-steps { grid-template-columns: 1fr; }
   .landing-anchors, .landing-header-login { display: none; }
   .landing-mock { grid-template-columns: 1fr; }
+  .landing-showcase { --landing-showcase-title-size: 32px; --landing-showcase-title-lh: 40px; gap: var(--space-12); }
 }

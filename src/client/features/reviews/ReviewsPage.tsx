@@ -22,7 +22,7 @@ export const StateBadge = ({ row }: { row: Pick<ReviewRow, "state" | "delayed"> 
 export function ReviewsPage() {
   return (
     <>
-      <PageHeader title="검수함" description="올라온 영상을 처리 상태별로 모았어요. 위반 후보는 참고용이고 판단은 직접 해요." />
+      <PageHeader title="초안검수" description="올라온 영상을 처리 상태별로 모았어요. 위반 후보는 참고용이고 판단은 직접 해요." />
       <ReviewList />
     </>
   );
