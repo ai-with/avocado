@@ -26,13 +26,28 @@ export const HERO = {
 };
 
 // 히어로 오른쪽 검수 화면 목업. 값은 전부 예시
+// 히어로 릴스(public/videos/hero-reel.*, 8초) 기준 시각. 시간 순서로 둔다
 export const HERO_MOCK = {
+  duration: 8,
   candidates: [
-    { time: "00:14", label: "위반 후보: 금지 표현", tone: "danger" as const },
-    { time: "00:03", label: "준수: 첫 3초 제품 노출", tone: "success" as const },
+    { seconds: 1, label: "준수: 첫 3초 제품 노출", tone: "success" as const },
+    { seconds: 2, label: "위반 후보: 금지 표현", tone: "danger" as const },
   ],
-  line: "This serum made my skin glow in just a week.",
+  lineStart: 0.3,
+  lineEnd: 3,
+  line: "Okay, this serum made my skin glow in just a week.",
   translation: "이 세럼 덕분에 일주일 만에 피부가 빛나요.",
+  // 위반 후보를 누르면(또는 처음 그 구간에 닿으면) 보여 주는 수정 제안 예시. selection은 line 안의 연속 단어
+  suggestion: {
+    selection: "made my skin glow in just a week",
+    ko: "효과 기간을 단정하지 말고 사용감으로 말해 주세요. 예: 바르자마자 촉촉하게 스며들어요.",
+    en: "Please don't promise a time-bound result. Talk about how it feels instead, e.g. \"It sinks in and feels hydrating right away.\"",
+    title: "수정 제안",
+    hint: "위반 후보를 누르면 수정 제안을 써 볼 수 있어요",
+    translating: "영어로 번역 중…",
+    send: "보내기",
+    sent: "전송됨",
+  },
 };
 
 // B2
@@ -53,7 +68,7 @@ export const FEATURES: FeatureSection[] = [
     sub: "필수 문구와 금지 표현을 한 번 저장합니다. 캠페인마다 가이드와 검수 기준으로 쓰입니다.",
     chips: ["필수 문구", "금지 표현", "필수 장면", "광고 표기", "길이·비율", "말하는 언어"],
     items: [
-      { title: "가이드 초안을 먼저 받습니다", body: "제품 정보를 넣으면 장면·대사 예시가 담긴 초안이 나옵니다. 고치고 저장해야 공개됩니다." },
+      { title: "가이드 초안을 먼저 받습니다", body: "제품 정보를 넣으면 장면과 대사가 담긴 초안이 나옵니다. 고치고 저장해야 공개됩니다." },
       { title: "인플루언서마다 다른 링크를 보냅니다", body: "로그인 없이 휴대폰에서 열립니다. 영어로 먼저 보이고 한국어로 바뀝니다." },
       { title: "누가 열어 봤는지 압니다", body: "인플루언서별 열람 여부와 시각이 보입니다." },
     ],

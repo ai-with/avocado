@@ -3,7 +3,6 @@
   --landing-sub-size: 20px; --landing-sub-lh: 30px;
   --landing-header-height: 56px;
   --landing-cta-height: 44px;
-  --landing-mock-height: 360px;
   background: var(--color-surface); color: var(--color-text-primary); min-height: 100%;
 }
 .landing-container { width: 100%; max-width: var(--layout-container-max); margin: 0 auto; padding: 0 var(--layout-gutter); }
@@ -18,7 +17,8 @@
 .landing-header-actions { margin-left: auto; display: flex; gap: var(--space-4); }
 
 /* 히어로 */
-.landing-hero { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); align-items: center; padding-top: var(--layout-section-gap); padding-bottom: var(--layout-section-gap); }
+/* 1fr의 최소 폭은 자식 min-content라 목업이 넓어지면 페이지를 밀어낸다. minmax(0, 1fr)로 막는다 */
+.landing-hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-10); align-items: center; padding-top: var(--layout-section-gap); padding-bottom: var(--layout-section-gap); }
 .landing-hero-text { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); }
 .landing-display { font-size: var(--text-display-size); line-height: var(--text-display-lh); letter-spacing: var(--text-display-ls); font-weight: var(--weight-semibold); white-space: pre-line; }
 .landing-sub { font-size: var(--landing-sub-size); line-height: var(--landing-sub-lh); color: var(--color-text-secondary); }
@@ -31,13 +31,55 @@
 .btn.landing-cta { height: var(--landing-cta-height); padding: 0 var(--space-8); border-radius: var(--radius-full); font-size: var(--text-body-lg-size); }
 
 /* 검수 화면 목업 */
-.landing-mock { display: grid; grid-template-columns: 2fr 3fr; gap: var(--space-6); padding: var(--space-6); border-radius: var(--radius-2xl); background: var(--color-surface-subtle); box-shadow: var(--shadow-ring); }
-.landing-mock-player { position: relative; height: var(--landing-mock-height); border-radius: var(--radius-lg); background: var(--color-surface-inverted); }
-.landing-mock-tag { position: absolute; top: var(--space-5); left: var(--space-5); color: var(--color-text-inverted); font-size: var(--text-caption-size); }
-.landing-mock-side { display: flex; flex-direction: column; gap: var(--space-5); }
-.landing-mock-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-5); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); font-size: var(--text-body-sm-size); }
+/* 카드 열은 320px 아래로 줄지 않는다. 자리가 모자라면 릴스 열(최대 280px, 높이 약 500px)이 먼저 줄어든다 */
+.landing-mock { --landing-reel-max: 280px; --landing-mock-max: 760px; display: grid; grid-template-columns: minmax(0, var(--landing-reel-max)) minmax(320px, 1fr); align-items: start; gap: var(--space-6); padding: var(--space-6); border-radius: var(--radius-2xl); background: var(--color-surface-subtle); box-shadow: var(--shadow-ring); }
+/* 히어로 릴스 플레이어: 세로 9:16, 위에 태그·버튼·진행 바를 얹는다 */
+.landing-reel { --landing-reel-track: 3px; --landing-reel-marker: 8px; position: relative; aspect-ratio: 9 / 16; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface-inverted); }
+.landing-reel-video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.landing-reel-chip { padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); background: var(--color-overlay-strong); color: var(--color-text-inverted); font-size: var(--text-caption-size); }
+.landing-reel-tag { position: absolute; top: var(--space-5); left: var(--space-5); }
+/* 가운데 정렬을 transform으로 하면 .btn:active의 transform이 덮어써 누르는 순간 버튼이 밀려 클릭이 빠진다 */
+.landing-reel-toggle { position: absolute; inset: 0; margin: auto; opacity: 0; transition: opacity var(--duration-base) var(--ease-out); }
+.landing-reel:hover .landing-reel-toggle, .landing-reel:focus-within .landing-reel-toggle, .landing-reel.is-paused .landing-reel-toggle { opacity: 1; }
+@media (hover: none) { .landing-reel-toggle { opacity: 1; } }
+.landing-reel-foot { position: absolute; left: var(--space-5); right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3); }
+.landing-reel-clock { font-family: var(--font-mono); }
+.landing-reel-track { position: relative; width: 100%; height: var(--landing-reel-track); border-radius: var(--radius-full); background: var(--color-overlay-strong); }
+.landing-reel-progress { height: 100%; border-radius: inherit; background: var(--color-text-inverted); }
+.landing-reel-marker { position: absolute; top: 50%; width: var(--landing-reel-marker); height: var(--landing-reel-marker); border-radius: var(--radius-full); transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--color-text-inverted); }
+.landing-reel-marker.is-success { background: var(--color-success); }
+.landing-reel-marker.is-danger { background: var(--color-danger); }
+.landing-mock-side { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.landing-mock-card { min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-5); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); font-size: var(--text-body-sm-size); }
 .landing-mock-time { font-family: var(--font-mono); font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
-.landing-mock-line { margin-top: auto; }
+.landing-mock-cue { flex-direction: row; align-items: center; flex-wrap: wrap; border: 1px solid transparent; text-align: left; color: inherit; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); }
+.landing-mock-cue:hover { border-color: var(--color-border); }
+.landing-mock-cue.is-active { border-color: var(--color-accent); background: var(--color-accent-subtle); }
+.landing-word { transition: background-color var(--duration-fast) var(--ease-out); border-radius: var(--radius-sm); }
+.landing-word.is-current { background: var(--color-accent-subtle); color: var(--color-accent); }
+.landing-mock-translation { color: var(--color-text-secondary); transition: color var(--duration-fast) var(--ease-out); }
+.landing-mock-line.is-speaking .landing-mock-translation { color: var(--color-text-primary); font-weight: var(--weight-semibold); }
+.landing-word.is-selected { background: var(--color-danger-subtle); color: var(--color-danger); }
+.landing-fake-cursor { position: relative; display: inline-block; width: 0; }
+.landing-fake-cursor svg { position: absolute; top: var(--space-2); left: calc(var(--space-2) * -1); color: var(--color-text-primary); fill: var(--color-surface); }
+
+/* 수정 제안 카드: 다 쓴 상태의 높이를 처음부터 차지하고, 보이는 범위만 늘려 간다 */
+.landing-suggest { position: relative; align-items: stretch; }
+.landing-suggest-hint { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-5); text-align: center; color: var(--color-text-tertiary); }
+.landing-suggest-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.landing-suggest.is-idle .landing-suggest-body, .landing-suggest.is-selecting .landing-suggest-body { visibility: hidden; }
+.landing-suggest-pending { visibility: hidden; }
+.landing-suggest-en { color: var(--color-text-secondary); opacity: 0; visibility: hidden; transition: opacity var(--duration-base) var(--ease-out); }
+.landing-suggest.is-done .landing-suggest-en { opacity: 1; visibility: visible; }
+.landing-suggest-foot { display: flex; align-items: center; gap: var(--space-4); min-height: var(--control-height-sm); }
+.landing-suggest-status { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--color-text-tertiary); font-size: var(--text-caption-size); }
+.landing-caret { display: inline-block; width: 2px; height: 1em; margin-right: -2px; vertical-align: text-bottom; background: var(--color-text-primary); animation: landing-blink 1s steps(1) infinite; }
+.landing-dots { display: inline-flex; gap: 3px; }
+.landing-dots span { width: 4px; height: 4px; border-radius: var(--radius-full); background: currentColor; animation: landing-dot 0.9s ease-in-out infinite; }
+.landing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.landing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes landing-blink { 50% { opacity: 0; } }
+@keyframes landing-dot { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
 /* 섹션 */
 .landing-section { padding: var(--layout-section-gap) 0; }
@@ -60,7 +102,7 @@
 .landing-showcase-head h3 { font-size: var(--landing-showcase-title-size); line-height: var(--landing-showcase-title-lh); letter-spacing: var(--text-h1-ls); font-weight: var(--weight-semibold); }
 .landing-showcase-frame { position: relative; width: 100%; max-width: var(--landing-showcase-max); }
 .landing-showcase-video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-2xl); box-shadow: var(--shadow-card); background: var(--color-bg); }
-.landing-showcase-play { position: absolute; left: 50%; bottom: var(--space-8); transform: translateX(-50%); }
+.landing-showcase-play { position: absolute; left: 0; right: 0; bottom: var(--space-8); width: fit-content; margin: 0 auto; }
 
 /* FAQ */
 .landing-faq { display: flex; flex-direction: column; max-width: var(--layout-content-max); border-top: 1px solid var(--color-border); }
@@ -75,14 +117,22 @@
 .landing-footer-links { display: flex; flex-wrap: wrap; gap: var(--space-8); font-size: var(--text-body-sm-size); }
 .landing-footer-links a { color: var(--color-text-secondary); text-decoration: none; }
 
+/* 목업이 카드 열 320px을 지킬 만큼 넓지 않으면 히어로를 1열로 */
+@media (max-width: 1199px) {
+  .landing-hero { grid-template-columns: minmax(0, 1fr); }
+  .landing-hero .landing-mock { width: 100%; max-width: var(--landing-mock-max); justify-self: center; }
+}
 @media (max-width: 1023px) {
-  .landing-hero { grid-template-columns: 1fr; }
   .landing-grid, .landing-grid.is-steps { grid-template-columns: repeat(2, 1fr); }
 }
+/* 목업 안 릴스와 카드를 세로로 쌓는다 */
+@media (max-width: 719px) {
+  .landing-mock { --landing-reel-max: 240px; grid-template-columns: minmax(0, 1fr); }
+  .landing-reel { width: min(100%, var(--landing-reel-max)); justify-self: center; }
+}
 @media (max-width: 599px) {
-  .landing { --landing-sub-size: 17px; --landing-sub-lh: 26px; --landing-mock-height: 240px; }
+  .landing { --landing-sub-size: 17px; --landing-sub-lh: 26px; }
   .landing-grid, .landing-grid.is-steps { grid-template-columns: 1fr; }
   .landing-anchors, .landing-header-login { display: none; }
-  .landing-mock { grid-template-columns: 1fr; }
   .landing-showcase { --landing-showcase-title-size: 32px; --landing-showcase-title-lh: 40px; gap: var(--space-12); }
 }
