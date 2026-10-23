@@ -108,7 +108,7 @@ export const igRoutes = new Hono<AppEnv>()
   .get("/oauth/start", async (c) => {
     const target = c.req.query("target") as IgTarget | undefined;
     const token = c.req.query("token") ?? null;
-    let back = "/settings/integrations";
+    let back = "/dashboard/settings/integrations";
     let ws: string;
     if (target === "brand_sender") {
       const ctx = workspaceCtx(c);
@@ -126,8 +126,8 @@ export const igRoutes = new Hono<AppEnv>()
   .get("/oauth/callback", async (c) => {
     const db = c.var.db;
     const state = await readState(c.env, c.req.query("state") ?? "");
-    if (!state) return c.redirect("/settings/integrations?error=invalid_state");
-    const back = state.t === "brand_sender" ? "/settings/integrations" : `/connect/${state.k}`;
+    if (!state) return c.redirect("/dashboard/settings/integrations?error=invalid_state");
+    const back = state.t === "brand_sender" ? "/dashboard/settings/integrations" : `/connect/${state.k}`;
     const code = c.req.query("code");
     if (!code) {
       await logEvent(db, state.w, "ig_connect_failed", { reason: c.req.query("error") ?? "denied", target: state.t });

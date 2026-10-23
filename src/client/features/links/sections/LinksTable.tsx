@@ -12,7 +12,7 @@ function LinkTableRow({ l, channels, docs, onOpen }: { l: LinkRow } & Omit<Props
   const dest = destName(l, docs);
   return (
     <tr>
-      <td>{l.guideId ? <Link to={`/guides/${l.guideId}`}>{l.guideName}</Link> : "공용"}</td>
+      <td>{l.guideId ? <Link to={`/dashboard/guides/${l.guideId}`}>{l.guideName}</Link> : "공용"}</td>
       <td>{l.influencerName ?? "가이드 공용"}</td>
       <td>{channelLabel(l.channelKey, channels)}</td>
       <td className="truncate lt-dest-cell" title={dest ?? undefined}>{dest}</td>
@@ -31,7 +31,7 @@ function LinkTableRow({ l, channels, docs, onOpen }: { l: LinkRow } & Omit<Props
 // 워크스페이스 전체 링크 표
 export function LinksTable({ links, channels, docs, onOpen }: Props) {
   if (links.length === 0) {
-    return <EmptyState icon="link" title="아직 만든 링크가 없어요" description="가이드를 열고 '리드 링크' 탭에서 목적지를 고른 뒤 '인플루언서 전체 발급'을 눌러 보세요." action={<ButtonLink to="/guides">가이드로 가기</ButtonLink>} />;
+    return <EmptyState icon="link" title="아직 만든 링크가 없어요" description="가이드를 열고 '리드 링크' 탭에서 목적지를 고른 뒤 '인플루언서 전체 발급'을 눌러 보세요." action={<ButtonLink to="/dashboard/guides">가이드로 가기</ButtonLink>} />;
   }
   return (
     <Table>

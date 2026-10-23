@@ -10,7 +10,7 @@ export function VersionsTab({ d }: { d: ReviewDetail }) {
     <div className="stack">
       <div className="row row-wrap">
         {d.versions.map((v) => (
-          <Link key={v.id} to={`/reviews/${v.id}`} className={`version-pill${v.id === d.submission.id ? " is-active" : ""}`} aria-current={v.id === d.submission.id ? "page" : undefined}>
+          <Link key={v.id} to={`/dashboard/reviews/${v.id}`} className={`version-pill${v.id === d.submission.id ? " is-active" : ""}`} aria-current={v.id === d.submission.id ? "page" : undefined}>
             v{v.version}{d.approval?.submissionId === v.id ? " 승인" : ""}
           </Link>
         ))}

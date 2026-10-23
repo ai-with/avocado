@@ -9,6 +9,7 @@ import { logEvent } from "../lib/events";
 import { sendEmail } from "../lib/email";
 import { requireRole, workspaceCtx } from "../middleware/auth";
 import { ROLE_LABELS } from "../../shared/roles";
+import { onboardingSchema } from "../../shared/onboarding";
 
 const INVITE_MS = 7 * 24 * 60 * 60 * 1000;
 const assignableRole = z.enum(["editor", "approver", "viewer"]);
@@ -22,6 +23,17 @@ export const workspaceRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     await c.var.db.update(workspaces).set({ name }).where(eq(workspaces.id, workspace.id));
     return c.json({ id: workspace.id, name });
+  })
+  // 첫 진입 설문. 건너뛰면 답은 남기지 않고 완료 시각만 기록한다
+  .post("/onboarding", async (c) => {
+    const body = parse(onboardingSchema, await c.req.json());
+    const { workspace } = workspaceCtx(c);
+    if (workspace.onboardedAt) throw new ApiError(409, "already_onboarded", "이미 온보딩을 마쳤습니다.");
+    const skipped = body.skipped === true;
+    const onboardedAt = now();
+    await c.var.db.update(workspaces).set({ onboarding: skipped ? null : JSON.stringify(body), onboardedAt }).where(eq(workspaces.id, workspace.id));
+    await logEvent(c.var.db, workspace.id, "onboarding_completed", { skipped });
+    return c.json({ onboardedAt });
   })
   .get("/members", async (c) => {
     const { workspace, role } = workspaceCtx(c);

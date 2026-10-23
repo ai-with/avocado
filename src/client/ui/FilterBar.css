@@ -4,6 +4,8 @@
 .filter-bar-fields .control { height: var(--control-height-sm); font-size: var(--text-body-sm-size); padding-left: var(--space-4); }
 .filter-bar-fields .field-label { font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
 .filter-bar-actions { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+/* 필터 칸(32px)과 높이를 맞춘다 */
+.filter-bar-actions .btn { height: var(--control-height-sm); padding: 0 var(--space-5); font-size: var(--text-label-size); }
 @media (max-width: 599px) {
   .filter-bar-fields { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .filter-bar-fields > * { min-width: 0; }

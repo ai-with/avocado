@@ -13,7 +13,7 @@ export function FormEditorPage() {
   const brand = useMe().me?.workspace?.name ?? "";
   return (
     <>
-      <PageHeader title={f.isNew ? "폼 만들기" : d.title || "폼"} back={{ to: "/forms", label: "폼 목록" }} />
+      <PageHeader title={f.isNew ? "폼 만들기" : d.title || "폼"} back={{ to: "/dashboard/forms", label: "폼 목록" }} />
       <div className="lt-split">
         <div className="stack-loose">
           <ContentSection d={d} set={set} guides={f.guides} onPickHeader={(file) => void f.pickHeader(file)} />

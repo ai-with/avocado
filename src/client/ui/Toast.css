@@ -1,12 +1,15 @@
 .toasts {
-  position: fixed; bottom: calc(var(--space-8) + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-4); z-index: var(--z-toast);
+  position: fixed; bottom: calc(var(--space-8) + env(safe-area-inset-bottom)); right: var(--space-8);
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-4); z-index: var(--z-toast);
   width: max-content; max-width: calc(100vw - 2 * var(--space-6)); pointer-events: none;
 }
 .toast {
-  padding: var(--space-5) var(--space-7); border-radius: var(--radius-md); background: var(--color-surface-inverted); color: var(--color-text-inverted);
-  font-size: var(--text-body-sm-size); box-shadow: var(--shadow-raised); animation: rise-in var(--duration-base) var(--ease-out);
+  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-6) var(--space-4) var(--space-5); border-radius: var(--radius-md);
+  background: var(--color-surface-inverted); color: var(--color-text-inverted);
+  font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-medium); box-shadow: var(--shadow-popover); animation: rise-in var(--duration-base) var(--ease-out);
 }
 .toast-success { background: var(--color-success); }
 .toast-danger { background: var(--color-danger); }
+.toast svg { flex-shrink: 0; }
+@media (max-width: 599px) { .toasts { right: 50%; transform: translateX(50%); align-items: center; } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }

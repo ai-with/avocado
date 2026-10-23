@@ -1,15 +1,37 @@
-.auth { min-height: 100%; display: grid; place-items: center; padding: var(--space-9) var(--layout-gutter); background: var(--color-surface-subtle); }
-.auth-card { width: 100%; max-width: 400px; }
-.auth-card h3 { margin-bottom: var(--space-2); }
-.auth-card form { margin-top: var(--space-8); }
-/* 인증 화면의 주 버튼은 손가락으로 누르기 쉽게 카드 너비를 꽉 채운다 */
-.auth-card .btn-primary { width: 100%; }
+/* 인증 화면: 데스크톱은 왼쪽 폼 + 오른쪽 소개 카드(docs/15 2장 인증), 1023px 이하는 폼만 */
+.auth {
+  --auth-form-width: 384px; --auth-title-size: 30px; --auth-title-lh: 38px;
+  min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8);
+  padding: var(--space-8); background: var(--color-surface);
+}
+.auth-main { display: flex; flex-direction: column; gap: var(--space-9); padding: var(--space-4); }
+.auth-logo { align-self: flex-start; font-size: var(--text-h4-size); font-weight: var(--weight-semibold); color: var(--color-text-primary); text-decoration: none; }
+.auth-form { width: 100%; max-width: var(--auth-form-width); margin: auto; }
+.auth-title { font-size: var(--auth-title-size); line-height: var(--auth-title-lh); font-weight: var(--weight-semibold); margin-bottom: var(--space-4); }
+.auth-desc { font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
+.auth-form form { margin-top: var(--space-8); }
+/* 인증 화면의 주 버튼·구글 버튼은 폭을 꽉 채운 알약 */
+.auth-form .btn-primary, .btn.auth-google-btn { width: 100%; border-radius: var(--radius-full); }
 .auth-foot { margin-top: var(--space-7); text-align: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
+.auth-legal { font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+.auth-legal a { color: inherit; }
+.auth-aside { display: flex; border-radius: var(--radius-2xl); background: var(--color-surface-subtle); padding: var(--space-12); }
+.auth-aside-inner { margin: auto; max-width: 480px; display: flex; flex-direction: column; gap: var(--space-11); }
+.auth-quote { margin: 0; display: flex; flex-direction: column; gap: var(--space-5); }
+.auth-quote-text { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); letter-spacing: var(--text-h2-ls); font-weight: var(--weight-semibold); }
+.auth-stats { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-8); }
+.auth-stats dd { margin: var(--space-3) 0 0; font-size: var(--text-h3-size); line-height: var(--text-h3-lh); font-weight: var(--weight-semibold); }
+.auth-stats dt { font-size: var(--text-body-sm-size); }
+.auth-logos { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-8); border-top: 1px solid var(--color-border); }
+@media (max-width: 1023px) {
+  .auth { grid-template-columns: 1fr; padding: var(--space-6) var(--layout-gutter); }
+  .auth-aside { display: none; }
+}
 .form-error { color: var(--color-danger); font-size: var(--text-body-sm-size); }
 .public-page { max-width: var(--layout-content-max); margin: 0 auto; padding: var(--space-9) var(--layout-gutter); }
 /* TASK-024: 구글 로그인, 휴대폰 인증 */
 .auth-google { margin-top: var(--space-8); }
-.auth-google-btn { width: 100%; gap: var(--space-3); }
+.auth-google-btn { gap: var(--space-3); }
 .auth-divider { display: flex; align-items: center; gap: var(--space-4); color: var(--color-text-tertiary); font-size: var(--text-caption-size); }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid var(--color-border); }
 .auth-google + form { margin-top: var(--space-4); }

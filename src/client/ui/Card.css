@@ -2,5 +2,6 @@
 .section-card { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); }
 .section-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; }
 .section-card-title { min-width: 0; flex: 1 1 240px; }
-.section-card-head p { margin-top: var(--space-2); }
+.section-card h4 { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); }
+.section-card-head p { margin-top: var(--space-2); font-size: var(--text-label-size); line-height: var(--text-label-lh); }
 @media (max-width: 599px) { .section-card { padding: var(--layout-card-padding); } }

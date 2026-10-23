@@ -9,6 +9,9 @@ export const workspaces = sqliteTable("workspaces", {
   // TASK-021 (0005): 광고성 메일 하단 전송자 명칭·연락처. 비면 워크스페이스 이름
   senderName: text("sender_name"),
   senderContact: text("sender_contact"),
+  // TASK-034 (0010): 온보딩 설문 JSON(건너뛰면 null)과 완료 시각. onboardedAt 이 비면 앱 진입 전에 설문으로 보낸다
+  onboarding: text("onboarding"),
+  onboardedAt: integer("onboarded_at"),
   createdAt: integer("created_at").notNull(),
 });
 

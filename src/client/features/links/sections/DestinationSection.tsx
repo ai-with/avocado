@@ -31,10 +31,10 @@ function CreateDestinationActions({ s, guideId }: { s: GuideLinksState; guideId:
       {s.dest.destType === "document" ? (
         <>
           <FilePickButton label={s.busy ? "올리는 중" : "PDF 올리기 (50MB까지)"} accept="application/pdf" disabled={s.busy} onFile={(f) => void s.upload(f)} />
-          <ButtonLink variant="ghost" size="sm" to={`/documents/new?guideId=${guideId}`}>직접 쓰기·홈페이지 주소로 만들기</ButtonLink>
+          <ButtonLink variant="ghost" size="sm" to={`/dashboard/documents/new?guideId=${guideId}`}>직접 쓰기·홈페이지 주소로 만들기</ButtonLink>
         </>
       ) : (
-        <ButtonLink size="sm" to={`/forms/new?guideId=${guideId}`}>폼 만들기</ButtonLink>
+        <ButtonLink size="sm" to={`/dashboard/forms/new?guideId=${guideId}`}>폼 만들기</ButtonLink>
       )}
     </div>
   );

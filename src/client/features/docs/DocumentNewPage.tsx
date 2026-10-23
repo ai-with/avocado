@@ -34,7 +34,7 @@ function useCreateDocument(guideId: string | undefined) {
   const run = async (fn: () => Promise<string>) => {
     setBusy(true);
     try {
-      nav(`/documents/${await fn()}`);
+      nav(`/dashboard/documents/${await fn()}`);
     } catch (e) {
       toast(errorMessage(e), "danger");
     } finally {
@@ -78,7 +78,7 @@ export function DocumentNewPage() {
   const { busy, create, upload } = useCreateDocument(guideId);
   return (
     <>
-      <PageHeader title="자료 만들기" description="인플루언서 링크로 들어온 사람이 읽을 자료예요. 원본을 고르면 읽는 도중 정보 입력을 받을 수 있어요." back={{ to: "/links", label: "리드 링크" }} />
+      <PageHeader title="자료 만들기" description="인플루언서 링크로 들어온 사람이 읽을 자료예요. 원본을 고르면 읽는 도중 정보 입력을 받을 수 있어요." back={{ to: "/dashboard/links", label: "리드 링크" }} />
       <div className="stack-loose content-medium">
         <SourceCards type={type} onChange={setType} />
         <Card className="stack">

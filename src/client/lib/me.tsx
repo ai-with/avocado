@@ -5,7 +5,7 @@ import { api, ApiError } from "./api";
 export type Me = {
   user: { id: string; email: string; name: string; phone: string | null };
   phoneVerified: boolean;
-  workspace: { id: string; name: string; plan: string } | null;
+  workspace: { id: string; name: string; plan: string; onboardedAt: number | null } | null;
   role: Role | null;
   workspaces: { id: string; name: string; plan: string; role: Role }[];
 };

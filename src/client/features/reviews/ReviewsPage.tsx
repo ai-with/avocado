@@ -76,7 +76,7 @@ function ReviewTable({ rows, showGuide }: { rows: ReviewRow[]; showGuide: boolea
       <tbody>
         {rows.map((r) => (
           <tr key={r.id}>
-            <td><Link to={`/reviews/${r.id}`}>{r.influencer.displayName}</Link>{r.influencer.igHandle && <span className="text-caption"> @{r.influencer.igHandle}</span>}</td>
+            <td><Link to={`/dashboard/reviews/${r.id}`}>{r.influencer.displayName}</Link>{r.influencer.igHandle && <span className="text-caption"> @{r.influencer.igHandle}</span>}</td>
             {showGuide && <td>{r.guide.name}</td>}
             <td>v{r.version}{r.driveUrl && <span className="text-caption"> 드라이브 링크</span>}</td>
             <td><StateBadge row={r} /></td>

@@ -22,7 +22,7 @@ export function LinksPage() {
       <PageHeader
         title="리드 링크"
         description="인플루언서 × 채널마다 다른 링크로 클릭, 자료 열람, 리드를 나눠 봐요. 링크는 가이드의 '리드 링크' 탭에서 만들어요."
-        actions={<ButtonLink variant="primary" to="/documents/new">자료 만들기</ButtonLink>}
+        actions={<ButtonLink variant="primary" to="/dashboard/documents/new">자료 만들기</ButtonLink>}
       />
       <Tabs<Tab> tabs={TABS} value={tab} onChange={setTab} label="리드 링크 보기" />
       {!loaded && tab !== "analytics" && <LoadingState />}

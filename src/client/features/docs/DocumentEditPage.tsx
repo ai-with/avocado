@@ -47,7 +47,7 @@ export function DocumentEditPage() {
       <PageHeader
         title={doc.title}
         description={docSize(doc)}
-        back={{ to: "/links", label: "리드 링크" }}
+        back={{ to: "/dashboard/links", label: "리드 링크" }}
         actions={<Button variant="secondary" onClick={() => setPreview(true)}>미리보기</Button>}
       />
       <div className="lt-split">

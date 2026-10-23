@@ -53,7 +53,7 @@ function useFormActions(id: string, isNew: boolean, d: Draft, set: (patch: Parti
       if (isNew) {
         const r = await api.post<{ form: { id: string } }>("/forms", d);
         toast("폼을 만들었어요. 가이드의 '리드 링크' 탭에서 목적지로 고르세요.", "success");
-        nav(`/forms/${r.form.id}`, { replace: true });
+        nav(`/dashboard/forms/${r.form.id}`, { replace: true });
       } else {
         await api.patch(`/forms/${id}`, d);
         toast("저장했어요.", "success");

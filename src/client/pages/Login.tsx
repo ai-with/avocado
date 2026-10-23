@@ -14,7 +14,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { error, fields, busy, run } = useSubmit(GOOGLE_ERRORS[params.get("error") ?? ""] ?? "");
-  const next = params.get("next") || "/";
+  const next = params.get("next") || "/dashboard";
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

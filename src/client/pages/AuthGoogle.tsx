@@ -23,7 +23,7 @@ function GoogleLogo() {
 }
 
 // "Google로 계속하기" + "또는" 구분선. 서버에 구글 키가 없으면 비활성
-export function GoogleSection({ next = "/" }: { next?: string }) {
+export function GoogleSection({ next = "/dashboard" }: { next?: string }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   useEffect(() => {
     api
@@ -43,7 +43,7 @@ export function GoogleSection({ next = "/" }: { next?: string }) {
         Google로 계속하기
       </Button>
       {enabled === false && <p className="field-hint">구글 로그인은 준비 중입니다.</p>}
-      <div className="auth-divider"><span>또는</span></div>
+      <div className="auth-divider"><span>또는 이메일로</span></div>
     </div>
   );
 }

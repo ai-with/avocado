@@ -20,7 +20,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "performance", label: "성과" },
   { value: "leads", label: "리드" },
 ];
-const BACK = { to: "/guides", label: "가이드" };
+const BACK = { to: "/dashboard/guides", label: "가이드" };
 
 function useGuideDetail(id: string) {
   const toast = useToast();
@@ -52,7 +52,7 @@ export function GuideDetailPage() {
   const published = guide.status === "published";
   const actions = canEdit && (
     <>
-      <Button variant="secondary" onClick={() => navigate(`/guides/${id}/edit`)}>편집</Button>
+      <Button variant="secondary" onClick={() => navigate(`/dashboard/guides/${id}/edit`)}>편집</Button>
       {!published && <Button onClick={() => void publish()}>공개하기</Button>}
     </>
   );

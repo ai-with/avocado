@@ -57,7 +57,7 @@ export function AlimtalkNotice() {
     <div className="msg-notice" role="note">
       <b>카카오톡 채널 연결이 필요해요</b>
       <p className="text-secondary">알림톡은 카카오톡 비즈니스 채널과 발신 프로필을 연결하고, 템플릿 심사를 통과한 뒤에 쓸 수 있어요. 정보성 메시지만 보낼 수 있어요.</p>
-      <Link to="/settings/integrations">연결 방법 보기 (설정 &gt; 연동)</Link>
+      <Link to="/dashboard/settings/integrations">연결 방법 보기 (설정 &gt; 연동)</Link>
     </div>
   );
 }

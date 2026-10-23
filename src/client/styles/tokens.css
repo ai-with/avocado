@@ -73,11 +73,13 @@
   --text-h2-size: 28px; --text-h2-lh: 36px; --text-h2-ls: -0.02em;
   --text-h3-size: 24px; --text-h3-lh: 32px; --text-h3-ls: -0.02em;
   --text-h4-size: 18px; --text-h4-lh: 26px; --text-h4-ls: -0.01em;
-  --text-body-lg-size: 16px; --text-body-lg-lh: 26px;
-  --text-body-size: 15px; --text-body-lh: 24px;
+  --text-body-lg-size: 16px; --text-body-lg-lh: 24px;
+  --text-body-size: 14px; --text-body-lh: 20px;
   --text-body-sm-size: 14px; --text-body-sm-lh: 20px;
-  --text-label-size: 14px; --text-label-lh: 20px;
-  --text-caption-size: 13px; --text-caption-lh: 20px;
+  --text-label-size: 13px; --text-label-lh: 18px;
+  --text-caption-size: 12px; --text-caption-lh: 16px;
+  --text-title-size: 20px; --text-title-lh: 28px; /* 앱 화면 제목(PageHeader) */
+  --text-overline-size: 11px; --text-overline-lh: 16px; /* 사이드바 그룹 제목 */
 
   /* spacing */
   --space-0: 0; --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
@@ -93,16 +95,20 @@
   --layout-content-max: 720px;
   --layout-card-padding: 20px;
   --layout-nav-height: 64px;
-  --layout-sidebar: 240px;
+  --layout-sidebar: 232px;
+  --layout-app-max: 1200px; /* 앱 본문 최대 폭 */
+  --sidebar-item-height: 32px;
+  --icon-size-sm: 16px;
   --layout-sidebar-collapsed: 56px;
 
   /* radius */
   --radius-xs: 4px; --radius-sm: 6px; --radius-md: 12px; --radius-lg: 16px;
   --radius-xl: 20px; --radius-2xl: 24px; --radius-full: 9999px;
-  --radius-button: 12px;
-  --radius-input: var(--radius-md);
-  --radius-card: var(--radius-xl);
-  --radius-modal: var(--radius-2xl);
+  --radius-button: 10px;
+  --radius-input: 10px;
+  --radius-card: var(--radius-md);
+  --radius-modal: var(--radius-lg);
+  --radius-popover: var(--radius-md);
 
   /* shadow */
   --shadow-ring: 0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -112,6 +118,10 @@
   --shadow-page: 0 2px 12px rgba(0, 0, 0, 0.3);
   --shadow-bar: 0 -4px 16px rgba(0, 0, 0, 0.04);
   --shadow-scroll-edge: rgba(0, 0, 0, 0.12);
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-button-primary: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --border-control: 1px solid var(--color-border-strong); /* 입력 테두리 3:1 대비 (docs/13 2.3) */
 
   /* interaction (TASK-026) */
   --touch-target: 44px;
@@ -122,6 +132,7 @@
   --duration-base: 200ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --z-sticky: 20;
+  --z-popover: 45;
   --z-drawer: 50;
   --z-modal: 55;
   --z-toast: 60;
@@ -156,13 +167,11 @@
     --text-h2-size: 22px; --text-h2-lh: 30px;
     --text-h3-size: 20px; --text-h3-lh: 28px;
     --text-h4-size: 16px; --text-h4-lh: 24px;
-    --text-caption-size: 12px; --text-caption-lh: 18px;
     --layout-gutter: 20px;
     --layout-section-gap: 48px;
     --layout-grid-columns: 4;
     --layout-grid-gutter: 16px;
     --layout-card-padding: 16px;
     --radius-button: var(--radius-full);
-    --radius-card: var(--radius-lg);
   }
 }

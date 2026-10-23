@@ -1,0 +1,11 @@
+/* 온보딩: 분할 레이아웃 없이 가운데 한 칸 */
+.onboarding { min-height: 100vh; display: flex; flex-direction: column; padding: var(--space-6) var(--layout-gutter); background: var(--color-surface); }
+.onboarding-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); font-size: var(--text-body-sm-size); }
+.onboarding-main { width: 100%; max-width: 400px; margin: auto; padding: var(--space-10) 0; }
+.onboarding-logo { display: inline-block; margin-bottom: var(--space-9); font-size: var(--text-h4-size); font-weight: var(--weight-semibold); color: var(--color-text-primary); text-decoration: none; }
+.onboarding-step { margin-bottom: var(--space-4); color: var(--color-text-tertiary); }
+.onboarding-title { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); letter-spacing: var(--text-h2-ls); font-weight: var(--weight-semibold); margin-bottom: var(--space-4); }
+.onboarding-desc { font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
+.onboarding-form { margin-top: var(--space-8); }
+.onboarding-submit { width: 100%; border-radius: var(--radius-full); }
+.onboarding-skip { align-self: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }

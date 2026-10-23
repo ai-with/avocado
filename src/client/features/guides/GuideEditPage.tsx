@@ -14,7 +14,7 @@ export function GuideEditPage() {
       <PageHeader
         title={g.id ? "가이드 편집" : "새 가이드"}
         description="제품과 목적, 규정을 넣고 저장하면 바로 공유할 수 있는 가이드 URL이 나와요."
-        back={g.id ? { to: `/guides/${g.id}`, label: "가이드 상세" } : { to: "/guides", label: "가이드" }}
+        back={g.id ? { to: `/dashboard/guides/${g.id}`, label: "가이드 상세" } : { to: "/dashboard/guides", label: "가이드" }}
       />
       <div className="stack-loose">
         <BasicInfoSection form={g.form} set={g.set} fields={g.fields} />

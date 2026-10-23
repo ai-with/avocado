@@ -133,7 +133,7 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
 
 async function notifyDeleted(db: Db, env: Env, workspaceId: string, content: ContentRow) {
   const owners = await memberEmails(db, workspaceId, ["owner", "editor"]);
-  const link = `${env.APP_URL}/guides/${content.guideId}`;
+  const link = `${env.APP_URL}/dashboard/guides/${content.guideId}`;
   for (const o of owners) {
     await sendEmail(env, {
       to: o.email,

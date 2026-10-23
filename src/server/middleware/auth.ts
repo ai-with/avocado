@@ -48,7 +48,7 @@ async function resolveSession(c: Context<AppEnv>, token: string): Promise<Auth |
   if (!row || row.session.expiresAt < now()) return null;
 
   const memberships = await db
-    .select({ workspace: { id: workspaces.id, name: workspaces.name, plan: workspaces.plan }, role: members.role })
+    .select({ workspace: { id: workspaces.id, name: workspaces.name, plan: workspaces.plan, onboardedAt: workspaces.onboardedAt }, role: members.role })
     .from(members)
     .innerJoin(workspaces, eq(workspaces.id, members.workspaceId))
     .where(eq(members.userId, row.user.id))

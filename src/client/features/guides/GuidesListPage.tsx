@@ -10,7 +10,7 @@ export function GuidesListPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
   useEffect(() => void api.get<{ guides: Row[] }>("/guides").then((d) => setRows(d.guides)), []);
-  const create = <Button onClick={() => navigate("/guides/new")}>새 가이드 만들기</Button>;
+  const create = <Button onClick={() => navigate("/dashboard/guides/new")}>새 가이드 만들기</Button>;
 
   return (
     <>
@@ -25,7 +25,7 @@ export function GuidesListPage() {
           <tbody>
             {rows.map((g) => (
               <tr key={g.id}>
-                <td><Link to={`/guides/${g.id}`}>{g.name}</Link></td>
+                <td><Link to={`/dashboard/guides/${g.id}`}>{g.name}</Link></td>
                 <td className="nowrap"><Badge tone={g.status === "published" ? "success" : "neutral"}>{g.status === "published" ? "공개" : "작성 중"}</Badge></td>
                 <td className="num">{g.influencerCount}</td>
                 <td className="num">{g.viewedCount}</td>

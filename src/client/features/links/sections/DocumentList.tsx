@@ -12,7 +12,7 @@ const docStatsText = (d: DocumentRow) => (d.stats.views ? `열람 ${d.stats.view
 export function DocumentList({ docs, channels, onRemove }: Props) {
   const [statsFor, setStatsFor] = useState<string | null>(null);
   if (docs.length === 0) {
-    return <EmptyState icon="file-text" title="만든 자료가 없어요" description="직접 쓴 글, PDF, 홈페이지 주소로 자료를 만들면 어느 인플루언서 영상에서 온 사람이 어디까지 읽었는지 볼 수 있어요." action={<ButtonLink to="/documents/new">자료 만들기</ButtonLink>} />;
+    return <EmptyState icon="file-text" title="만든 자료가 없어요" description="직접 쓴 글, PDF, 홈페이지 주소로 자료를 만들면 어느 인플루언서 영상에서 온 사람이 어디까지 읽었는지 볼 수 있어요." action={<ButtonLink to="/dashboard/documents/new">자료 만들기</ButtonLink>} />;
   }
   return (
     <div className="stack">
@@ -25,7 +25,7 @@ export function DocumentList({ docs, channels, onRemove }: Props) {
           meta={`${docSize(d)} · 정보 입력 ${gateLabel(d.gate)} · ${dateTime(d.createdAt)} 만듦 · ${docStatsText(d)}`}
           actions={
             <>
-              <ButtonLink size="sm" to={`/documents/${d.id}`}>편집·게이트</ButtonLink>
+              <ButtonLink size="sm" to={`/dashboard/documents/${d.id}`}>편집·게이트</ButtonLink>
               <Button size="sm" variant="ghost" onClick={() => onRemove(d)}>삭제</Button>
             </>
           }

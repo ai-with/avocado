@@ -114,7 +114,7 @@ function useGuideSave(id: string | undefined, form: GuideForm, rules: GuideRule[
     void run("save", async () => {
       const gid = await persist();
       toast("저장했습니다.", "success");
-      navigate(`/guides/${gid}`);
+      navigate(`/dashboard/guides/${gid}`);
     }, (err) => err instanceof ApiError && setFields(err.fields));
   };
   const generate = () => {
@@ -123,10 +123,10 @@ function useGuideSave(id: string | undefined, form: GuideForm, rules: GuideRule[
       const gid = await persist();
       const r = await api.post<{ videoGuide: VideoGuide; fallback: boolean }>(`/guides/${gid}/generate`);
       if (id) set("videoGuide", r.videoGuide);
-      else navigate(`/guides/${gid}/edit`, { replace: true, state: { draft: r.videoGuide } });
+      else navigate(`/dashboard/guides/${gid}/edit`, { replace: true, state: { draft: r.videoGuide } });
       toast(r.fallback ? "초안 생성이 늦어져 빈 템플릿으로 시작합니다." : "초안을 만들었습니다. 고친 뒤 저장해 주세요.", r.fallback ? "neutral" : "success");
     });
   };
-  const cancel = () => navigate(id ? `/guides/${id}` : "/guides");
+  const cancel = () => navigate(id ? `/dashboard/guides/${id}` : "/dashboard/guides");
   return { fields, busy, save, generate, cancel };
 }

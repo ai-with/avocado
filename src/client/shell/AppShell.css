@@ -1,8 +1,13 @@
 .shell { display: flex; min-height: 100%; }
-.shell-content { flex: 1; min-width: 0; padding: var(--space-9) var(--space-11) var(--space-12); background: var(--color-bg); }
+.shell-content { flex: 1; min-width: 0; padding: var(--space-8) var(--space-9) var(--space-12); background: var(--color-bg); }
+/* 넓은 화면에서도 본문은 1200 까지만 늘어난다 */
+.shell-inner { max-width: var(--layout-app-max); margin: 0 auto; }
+/* 앱 화면 제목은 20px(PageHeader). 그 아래 구획 제목이 제목보다 커지지 않게 한 단계씩 낮춘다 */
+.shell-inner h3 { font-size: var(--text-h4-size); line-height: var(--text-h4-lh); letter-spacing: var(--text-h4-ls); }
+.shell-inner h4 { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); letter-spacing: 0; }
 .shell-content:focus { outline: none; }
 .shell-loading { max-width: 640px; margin: var(--space-12) auto; padding: 0 var(--layout-gutter); }
-@media (max-width: 1023px) { .shell-content { padding: var(--space-8) var(--layout-gutter) var(--space-11); } }
+@media (max-width: 1023px) { .shell-content { padding: var(--space-8) var(--space-8) var(--space-11); } }
 
 .skip-link { position: absolute; left: var(--space-4); top: -100px; z-index: var(--z-toast); padding: var(--space-4) var(--space-6); background: var(--color-surface-inverted); color: var(--color-text-inverted); border-radius: var(--radius-sm); }
 .skip-link:focus { top: var(--space-4); }

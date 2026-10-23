@@ -22,8 +22,10 @@ export function AppShell() {
   if (loading) return <div className="shell-loading"><LoadingState /></div>;
   const next = encodeURIComponent(location.pathname + location.search);
   if (!me) return <Navigate to={`/login?next=${next}`} replace />;
-  // 휴대폰 인증 전이거나(필수) 구글 가입 직후 워크스페이스가 없으면 인증 화면에서 마저 진행한다
-  if (!me.phoneVerified || me.workspaces.length === 0) return <Navigate to={`/verify-phone?next=${next}`} replace />;
+  // 휴대폰 인증은 필수
+  if (!me.phoneVerified) return <Navigate to={`/verify-phone?next=${next}`} replace />;
+  // 구글 가입 직후 워크스페이스가 없거나 첫 설문을 아직 안 했으면 온보딩에서 마저 진행한다
+  if (!me.workspace?.onboardedAt) return <Navigate to={`/onboarding?next=${next}`} replace />;
   const workspaceName = me.workspace?.name ?? "워크스페이스 없음";
   return (
     <div className="shell">
@@ -37,7 +39,7 @@ export function AppShell() {
       <Sidebar me={me} isMobile={isMobile} mobileOpen={menuOpen} onNavigate={() => setMenuOpen(false)} />
       {isMobile && menuOpen && <div className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
       <main className="shell-content" id="main" tabIndex={-1}>
-        <Outlet />
+        <div className="shell-inner"><Outlet /></div>
       </main>
     </div>
   );

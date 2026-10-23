@@ -1,10 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { Button, Input, LoadingState } from "../ui";
 import { api, ApiError, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { AuthCard, FormError } from "./AuthCard";
-import { useSubmit } from "./useSubmit";
 
 type SendResult = { phone: string; expiresAt: number; resendAfterSec: number; devCode?: string };
 type Sent = SendResult & { sentAt: number };
@@ -106,50 +105,23 @@ export function PhoneVerifyForm({ onDone, submitLabel = "인증 완료" }: { onD
   );
 }
 
-function CreateWorkspaceForm({ next }: { next: string }) {
-  const navigate = useNavigate();
-  const { refresh } = useMe();
-  const [workspaceName, setWorkspaceName] = useState("");
-  const { error, busy, run } = useSubmit();
-  const createWorkspace = (e: FormEvent) => {
-    e.preventDefault();
-    void run(async () => {
-      await api.post("/auth/onboarding", { workspaceName }, { redirectOn401: false });
-      await refresh();
-      navigate(next, { replace: true });
-    });
-  };
-  return (
-    <form className="stack" onSubmit={createWorkspace}>
-      <Input label="워크스페이스 이름" autoComplete="organization" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} required />
-      <FormError message={error} />
-      <Button type="submit" disabled={busy}>시작하기</Button>
-    </form>
-  );
-}
-
 export function VerifyPhonePage() {
   const [params] = useSearchParams();
   const { me, loading, refresh } = useMe();
-  const next = params.get("next") || "/";
+  const next = params.get("next") || "/dashboard";
 
   if (loading) return <AuthCard><LoadingState /></AuthCard>;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
-  // 초대 링크로 가는 중이면 워크스페이스를 따로 만들지 않는다
-  const needsWorkspace = me.phoneVerified && me.workspaces.length === 0 && !next.startsWith("/invite/");
-  if (me.phoneVerified && !needsWorkspace) return <Navigate to={next} replace />;
+  // 인증을 마치면 온보딩(워크스페이스 이름·설문)으로. 초대 링크로 가는 중이면 바로 초대로 간다
+  if (me.phoneVerified) return <Navigate to={next.startsWith("/invite/") ? next : `/onboarding?next=${encodeURIComponent(next)}`} replace />;
 
   const logout = async () => {
     await api.post("/auth/logout", {}, { redirectOn401: false });
     await refresh();
   };
-  const head = needsWorkspace
-    ? { title: "워크스페이스 만들기", description: "휴대폰 인증을 마쳤습니다. 브랜드나 회사 이름으로 워크스페이스를 만들어 주세요." }
-    : { title: "휴대폰 번호 인증", description: `${me.user.email} 계정을 쓰려면 휴대폰 번호 인증이 필요합니다.` };
-
   return (
-    <AuthCard {...head}>
-      {needsWorkspace ? <CreateWorkspaceForm next={next} /> : <div className="mt-section"><PhoneVerifyForm onDone={refresh} /></div>}
+    <AuthCard title="휴대폰 번호 인증" description={`${me.user.email} 계정을 쓰려면 휴대폰 번호 인증이 필요합니다.`}>
+      <div className="mt-section"><PhoneVerifyForm onDone={refresh} /></div>
       <p className="auth-foot">
         다른 계정으로 바꾸시겠어요? <button type="button" className="link-button" onClick={() => void logout()}>로그아웃</button>
       </p>

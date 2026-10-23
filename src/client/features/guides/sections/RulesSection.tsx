@@ -10,7 +10,7 @@ type Props = { form: GuideForm; set: SetField; sets: RuleSet[]; setRules: GuideR
 const noop = () => {};
 
 export function RulesSection({ form, set, sets, setRules, warnings, fields }: Props) {
-  const manageTo = form.guidelineSetId ? `/settings/guidelines?set=${form.guidelineSetId}` : "/settings/guidelines";
+  const manageTo = form.guidelineSetId ? `/dashboard/settings/guidelines?set=${form.guidelineSetId}` : "/dashboard/settings/guidelines";
   const extra = form.extraRules;
   return (
     <SectionCard title="규정" actions={<Link to={manageTo}>규정 세트 관리</Link>}>

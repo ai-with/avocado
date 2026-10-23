@@ -12,7 +12,7 @@ export function FormsPage() {
   useEffect(() => {
     void api.get<{ forms: FormRow[] }>("/forms").then((r) => setForms(r.forms));
   }, []);
-  const create = <ButtonLink variant="primary" to="/forms/new">폼 만들기</ButtonLink>;
+  const create = <ButtonLink variant="primary" to="/dashboard/forms/new">폼 만들기</ButtonLink>;
   return (
     <>
       <PageHeader title="신청 폼" description="자료가 없어도 체험·샘플·출시 알림 신청을 받아요. 리드 링크의 목적지로 쓰면 어느 인플루언서에게서 왔는지 남아요." actions={create} />
@@ -30,7 +30,7 @@ function FormTable({ forms }: { forms: FormRow[] }) {
       <tbody>
         {forms.map((f) => (
           <tr key={f.id}>
-            <td><Link to={`/forms/${f.id}`}>{f.title}</Link></td>
+            <td><Link to={`/dashboard/forms/${f.id}`}>{f.title}</Link></td>
             <td className={f.submissions ? "num" : "wrap"}>{f.submissions || ZERO_HINT}{f.maxSubmissions ? ` / ${f.maxSubmissions}` : ""}</td>
             <td className="nowrap">{f.closesAt ? dateTime(f.closesAt) : "없음"}</td>
             <td className="nowrap">{dateTime(f.createdAt)}</td>

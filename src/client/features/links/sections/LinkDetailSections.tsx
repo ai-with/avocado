@@ -27,9 +27,11 @@ export function LinkSummary({ link, s }: { link: LinkRow; s: LinkDetailState }) 
 export function OgCardSection({ s }: { s: LinkDetailState }) {
   const { og, setOg } = s;
   return (
-    <section className="stack-tight">
-      <h4>미리보기 카드</h4>
-      <p className="text-caption">카카오톡·슬랙 같은 메신저에 링크를 붙였을 때 보이는 카드예요. 이미지는 1200×630을 권해요.</p>
+    <section className="stack">
+      <div className="stack-tight">
+        <h4>미리보기 카드</h4>
+        <p className="text-caption">카카오톡·슬랙 같은 메신저에 링크를 붙였을 때 보이는 카드예요. 이미지는 1200×630을 권해요.</p>
+      </div>
       <Input label="제목" value={og.title ?? ""} maxLength={100} onChange={(e) => setOg({ ...og, title: e.target.value })} />
       <Input label="설명" value={og.description ?? ""} maxLength={200} onChange={(e) => setOg({ ...og, description: e.target.value })} />
       <div className="row">

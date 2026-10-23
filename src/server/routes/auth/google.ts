@@ -14,7 +14,7 @@ const STATE_TTL = 10 * MIN;
 const googleEnabled = (env: Env) => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 const redirectUri = (env: Env) => `${env.APP_URL}/api/auth/google/callback`;
 // 열린 리다이렉트 방지: 같은 사이트 경로만
-const safeNext = (next: string | undefined) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+const safeNext = (next: string | undefined) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
 type SavedState = typeof oauthStates.$inferSelect;
 
 async function findOrCreateGoogleUser(db: Db, g: GoogleClaims): Promise<{ id: string } | "email_unverified"> {

@@ -19,7 +19,7 @@ function useRunThenHome() {
     runSubmit(async () => {
       await fn();
       await refresh();
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     });
   return { error, fields, busy, run };
 }
