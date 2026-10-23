@@ -1,7 +1,7 @@
 import { ButtonAnchor, ButtonLink } from "../../../ui";
 import { HERO } from "../copy";
 
-// "무료 파일럿 신청"은 최하단 최종 CTA에만 둔다(2026-10-23 사용자 결정)
+// "시작하기" 큰 버튼은 최하단 최종 CTA에만 둔다(2026-10-23 사용자 결정)
 export function LandingCta() {
   return (
     <div className="landing-cta-row">

@@ -124,7 +124,7 @@ html:has(.landing) { scroll-behavior: smooth; }
 
 /* 최종 CTA, 푸터 */
 .landing-final { padding-top: var(--layout-section-gap); padding-bottom: var(--layout-section-gap); }
-.landing-final-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-8); width: 100%; padding: 64px 32px; border-radius: var(--radius-2xl); text-align: center; border: 1px solid color-mix(in srgb, var(--green-500) 20%, transparent); background: linear-gradient(135deg, var(--green-50) 0%, var(--green-100) 55%, color-mix(in srgb, var(--green-500) 28%, var(--green-100)) 100%); }
+.landing-final-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-9); width: 100%; padding: var(--space-14) 32px; border-radius: var(--radius-2xl); text-align: center; border: 1px solid color-mix(in srgb, var(--green-500) 20%, transparent); background: linear-gradient(135deg, var(--green-50) 0%, var(--green-100) 55%, color-mix(in srgb, var(--green-500) 28%, var(--green-100)) 100%); }
 .landing-footer { border-top: 1px solid var(--color-border); padding: var(--space-9) 0; }
 .landing-footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-6); }
 .landing-footer-links { display: flex; flex-wrap: wrap; gap: var(--space-8); font-size: var(--text-body-sm-size); }
@@ -151,4 +151,4 @@ html:has(.landing) { scroll-behavior: smooth; }
   .landing-anchors, .landing-header-login { display: none; }
   .landing-showcase { --landing-showcase-title-size: 32px; --landing-showcase-title-lh: 40px; gap: var(--space-12); }
 }
-@media (max-width: 599px) { .landing-final-card { padding: 40px 20px; } }
+@media (max-width: 599px) { .landing-final-card { padding: 64px 20px; } }

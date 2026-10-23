@@ -18,7 +18,7 @@ export function LandingHeader() {
           ) : (
             <>
               <ButtonLink variant="ghost" to="/login" className="landing-header-login">로그인</ButtonLink>
-              <ButtonLink variant="primary" to="/signup">무료로 시작</ButtonLink>
+              <ButtonLink variant="primary" to="/signup">시작하기</ButtonLink>
             </>
           )}
         </div>
