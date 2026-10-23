@@ -1,0 +1,41 @@
+/* 위반 후보 데모 */
+.cdemo { --cdemo-marker: 12px; --cdemo-evidence-w: 220px; }
+.cdemo-filters { display: flex; flex-wrap: wrap; gap: var(--space-3); min-width: 0; }
+.cdemo-chip { display: inline-flex; align-items: center; gap: var(--space-3); min-height: var(--control-height-sm); padding: 0 var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+.cdemo-chip:hover { border-color: var(--color-border-strong); }
+.cdemo-chip[aria-pressed="true"] { border-color: var(--color-text-primary); background: var(--color-text-primary); color: var(--color-text-inverted); }
+.cdemo-chip-count { min-width: 18px; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: var(--text-caption-size); text-align: center; }
+.cdemo-chip[aria-pressed="true"] .cdemo-chip-count { background: var(--color-overlay-strong); color: var(--color-text-inverted); }
+
+.cdemo-timeline { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5) var(--space-2); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); }
+.cdemo-track { position: relative; height: 4px; margin: var(--space-4) 0; border-radius: var(--radius-full); background: var(--color-surface-muted); }
+.cdemo-marker { position: absolute; top: 50%; width: var(--cdemo-marker); height: var(--cdemo-marker); padding: 0; border: 2px solid var(--color-surface); border-radius: var(--radius-full); transform: translate(-50%, -50%); cursor: pointer; transition: transform var(--duration-base) var(--ease-out), opacity var(--duration-base) var(--ease-out); }
+/* 손가락으로 누를 수 있게 보이지 않는 영역을 넓힌다 */
+.cdemo-marker::after { content: ""; position: absolute; inset: -10px; }
+.cdemo-marker.is-danger { background: var(--color-danger); }
+.cdemo-marker.is-warn { background: var(--color-warn); }
+.cdemo-marker.is-success { background: var(--color-success); }
+.cdemo-marker.is-neutral { background: var(--color-text-muted); }
+.cdemo-marker.is-dim { opacity: 0.25; }
+.cdemo-marker.is-on { transform: translate(-50%, -50%) scale(1.5); box-shadow: 0 0 0 2px var(--color-text-primary); }
+.cdemo-ticks { display: flex; justify-content: space-between; }
+
+.cdemo-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--cdemo-evidence-w); gap: var(--space-5); align-items: start; }
+.cdemo-list-wrap { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.cdemo-count { display: flex; align-items: center; gap: var(--space-3); }
+.cdemo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.cdemo-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-4) var(--space-5); border: 1px solid transparent; border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); color: inherit; text-align: left; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out); }
+.cdemo-row:hover { border-color: var(--color-border); }
+.cdemo-row.is-on { border-color: var(--color-accent); background: var(--color-accent-subtle); }
+.cdemo-row.is-rejected { opacity: 0.45; }
+.cdemo-row-title { flex: 1 1 120px; min-width: 0; }
+
+.cdemo-evidence { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.cdemo-evidence.is-empty { flex-direction: row; align-items: center; color: var(--color-text-tertiary); }
+.cdemo-evidence-head { display: flex; align-items: center; gap: var(--space-3); }
+.cdemo-quote { margin: 0; padding-left: var(--space-4); border-left: 3px solid var(--color-border); color: var(--color-text-primary); }
+.cdemo-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); }
+
+@media (max-width: 599px) {
+  .cdemo-body { grid-template-columns: minmax(0, 1fr); }
+}

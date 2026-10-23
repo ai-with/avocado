@@ -1,0 +1,44 @@
+/* 수정 요청 데모 */
+.fdemo { --fdemo-frame-w: 200px; --fdemo-draw-ms: 900ms; }
+.fdemo-body { display: grid; grid-template-columns: var(--fdemo-frame-w) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.fdemo-frame-col { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.fdemo-frame, .fdemo-thumb { position: relative; display: block; width: 100%; aspect-ratio: 9 / 16; padding: 0; border: 0; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface-inverted); }
+.fdemo-frame { cursor: crosshair; }
+.fdemo-frame:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.fdemo-media { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.fdemo-frame-tag { position: absolute; top: var(--space-4); left: var(--space-4); padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); background: var(--color-overlay-strong); color: var(--color-text-inverted); font-size: var(--text-caption-size); }
+.fdemo-hint { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* 박스는 왼쪽 위에서 오른쪽 아래로 커지고, 커서가 같은 속도로 따라간다 */
+.fdemo-box { position: absolute; border: 2px solid var(--color-markup); border-radius: var(--radius-xs); transition: width var(--fdemo-draw-ms) var(--ease-out), height var(--fdemo-draw-ms) var(--ease-out); }
+.fdemo-box-no, .fdemo-no { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-full); background: var(--color-markup); color: var(--neutral-white); font-size: var(--text-caption-size); font-weight: var(--weight-semibold); }
+.fdemo-box-no { position: absolute; top: -10px; left: -10px; }
+.fdemo-cursor { position: absolute; margin: -2px 0 0 -4px; color: var(--color-text-primary); fill: var(--color-surface); transition: left var(--fdemo-draw-ms) var(--ease-out), top var(--fdemo-draw-ms) var(--ease-out); pointer-events: none; }
+.fdemo-cursor svg { fill: var(--color-surface); }
+
+.fdemo-side { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.fdemo-comment { display: flex; flex-direction: column; gap: var(--space-3); opacity: 0.5; transition: opacity var(--duration-base) var(--ease-out); }
+.fdemo-comment.is-on { opacity: 1; }
+.fdemo-comment-head { display: flex; align-items: center; gap: var(--space-3); }
+.fdemo-pending { visibility: hidden; }
+.fdemo-en { color: var(--color-text-secondary); opacity: 0; transition: opacity 400ms var(--ease-out); }
+.fdemo-en.is-on { opacity: 1; }
+.fdemo-foot { display: flex; align-items: center; min-height: var(--control-height-sm); }
+.fdemo-status { display: inline-flex; align-items: center; gap: var(--space-3); }
+
+.fdemo-inf { display: flex; flex-direction: column; gap: var(--space-4); }
+.fdemo-inf-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
+.fdemo-inf-text { flex: 1 1 140px; min-width: 0; }
+.fdemo-check { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-xs); color: transparent; transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out); }
+.fdemo-check.is-on { border-color: var(--color-success); background: var(--color-success); color: var(--neutral-white); }
+.fdemo-v2 { display: flex; flex-direction: column; gap: var(--space-4); }
+.fdemo-v2-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.fdemo-versions { display: grid; grid-template-columns: minmax(0, 88px); gap: var(--space-4); }
+.fdemo-versions.is-compare { grid-template-columns: repeat(2, minmax(0, 88px)); }
+.fdemo-thumb { border-radius: var(--radius-md); }
+.fdemo-thumb .fdemo-box-no { display: none; }
+
+@media (max-width: 599px) {
+  .fdemo-body { grid-template-columns: minmax(0, 1fr); }
+  .fdemo-frame-col { width: min(100%, var(--fdemo-frame-w)); justify-self: center; }
+}

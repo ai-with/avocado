@@ -1,0 +1,28 @@
+/* 링크 성과 데모 */
+.links .tabs { margin-bottom: 0; border-bottom: 0; }
+.links-card { padding: var(--space-3) var(--space-5); }
+.links-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.links-table th, .links-table td { padding: var(--space-3) var(--space-2); text-align: left; vertical-align: middle; }
+.links-table thead th { font-size: var(--text-caption-size); font-weight: var(--weight-medium); color: var(--color-text-tertiary); border-bottom: 1px solid var(--color-border); }
+.links-table .is-num { width: 15%; text-align: right; }
+.links-table tbody tr { cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out); }
+.links-table tbody tr:hover { background: var(--color-surface-subtle); }
+.links-table tbody tr.is-copied { background: var(--color-success-subtle); }
+.links-table tbody td:first-child { position: relative; }
+.links-table tfoot th, .links-table tfoot td { border-top: 1px solid var(--color-border); font-weight: var(--weight-semibold); }
+.links-name { display: flex; flex-direction: column; align-items: flex-start; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.links-name:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-xs); }
+/* 행 높이를 바꾸지 않게 이름 오른쪽 위에 띄운다 */
+.links-toast { position: absolute; top: 50%; right: 0; transform: translateY(-50%); pointer-events: none; }
+.links-hint { padding-top: var(--space-3); }
+
+.links-funnel { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.links-funnel li { display: grid; grid-template-columns: 64px minmax(0, 1fr) 48px; align-items: center; gap: var(--space-4); }
+.links-funnel-label { font-size: var(--text-caption-size); color: var(--color-text-secondary); }
+.links-funnel-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); }
+.links-bar { height: 10px; border-radius: var(--radius-full); background: var(--color-surface-muted); overflow: hidden; }
+.links-bar-fill { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width 700ms var(--ease-out); }
+.links-bar-fill.is-0 { background: var(--color-accent); }
+.links-bar-fill.is-1 { background: var(--green-500); }
+.links-bar-fill.is-2 { background: var(--color-text-primary); }
+@media (prefers-reduced-motion: reduce) { .links-bar-fill { transition: none; } }

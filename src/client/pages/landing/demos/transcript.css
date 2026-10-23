@@ -1,0 +1,15 @@
+.transcript-layout { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.transcript-reel { position: relative; aspect-ratio: 9 / 16; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface-inverted); }
+.transcript-reel video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.transcript-clock { position: absolute; left: var(--space-4); bottom: var(--space-4); padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); background: var(--color-overlay-strong); color: var(--color-text-inverted); }
+.transcript-side { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-5); min-width: 0; }
+.transcript-lines { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: var(--space-3); }
+.transcript-line { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-5); align-items: baseline; padding: var(--space-4) var(--space-5); border: 1px solid transparent; border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); }
+.transcript-line:hover { border-color: var(--color-border); }
+.transcript-line.is-current { border-color: var(--color-accent); background: var(--color-accent-subtle); }
+.transcript-text { display: flex; flex-direction: column; gap: var(--space-1); overflow-wrap: anywhere; }
+.transcript-ko { color: var(--color-text-secondary); }
+@media (max-width: 479px) {
+  .transcript-layout { grid-template-columns: minmax(0, 1fr); }
+  .transcript-reel { width: min(100%, 200px); justify-self: center; }
+}

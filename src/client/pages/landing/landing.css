@@ -5,6 +5,9 @@
   --landing-cta-height: 44px;
   background: var(--color-surface); color: var(--color-text-primary); min-height: 100%;
 }
+/* 히어로 "어떻게 쓰는지 보기"와 헤더 앵커가 부드럽게 내려간다. 움직임 줄이기는 base.css가 끈다 */
+html:has(.landing) { scroll-behavior: smooth; }
+.landing [id] { scroll-margin-top: var(--landing-header-height); }
 .landing-container { width: 100%; max-width: var(--layout-container-max); margin: 0 auto; padding: 0 var(--layout-gutter); }
 
 /* 헤더 */
@@ -91,6 +94,15 @@
 .landing-card { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-8); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-card); }
 .landing-card h3 { font-size: var(--text-h4-size); line-height: var(--text-h4-lh); letter-spacing: var(--text-h4-ls); }
 .landing-step-no { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent); font-weight: var(--weight-semibold); font-size: var(--text-body-sm-size); }
+/* 기능 블록: 데스크톱 2열(텍스트 + 데모). flipped면 데모가 왼쪽 */
+.landing-feature { --landing-demo-max: 620px; }
+.landing-feature.has-demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--landing-demo-max)); gap: var(--space-11); align-items: center; }
+.landing-feature.is-flipped { grid-template-columns: minmax(0, var(--landing-demo-max)) minmax(0, 1fr); }
+.landing-feature.is-flipped .landing-feature-demo { order: -1; }
+.landing-feature-demo { display: flex; justify-content: center; min-width: 0; }
+.landing-grid.is-compact { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+.landing-grid.is-compact .landing-card { gap: var(--space-2); padding: var(--space-5) var(--space-6); }
+.landing-grid.is-compact .landing-card h3 { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); }
 .landing-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .landing-chips li { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-full); font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
 .landing-note { font-size: var(--text-body-sm-size); color: var(--color-text-tertiary); max-width: var(--layout-content-max); }
@@ -121,9 +133,11 @@
 @media (max-width: 1199px) {
   .landing-hero { grid-template-columns: minmax(0, 1fr); }
   .landing-hero .landing-mock { width: 100%; max-width: var(--landing-mock-max); justify-self: center; }
+  .landing-feature.has-demo, .landing-feature.is-flipped { grid-template-columns: minmax(0, 1fr); gap: var(--space-9); }
+  .landing-feature.is-flipped .landing-feature-demo { order: 0; }
 }
 @media (max-width: 1023px) {
-  .landing-grid, .landing-grid.is-steps { grid-template-columns: repeat(2, 1fr); }
+  .landing-grid:not(.is-compact), .landing-grid.is-steps { grid-template-columns: repeat(2, 1fr); }
 }
 /* 목업 안 릴스와 카드를 세로로 쌓는다 */
 @media (max-width: 719px) {

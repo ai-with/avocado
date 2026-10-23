@@ -1,0 +1,14 @@
+/* 기능 데모 공통. 데모별 모양은 각 <name>.css */
+.demo { --demo-max: 620px; width: 100%; max-width: var(--demo-max); display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6); border-radius: var(--radius-2xl); background: var(--color-surface-subtle); box-shadow: var(--shadow-ring); font-size: var(--text-body-sm-size); min-width: 0; }
+.demo-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.demo-label { font-size: var(--text-caption-size); font-weight: var(--weight-medium); color: var(--color-text-tertiary); }
+.demo-card { min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); overflow-wrap: anywhere; }
+.demo-card-title { font-size: var(--text-caption-size); font-weight: var(--weight-semibold); color: var(--color-text-secondary); }
+.demo-mono { font-family: var(--font-mono); font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
+/* 시퀀스가 누르는 버튼: 눌린 순간만 살짝 들어간다 */
+.demo .btn.is-pressed { transform: scale(0.96); box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+/* 단계에 닿으면 나타나는 요소. 자리는 처음부터 차지해 패널 높이가 흔들리지 않는다 */
+.demo-reveal { opacity: 0; transform: translateY(6px); transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out); }
+.demo-reveal.is-shown { opacity: 1; transform: none; }
+.demo-caret { display: inline-block; width: 2px; height: 1em; vertical-align: text-bottom; background: var(--color-text-primary); animation: demo-blink 1s steps(1) infinite; }
+@keyframes demo-blink { 50% { opacity: 0; } }

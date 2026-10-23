@@ -4,7 +4,7 @@ import { HERO, HERO_MOCK } from "../copy";
 import { prefersReducedMotion, useInViewPlayback } from "../useInViewPlayback";
 import { formatClock, useReelClock } from "../useReelClock";
 import { useSuggestionSequence } from "../useSuggestionSequence";
-import { LandingCta } from "./Cta";
+import { HeroActions } from "./Cta";
 import { HeroPlayer } from "./HeroPlayer";
 import { LineCard, SuggestionCard } from "./HeroSuggestion";
 
@@ -80,7 +80,7 @@ export function Hero() {
         <Badge tone="accent">{HERO.badge}</Badge>
         <h1 className="landing-display">{HERO.title}</h1>
         <p className="landing-sub">{HERO.sub}</p>
-        <LandingCta withLogin />
+        <HeroActions />
         <ul className="landing-checks">
           {HERO.checks.map((c) => <li key={c}><Icon name="check" size={16} />{c}</li>)}
         </ul>
