@@ -13,7 +13,7 @@ export function MyAccountSection() {
   const onPhoneChanged = async () => {
     await refresh();
     setChanging(false);
-    toast("휴대폰 번호를 바꿨습니다.", "success");
+    toast("휴대폰 번호를 바꿨어요.", "success");
   };
   return (
     <SectionCard title="내 계정" description={`${me.user.name} · ${me.user.email}`}>

@@ -19,11 +19,11 @@ export const CANDIDATES_DEMO = {
     { value: "neutral", label: "판단 불가" },
   ] as const satisfies readonly { value: CandidateFilter; label: string }[],
   items: [
-    { seconds: 1, tone: "success", title: "첫 3초 제품 노출", rule: "첫 3초 안에 제품이 보일 것", evidence: "0~3초 내내 제품이 화면 오른쪽에 보입니다." },
+    { seconds: 1, tone: "success", title: "첫 3초 제품 노출", rule: "첫 3초 안에 제품이 보일 것", evidence: "0~3초 내내 제품이 화면 오른쪽에 보여요." },
     { seconds: 2, tone: "danger", title: "금지 표현 \"in just a week\"", rule: "효과 기간을 단정하지 말 것", evidence: "\"Okay, this serum made my skin glow in just a week.\"" },
-    { seconds: 4, tone: "warn", title: "광고 표기 화면 텍스트 없음", rule: "광고 표기를 화면에 넣을 것", evidence: "화면 안에서 광고 표기 글자를 찾지 못했습니다. 캡션 표기는 확인이 필요합니다." },
+    { seconds: 4, tone: "warn", title: "광고 표기 화면 텍스트 없음", rule: "광고 표기를 화면에 넣을 것", evidence: "화면 안에서 광고 표기 글자를 찾지 못했어요. 캡션 표기는 확인이 필요해요." },
     { seconds: 6, tone: "success", title: "필수 문구", rule: "\"Just one drop\" 사용량 안내", evidence: "\"Just one drop is enough.\"" },
-    { seconds: 7, tone: "neutral", title: "배경 음악 저작권", rule: "허가된 음원만 쓸 것", evidence: "영상만으로는 음원 출처를 알 수 없습니다." },
+    { seconds: 7, tone: "neutral", title: "배경 음악 저작권", rule: "허가된 음원만 쓸 것", evidence: "영상만으로는 음원 출처를 알 수 없어요." },
   ] as const satisfies readonly Candidate[],
   evidenceTitle: "근거",
   ruleLabel: "규정",
@@ -31,8 +31,8 @@ export const CANDIDATES_DEMO = {
   reject: "기각",
   adopted: "피드백에 추가",
   rejected: "기각함",
-  pickHint: "항목을 누르면 근거가 보입니다",
-  empty: "이 상태의 항목이 없습니다",
+  pickHint: "항목을 누르면 근거가 보여요",
+  empty: "이 상태의 항목이 없어요",
 };
 
 export const FEEDBACK_DEMO = {
@@ -72,7 +72,7 @@ export const LINKS_DEMO = {
   linkHead: "인플루언서 · 채널",
   total: "합계",
   copied: "링크 복사됨",
-  rowHint: "행을 누르면 링크를 복사합니다",
+  rowHint: "행을 누르면 링크를 복사해요",
   rows: [
     { who: "인플루언서 A", channel: "인스타 바이오", slug: "/r/a-bio", data: { "24h": [86, 52, 4], "3d": [198, 121, 10], "7d": [352, 214, 17] } },
     { who: "인플루언서 A", channel: "스토리", slug: "/r/a-story", data: { "24h": [142, 88, 7], "3d": [265, 160, 13], "7d": [298, 181, 15] } },

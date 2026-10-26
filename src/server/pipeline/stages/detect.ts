@@ -23,7 +23,7 @@ async function loadSegs(ctx: Ctx): Promise<Seg[]> {
 
 async function noSpeechVerdict(ctx: Ctx): Promise<Verdict> {
   const stt = await ctx.db.select({ status: processingJobs.status }).from(processingJobs).where(jobWhere(ctx.sub.id, "transcribe")).get();
-  return { result: "undetermined", confidence: "low", reason: stt?.status === "failed" ? "전사에 실패해 대사를 확인하지 못했습니다." : "음성이 없어 대사를 확인하지 못했습니다." };
+  return { result: "undetermined", confidence: "low", reason: stt?.status === "failed" ? "전사에 실패해 대사를 확인하지 못했어요." : "음성이 없어 대사를 확인하지 못했어요." };
 }
 
 async function detectAll(ctx: Ctx): Promise<Draft[]> {

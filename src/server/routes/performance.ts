@@ -179,14 +179,14 @@ export const performanceRoutes = new Hono<AppEnv>()
   .patch("/contents/:id/posted-at", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);
     const { postedAt } = parse(z.object({ postedAt: z.number().int().positive() }), await c.req.json());
-    if (postedAt > Date.now() + 60_000) throw new ApiError(400, "future_time", "게시 시각은 지금보다 늦을 수 없습니다.");
+    if (postedAt > Date.now() + 60_000) throw new ApiError(400, "future_time", "게시 시각은 지금보다 늦을 수 없어요.");
     const row = await c.var.db
       .select({ id: contents.id })
       .from(contents)
       .innerJoin(guides, eq(guides.id, contents.guideId))
       .where(and(eq(contents.id, c.req.param("id")), eq(guides.workspaceId, workspace.id)))
       .get();
-    if (!row) throw new ApiError(404, "content_not_found", "게시물을 찾을 수 없습니다.");
+    if (!row) throw new ApiError(404, "content_not_found", "게시물을 찾을 수 없어요.");
     await c.var.db.update(contents).set({ postedAt, postedAtSource: "manual" }).where(eq(contents.id, row.id));
     await scheduleSnapshots(c.var.db, c.env, row.id);
     return c.json({ ok: true });

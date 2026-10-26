@@ -30,7 +30,7 @@ function useGuideDetail(id: string) {
   const publish = async () => {
     try {
       await api.post(`/guides/${id}/publish`);
-      toast("가이드를 공개했습니다.", "success");
+      toast("가이드를 공개했어요.", "success");
       await load();
     } catch (e) {
       toast(errorMessage(e), "danger");

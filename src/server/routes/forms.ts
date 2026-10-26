@@ -43,7 +43,7 @@ export const formBodySchema = z.object({
 async function ownForm(c: Parameters<typeof workspaceCtx>[0], id: string) {
   const { workspace } = workspaceCtx(c);
   const form = await c.var.db.select().from(forms).where(and(eq(forms.id, id), eq(forms.workspaceId, workspace.id), isNull(forms.deletedAt))).get();
-  if (!form) throw new ApiError(404, "form_not_found", "폼을 찾을 수 없습니다.");
+  if (!form) throw new ApiError(404, "form_not_found", "폼을 찾을 수 없어요.");
   return form;
 }
 

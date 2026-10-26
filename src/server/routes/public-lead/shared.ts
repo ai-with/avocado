@@ -43,7 +43,7 @@ export const consentFields = {
   marketingOptIn: z.boolean().default(false),
   alimtalkOptIn: z.boolean().default(false),
 };
-export const emailSchema = z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아닙니다."));
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아니에요."));
 // 게이트·폼 공통 연락처 입력
 export const contactFields = {
   email: emailSchema,

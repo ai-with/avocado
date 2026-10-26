@@ -11,8 +11,8 @@ function InviteCreated({ result, onClose }: { result: InviteResult; onClose: () 
     <div className="stack">
       <p>
         {result.email.delivered
-          ? `${result.invite.email} 주소로 초대 메일을 보냈습니다.`
-          : "이메일 발송 설정이 없어 메일은 보내지 않았습니다. 아래 링크를 직접 전달해 주세요."}
+          ? `${result.invite.email} 주소로 초대 메일을 보냈어요.`
+          : "이메일 발송 설정이 없어 메일은 보내지 않았어요. 아래 링크를 직접 전달해 주세요."}
       </p>
       <Input label="초대 링크" value={result.invite.url} readOnly onFocus={(e) => e.target.select()} />
       <div className="row row-end">

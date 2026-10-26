@@ -4,11 +4,11 @@ import { api } from "../lib/api";
 
 // 구글 오류 코드(콜백이 /login?error= 로 넘김) → 안내 문구
 export const GOOGLE_ERRORS: Record<string, string> = {
-  google_disabled: "구글 로그인은 준비 중입니다. 이메일로 로그인해 주세요.",
-  google_state: "로그인 요청이 만료되었습니다. 다시 시도해 주세요.",
-  google_cancelled: "구글 로그인을 취소했습니다.",
-  google_failed: "구글 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-  google_email_unverified: "같은 이메일로 가입한 계정이 있습니다. 이메일과 비밀번호로 로그인해 주세요.",
+  google_disabled: "구글 로그인은 준비 중이에요. 이메일로 로그인해 주세요.",
+  google_state: "로그인 요청이 만료되었어요. 다시 시도해 주세요.",
+  google_cancelled: "구글 로그인을 취소했어요.",
+  google_failed: "구글 로그인에 실패했어요. 잠시 후 다시 시도해 주세요.",
+  google_email_unverified: "같은 이메일로 가입한 계정이 있어요. 이메일과 비밀번호로 로그인해 주세요.",
 };
 
 function GoogleLogo() {
@@ -42,7 +42,7 @@ export function GoogleSection({ next = "/dashboard" }: { next?: string }) {
         <GoogleLogo />
         Google로 계속하기
       </Button>
-      {enabled === false && <p className="field-hint">구글 로그인은 준비 중입니다.</p>}
+      {enabled === false && <p className="field-hint">구글 로그인은 준비 중이에요.</p>}
       <div className="auth-divider"><span>또는 이메일로</span></div>
     </div>
   );

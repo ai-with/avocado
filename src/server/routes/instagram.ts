@@ -47,7 +47,7 @@ async function resolveConnectToken(db: Db, token: string) {
   }
   const cb = await db.select({ conn: igConnections, wsName: workspaces.name }).from(igConnections).innerJoin(workspaces, eq(workspaces.id, igConnections.workspaceId)).where(eq(igConnections.connectToken, token)).get();
   if (cb && !cb.conn.revokedAt) return { target: "client_brand" as const, workspaceId: cb.conn.workspaceId, workspaceName: cb.wsName, influencerId: null, name: cb.conn.label ?? "", lang: "ko" as const, conn: cb.conn };
-  throw new ApiError(404, "connect_not_found", "연결 링크를 찾을 수 없습니다.");
+  throw new ApiError(404, "connect_not_found", "연결 링크를 찾을 수 없어요.");
 }
 
 const publicConn = (c: typeof igConnections.$inferSelect) => ({
@@ -112,7 +112,7 @@ export const igRoutes = new Hono<AppEnv>()
     let ws: string;
     if (target === "brand_sender") {
       const ctx = workspaceCtx(c);
-      if (ctx.role !== "owner" && ctx.role !== "editor") throw new ApiError(403, "forbidden", "이 작업을 할 권한이 없습니다.");
+      if (ctx.role !== "owner" && ctx.role !== "editor") throw new ApiError(403, "forbidden", "이 작업을 할 권한이 없어요.");
       ws = ctx.workspace.id;
     } else if ((target === "influencer" || target === "client_brand") && token) {
       const t = await resolveConnectToken(c.var.db, token);
@@ -182,7 +182,7 @@ export const igRoutes = new Hono<AppEnv>()
   .delete("/connections/:id", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);
     const row = await c.var.db.select().from(igConnections).where(and(eq(igConnections.id, c.req.param("id")), eq(igConnections.workspaceId, workspace.id))).get();
-    if (!row) throw new ApiError(404, "connection_not_found", "연결을 찾을 수 없습니다.");
+    if (!row) throw new ApiError(404, "connection_not_found", "연결을 찾을 수 없어요.");
     await c.var.db.update(igConnections).set({ revokedAt: now(), tokenEnc: null }).where(eq(igConnections.id, row.id));
     await logEvent(c.var.db, workspace.id, "ig_connect_revoked", { target: row.target });
     return c.json({ ok: true });

@@ -51,7 +51,7 @@ export const accountRoutes = new Hono<AppEnv>()
     const body = parse(signupSchema, await c.req.json());
     const db = c.var.db;
     const exists = await db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).get();
-    if (exists) throw new ApiError(409, "email_taken", "이미 가입된 이메일입니다.", { email: "이미 가입된 이메일입니다." });
+    if (exists) throw new ApiError(409, "email_taken", "이미 가입된 이메일이에요.", { email: "이미 가입된 이메일이에요." });
     if (body.inviteToken) await checkInvite(db, body.inviteToken, body.email);
     const user = { id: newId(), email: body.email, name: body.name };
     const workspaceId = await createAccount(db, body, user);
@@ -64,12 +64,12 @@ export const accountRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const key = `login:${body.email}`;
     if ((await attemptsSince(db, key, LOGIN_WINDOW)) >= LOGIN_MAX) {
-      throw new ApiError(429, "too_many_attempts", "로그인 시도가 너무 많습니다. 15분 뒤에 다시 시도해 주세요.");
+      throw new ApiError(429, "too_many_attempts", "로그인 시도가 너무 많아요. 15분 뒤에 다시 시도해 주세요.");
     }
     const row = await db.select().from(users).where(eq(users.email, body.email)).get();
     if (!row || !(await verifyPassword(body.password, row.passwordHash))) {
       await recordAttempt(db, key);
-      throw new ApiError(401, "invalid_credentials", "이메일 또는 비밀번호가 맞지 않습니다.");
+      throw new ApiError(401, "invalid_credentials", "이메일 또는 비밀번호가 맞지 않아요.");
     }
     await createSession(c, row.id, null);
     return c.json({ user: { id: row.id, email: row.email, name: row.name }, phoneVerified: row.phoneVerifiedAt !== null });
@@ -96,7 +96,7 @@ export const accountRoutes = new Hono<AppEnv>()
     if (!auth.phoneVerified) throw new ApiError(403, "phone_required", "휴대폰 번호 인증을 먼저 마쳐 주세요.");
     const { workspaceName } = parse(z.object({ workspaceName: z.string().trim().min(1, "워크스페이스 이름을 입력해 주세요.").max(60) }), await c.req.json());
     const db = c.var.db;
-    if (auth.workspace) throw new ApiError(409, "has_workspace", "이미 워크스페이스가 있습니다.");
+    if (auth.workspace) throw new ApiError(409, "has_workspace", "이미 워크스페이스가 있어요.");
     const workspaceId = newId();
     await db.batch([
       db.insert(workspaces).values({ id: workspaceId, name: workspaceName, createdAt: now() }),

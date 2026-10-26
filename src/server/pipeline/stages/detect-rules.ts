@@ -9,8 +9,8 @@ import type { GuideRule } from "../../../shared/guides";
 export type Judged = { verdict: Verdict; model: string; frameIds?: string[]; segmentIds?: string[] };
 export type DetectInput = { env: Env; sub: Sub; segs: Seg[]; noSpeech: Verdict | null; visual: VisualJudge; textModel: string; visionModel: string };
 
-const UNDETERMINED_TARGET: Verdict = { result: "undetermined", confidence: "low", reason: "검사 대상이 없습니다." };
-const UNDETERMINED_FORMAT: Verdict = { result: "undetermined", confidence: "low", reason: "형식 규칙을 해석하지 못했습니다. 직접 확인해 주세요." };
+const UNDETERMINED_TARGET: Verdict = { result: "undetermined", confidence: "low", reason: "검사 대상이 없어요." };
+const UNDETERMINED_FORMAT: Verdict = { result: "undetermined", confidence: "low", reason: "형식 규칙을 해석하지 못했어요. 직접 확인해 주세요." };
 const langLabel = (l: string) => (l === "ko" ? "한국어" : l === "en" ? "영어" : l);
 
 async function judgeTextSafe(env: Env, rule: GuideRule, segs: Seg[]): Promise<{ verdict: Verdict; segmentIds: string[] }> {
@@ -21,7 +21,7 @@ async function judgeTextSafe(env: Env, rule: GuideRule, segs: Seg[]): Promise<{ 
   } catch (e) {
     // 모델 응답 형식 오류 → 그 규칙만 판단 불가
     console.error("[pipeline:judgeText]", rule.id, e);
-    return { verdict: { result: "undetermined", confidence: "low", reason: "모델 응답을 해석하지 못했습니다." }, segmentIds: [] };
+    return { verdict: { result: "undetermined", confidence: "low", reason: "모델 응답을 해석하지 못했어요." }, segmentIds: [] };
   }
 }
 
@@ -32,14 +32,14 @@ async function byModel(rule: GuideRule, d: DetectInput): Promise<Judged> {
 
 function forbiddenPhrase(rule: GuideRule, d: DetectInput): Judged {
   const hit = phraseHits(d.segs, splitTerms(rule.content));
-  if (hit.ids.length) return { verdict: { result: "candidate", confidence: "high", reason: `대사에 금지 표현 "${hit.terms.join('", "')}"이 있습니다.` }, model: "rule", segmentIds: hit.ids };
-  return { verdict: { result: "compliant", confidence: "medium", reason: "대사에서 금지 표현을 찾지 못했습니다." }, model: "rule" };
+  if (hit.ids.length) return { verdict: { result: "candidate", confidence: "high", reason: `대사에 금지 표현 "${hit.terms.join('", "')}"이 있어요.` }, model: "rule", segmentIds: hit.ids };
+  return { verdict: { result: "compliant", confidence: "medium", reason: "대사에서 금지 표현을 찾지 못했어요." }, model: "rule" };
 }
 
 // 그대로는 없으면 비슷한 표현으로 말했는지 모델에 묻는다
 async function requiredPhrase(rule: GuideRule, d: DetectInput): Promise<Judged> {
   const hit = phraseHits(d.segs, [rule.content]);
-  if (hit.ids.length) return { verdict: { result: "compliant", confidence: "high", reason: "대사에서 필수 문구를 찾았습니다." }, model: "rule", segmentIds: hit.ids };
+  if (hit.ids.length) return { verdict: { result: "compliant", confidence: "high", reason: "대사에서 필수 문구를 찾았어요." }, model: "rule", segmentIds: hit.ids };
   return byModel(rule, d);
 }
 
@@ -48,7 +48,7 @@ async function language(rule: GuideRule, d: DetectInput): Promise<Judged> {
   const got = mainLang(d.segs);
   if (!want || !got) return byModel(rule, d);
   const verdict: Verdict =
-    want === got ? { result: "compliant", confidence: "high", reason: `대사 언어: ${langLabel(got)}` } : { result: "candidate", confidence: "high", reason: `대사가 ${langLabel(got)}입니다 (규칙: ${langLabel(want)}).` };
+    want === got ? { result: "compliant", confidence: "high", reason: `대사 언어: ${langLabel(got)}` } : { result: "candidate", confidence: "high", reason: `대사 언어가 규칙과 달라요 (대사: ${langLabel(got)}, 규칙: ${langLabel(want)}).` };
   return { verdict, model: "rule" };
 }
 
@@ -58,7 +58,7 @@ function adDisclosure(rule: GuideRule, d: DetectInput): Judged {
   let frameIds: string[] = [];
   if (rule.targets.includes("speech")) {
     segmentIds = adDisclosureHits(d.segs);
-    v = d.noSpeech ?? (segmentIds.length ? { result: "compliant", confidence: "high", reason: "대사에서 광고 표기를 찾았습니다." } : { result: "candidate", confidence: "medium", reason: "대사에서 광고 표기를 찾지 못했습니다." });
+    v = d.noSpeech ?? (segmentIds.length ? { result: "compliant", confidence: "high", reason: "대사에서 광고 표기를 찾았어요." } : { result: "candidate", confidence: "medium", reason: "대사에서 광고 표기를 찾지 못했어요." });
   }
   const screenText = rule.targets.includes("screen_text");
   if (screenText) {

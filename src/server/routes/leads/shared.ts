@@ -10,7 +10,7 @@ import type { GroupCondition, GroupRules } from "../../../shared/leads";
 
 // 리드 라우트 공용
 
-export const emailSchema = z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아닙니다."));
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아니에요."));
 
 // 목록 필터 쿼리 → 그룹 규칙 필드
 const FILTER_FIELDS: [string, GroupCondition["field"]][] = [
@@ -54,7 +54,7 @@ export async function lookups(db: Db, workspaceId: string) {
   return { guides: g, influencers: i, channels: channels.map((ch) => ({ key: ch.key, name: ch.name })), tags };
 }
 
-export const ownLead = (db: Db, workspaceId: string, id: string) => findLive(db, leads, id, workspaceId, { code: "lead_not_found", message: "리드를 찾을 수 없습니다." });
+export const ownLead = (db: Db, workspaceId: string, id: string) => findLive(db, leads, id, workspaceId, { code: "lead_not_found", message: "리드를 찾을 수 없어요." });
 
 export const publicLead = (l: typeof leads.$inferSelect) => {
   const { unsubscribeToken: _t, workspaceId: _w, deletedAt: _d, ...rest } = l;

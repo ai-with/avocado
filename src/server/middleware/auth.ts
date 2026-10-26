@@ -74,14 +74,14 @@ export async function setCurrentWorkspace(c: Context<AppEnv>, workspaceId: strin
     .from(members)
     .where(and(eq(members.workspaceId, workspaceId), eq(members.userId, auth.user.id)))
     .get();
-  if (!m) throw new ApiError(404, "workspace_not_found", "워크스페이스를 찾을 수 없습니다.");
+  if (!m) throw new ApiError(404, "workspace_not_found", "워크스페이스를 찾을 수 없어요.");
   await c.var.db.update(sessions).set({ currentWorkspaceId: workspaceId }).where(eq(sessions.id, auth.sessionId));
 }
 
 // 휴대폰 인증 전에도 허용되는 곳(me, 로그아웃, 휴대폰 인증, 첫 워크스페이스)에서만 쓴다
 export function sessionCtx(c: Context<AppEnv>): Auth {
   const auth = c.var.auth;
-  if (!auth) throw new ApiError(401, "unauthorized", "로그인이 필요합니다.");
+  if (!auth) throw new ApiError(401, "unauthorized", "로그인이 필요해요.");
   return auth;
 }
 
@@ -95,7 +95,7 @@ export function requireAuthCtx(c: Context<AppEnv>): Auth {
 // 현재 워크스페이스가 있는 로그인 상태를 보장하고 반환한다. 라우트 핸들러에서 쓴다
 export function workspaceCtx(c: Context<AppEnv>): Auth & { workspace: AuthWorkspace; role: Role } {
   const auth = requireAuthCtx(c);
-  if (!auth.workspace || !auth.role) throw new ApiError(403, "no_workspace", "속한 워크스페이스가 없습니다.");
+  if (!auth.workspace || !auth.role) throw new ApiError(403, "no_workspace", "속한 워크스페이스가 없어요.");
   return { ...auth, workspace: auth.workspace, role: auth.role };
 }
 
@@ -107,7 +107,7 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
 export const requireRole = (roles: Role[]) =>
   createMiddleware<AppEnv>(async (c, next) => {
     const { role } = workspaceCtx(c);
-    if (!roles.includes(role)) throw new ApiError(403, "forbidden", "이 작업을 할 권한이 없습니다.");
+    if (!roles.includes(role)) throw new ApiError(403, "forbidden", "이 작업을 할 권한이 없어요.");
     await next();
   });
 

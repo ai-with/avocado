@@ -64,7 +64,7 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
         <input type="file" accept=".csv,text/csv" aria-label="CSV 파일 고르기" onChange={(e) => void pick(e.target.files?.[0])} />
         {header.length > 0 && <ColumnMapping header={header} map={map} onChange={setMap} />}
         <p className="text-caption">마케팅 동의 열이 없거나 값이 Y, 동의, true가 아니면 '동의 없음'으로 넣어요. 같은 이메일은 기존 리드에 합쳐요.</p>
-        <Checkbox label="수신 동의를 받은 연락처만 올립니다" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+        <Checkbox label="수신 동의를 받은 연락처만 올려요" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
       </div>
     </Modal>
   );

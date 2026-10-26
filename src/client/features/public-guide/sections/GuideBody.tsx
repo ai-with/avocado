@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import type { Lang } from "../../../i18n";
+import type { Lang, TKey } from "../../../i18n";
 import type { VideoGuide } from "../../../../shared/guides";
+import { DEFAULT_CHANNELS } from "../../../../shared/leads";
 import type { PersonalData, PublicGuide, T } from "../guideTypes";
 import { PublicSection, TextList } from "./PublicShell";
 
@@ -44,6 +45,10 @@ function ScenesSection({ vg, t, lang }: { vg: VideoGuide; t: T; lang: Lang }) {
     </PublicSection>
   );
 }
+
+// 기본 채널은 화면 언어 사전으로, 브랜드가 추가한 채널은 브랜드가 지은 이름으로
+const leadChannelName = (l: PersonalData["leadLinks"][number], t: T) =>
+  DEFAULT_CHANNELS.some((c) => c.key === l.channel) ? t(`channel_${l.channel}` as TKey) : l.name;
 
 const isForbidden = (type: string) => type === "forbidden_phrase" || type === "forbidden_scene";
 
@@ -91,7 +96,7 @@ export function GuideBody({ data, t, lang }: { data: PersonalData; t: T; lang: L
       {data.leadLinks.length > 0 && (
         <PublicSection title={t("my_links")}>
           <p className="text-caption">{t("my_links_hint")}</p>
-          <ul className="pub-list">{data.leadLinks.map((l) => <li key={l.url} className="pub-link">{l.channel}: <a href={l.url}>{l.url}</a></li>)}</ul>
+          <ul className="pub-list">{data.leadLinks.map((l) => <li key={l.url} className="pub-link">{leadChannelName(l, t)}: <a href={l.url}>{l.url}</a></li>)}</ul>
         </PublicSection>
       )}
     </>

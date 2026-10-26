@@ -7,10 +7,10 @@ type Who = { brand: string; name: string; en: boolean; url: string };
 export function guideInviteMail({ brand, name, en, url }: Who): Mail {
   return {
     subject: en ? `[${brand}] Video guide for you` : `[${brand}] 영상 가이드가 도착했어요`,
-    text: en ? `Hi ${name},\nHere is your video guide from ${brand}.\n${url}` : `${name}님, ${brand}의 영상 가이드입니다.\n${url}`,
+    text: en ? `Hi ${name},\nHere is your video guide from ${brand}.\n${url}` : `${name}님, ${brand}의 영상 가이드예요.\n${url}`,
     html: en
       ? `<p>Hi ${escapeHtml(name)},</p><p>Here is your video guide from <b>${escapeHtml(brand)}</b>.</p><p><a href="${url}">Open the guide</a></p>`
-      : `<p>${escapeHtml(name)}님, <b>${escapeHtml(brand)}</b>의 영상 가이드입니다.</p><p><a href="${url}">가이드 열기</a></p>`,
+      : `<p>${escapeHtml(name)}님, <b>${escapeHtml(brand)}</b>의 영상 가이드예요.</p><p><a href="${url}">가이드 열기</a></p>`,
   };
 }
 

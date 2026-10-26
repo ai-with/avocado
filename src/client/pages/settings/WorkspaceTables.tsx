@@ -5,14 +5,14 @@ import { ASSIGNABLE, INVITE_COPIED, type Act, type Invite, type Member } from ".
 
 function MemberRow({ m, isOwner, act }: { m: Member; isOwner: boolean; act: Act }) {
   const editable = isOwner && m.role !== "owner";
-  const remove = () => confirm(`${m.name}님을 팀에서 제거할까요?`) && void act(() => api.del(`/workspace/members/${m.userId}`), "팀에서 제거했습니다.");
+  const remove = () => confirm(`${m.name}님을 팀에서 제거할까요?`) && void act(() => api.del(`/workspace/members/${m.userId}`), "팀에서 제거했어요.");
   return (
     <tr>
       <td>{m.name}</td>
       <td>{m.email}</td>
       <td>
         {editable ? (
-          <Select aria-label={`${m.name} 역할`} value={m.role} onChange={(e) => void act(() => api.patch(`/workspace/members/${m.userId}`, { role: e.target.value }), "역할을 바꿨습니다.")}>
+          <Select aria-label={`${m.name} 역할`} value={m.role} onChange={(e) => void act(() => api.patch(`/workspace/members/${m.userId}`, { role: e.target.value }), "역할을 바꿨어요.")}>
             {ASSIGNABLE.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
           </Select>
         ) : (
@@ -53,7 +53,7 @@ function InviteRow({ i, act }: { i: Invite; act: Act }) {
       <td className="text-right">
         <div className="row row-end">
           <CopyButton text={i.url} label="링크 복사" doneMessage={INVITE_COPIED} />
-          <Button size="sm" variant="ghost" onClick={() => void act(() => api.del(`/workspace/invites/${i.id}`), "초대를 취소했습니다.")} aria-label={`${i.email} 초대 취소`}>
+          <Button size="sm" variant="ghost" onClick={() => void act(() => api.del(`/workspace/invites/${i.id}`), "초대를 취소했어요.")} aria-label={`${i.email} 초대 취소`}>
             취소
           </Button>
         </div>
@@ -67,7 +67,7 @@ export function InvitesTable({ invites, act }: { invites: Invite[]; act: Act }) 
     <section className="stack">
       <h4>대기 중인 초대</h4>
       {invites.length === 0 ? (
-        <EmptyState title="대기 중인 초대가 없습니다" description="팀원 초대를 누르면 초대 링크가 만들어지고 이메일로도 보내 드립니다." />
+        <EmptyState title="대기 중인 초대가 없어요" description="팀원 초대를 누르면 초대 링크가 만들어지고 이메일로도 보내 드려요." />
       ) : (
         <Table>
           <thead>

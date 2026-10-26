@@ -19,7 +19,7 @@ export async function stageNotify(ctx: Ctx): Promise<string | null> {
   const people = await memberEmails(db, ctx.workspaceId, ["owner", "editor", "approver"]);
   const url = `${env.APP_URL}/dashboard/reviews/${sub.id}`;
   const subject = `[${guide.name}] ${inf?.name ?? "인플루언서"}님 v${sub.version} 검수 준비 완료`;
-  const text = `${inf?.name ?? "인플루언서"}님이 올린 v${sub.version} 영상의 처리가 끝났습니다. 위반 후보 ${n}건. 검수 화면: ${url}`;
+  const text = `${inf?.name ?? "인플루언서"}님이 올린 v${sub.version} 영상의 처리가 끝났어요. 위반 후보 ${n}건. 검수 화면: ${url}`;
   let delivered = 0;
   for (const p of people) {
     const r = await sendEmail(env, { to: p.email, subject, text, html: `<p>${escapeHtml(text)}</p><p><a href="${url}">검수 화면 열기</a></p>` });

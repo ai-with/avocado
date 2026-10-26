@@ -114,8 +114,8 @@ export function checkFormat(content: string, meta: FormatMeta): Verdict | null {
     if (!meta.width || !meta.height) unknown = true;
     else (meta.height > meta.width ? checked : problems).push(`비율 ${meta.width}x${meta.height}${meta.height > meta.width ? " 세로" : " 가로"}`);
   }
-  if (problems.length) return { result: "candidate", confidence: "high", reason: `형식이 다릅니다: ${problems.join(", ")}.` };
-  if (unknown) return { result: "undetermined", confidence: "low", reason: "영상 길이나 크기 정보가 없어 형식을 계산하지 못했습니다." };
+  if (problems.length) return { result: "candidate", confidence: "high", reason: `형식이 달라요: ${problems.join(", ")}.` };
+  if (unknown) return { result: "undetermined", confidence: "low", reason: "영상 길이나 크기 정보가 없어 형식을 계산하지 못했어요." };
   if (checked.length) return { result: "compliant", confidence: "high", reason: `형식 확인: ${checked.join(", ")}.` };
   return null;
 }
@@ -140,18 +140,18 @@ export type FrameVote = { frameId: string; yes: boolean; confidence: CandidateCo
 
 // 프레임별 예/아니오를 규칙 하나의 결과로 합친다. required = 어느 프레임에든 보여야 함, forbidden = 어느 프레임에도 보이면 안 됨
 export function aggregateVotes(kind: "required" | "forbidden", votes: FrameVote[], asked: number): Verdict & { frameIds: string[] } {
-  if (votes.length === 0) return { result: "undetermined", confidence: "low", reason: asked ? "모델 응답을 받지 못했습니다." : "확인할 프레임이 없습니다.", frameIds: [] };
+  if (votes.length === 0) return { result: "undetermined", confidence: "low", reason: asked ? "모델 응답을 받지 못했어요." : "확인할 프레임이 없어요.", frameIds: [] };
   const yes = votes.filter((v) => v.yes);
   const strong = yes.filter((v) => v.confidence !== "low");
   const best: CandidateConfidence = strong.some((v) => v.confidence === "high") ? "high" : strong.length ? "medium" : "low";
   if (kind === "required") {
-    if (strong.length) return { result: "compliant", confidence: best, reason: `프레임 ${strong.length}장에서 확인했습니다.`, frameIds: strong.map((v) => v.frameId) };
-    if (yes.length) return { result: "needs_check", confidence: "low", reason: "보이는 것 같지만 확실하지 않습니다.", frameIds: yes.map((v) => v.frameId) };
-    return { result: "candidate", confidence: "medium", reason: `확인한 프레임 ${votes.length}장에서 찾지 못했습니다.`, frameIds: [] };
+    if (strong.length) return { result: "compliant", confidence: best, reason: `프레임 ${strong.length}장에서 확인했어요.`, frameIds: strong.map((v) => v.frameId) };
+    if (yes.length) return { result: "needs_check", confidence: "low", reason: "보이는 것 같지만 확실하지 않아요.", frameIds: yes.map((v) => v.frameId) };
+    return { result: "candidate", confidence: "medium", reason: `확인한 프레임 ${votes.length}장에서 찾지 못했어요.`, frameIds: [] };
   }
-  if (strong.length) return { result: "candidate", confidence: best, reason: `프레임 ${strong.length}장에서 보입니다.`, frameIds: strong.map((v) => v.frameId) };
-  if (yes.length) return { result: "needs_check", confidence: "low", reason: "보이는 것 같지만 확실하지 않습니다.", frameIds: yes.map((v) => v.frameId) };
-  return { result: "compliant", confidence: "medium", reason: `확인한 프레임 ${votes.length}장에서 보이지 않았습니다.`, frameIds: [] };
+  if (strong.length) return { result: "candidate", confidence: best, reason: `프레임 ${strong.length}장에서 보여요.`, frameIds: strong.map((v) => v.frameId) };
+  if (yes.length) return { result: "needs_check", confidence: "low", reason: "보이는 것 같지만 확실하지 않아요.", frameIds: yes.map((v) => v.frameId) };
+  return { result: "compliant", confidence: "medium", reason: `확인한 프레임 ${votes.length}장에서 보이지 않았어요.`, frameIds: [] };
 }
 
 // 텍스트 모델 판정 → 결과 4종. 위반 후보는 신뢰도 높음·중간만, 낮으면 확인 필요 (F-61 정책)

@@ -68,7 +68,7 @@ export const influencerBody = z.object({
   displayName: z.string().trim().min(1, "이름을 입력해 주세요.").max(60),
   igHandle: z.string().trim().max(60).nullable().default(null),
   threadsHandle: z.string().trim().max(60).nullable().default(null),
-  email: z.union([z.literal(""), z.email("이메일 형식이 아닙니다.")]).nullable().default(null),
+  email: z.union([z.literal(""), z.email("이메일 형식이 아니에요.")]).nullable().default(null),
   lang: z.enum(["ko", "en"]).default("ko"),
   country: z.string().trim().toUpperCase().max(2).nullable().default(null),
 });

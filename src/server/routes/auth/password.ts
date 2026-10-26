@@ -29,8 +29,8 @@ export const passwordRoutes = new Hono<AppEnv>()
     await sendEmail(c.env, {
       to: addr,
       subject: "비밀번호 재설정 안내",
-      text: `${user.name} 님, 아래 링크에서 새 비밀번호를 정해 주세요. 링크는 30분 동안 쓸 수 있습니다.\n${url}`,
-      html: `<p>${user.name.replace(/</g, "&lt;")} 님, 아래 링크에서 새 비밀번호를 정해 주세요. 링크는 30분 동안 쓸 수 있습니다.</p><p><a href="${url}">비밀번호 재설정</a></p>`,
+      text: `${user.name} 님, 아래 링크에서 새 비밀번호를 정해 주세요. 링크는 30분 동안 쓸 수 있어요.\n${url}`,
+      html: `<p>${user.name.replace(/</g, "&lt;")} 님, 아래 링크에서 새 비밀번호를 정해 주세요. 링크는 30분 동안 쓸 수 있어요.</p><p><a href="${url}">비밀번호 재설정</a></p>`,
     });
     return c.json({ ok: true });
   })
@@ -40,7 +40,7 @@ export const passwordRoutes = new Hono<AppEnv>()
     const id = await sha256Hex(body.token);
     const row = await db.select().from(passwordResets).where(eq(passwordResets.id, id)).get();
     if (!row || row.usedAt || row.expiresAt < now()) {
-      throw new ApiError(410, "reset_invalid", "만료되었거나 이미 사용한 링크입니다. 비밀번호 찾기를 다시 해 주세요.");
+      throw new ApiError(410, "reset_invalid", "만료되었거나 이미 사용한 링크예요. 비밀번호 찾기를 다시 해 주세요.");
     }
     const user = await db.select({ email: users.email }).from(users).where(eq(users.id, row.userId)).get();
     await db.batch([

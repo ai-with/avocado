@@ -57,7 +57,7 @@ export const candidateRoutes = new Hono<AppEnv>()
   .post("/:id/retry", editorsOnly, async (c) => {
     const { stage } = parse(z.object({ stage: z.enum(["transcribe", "detect"]) }), await c.req.json());
     const { sub } = await loadSub(c, c.req.param("id"));
-    if (!sub.originalKey) throw new ApiError(400, "no_file", "드라이브 링크 제출은 자동 처리하지 않습니다.");
+    if (!sub.originalKey) throw new ApiError(400, "no_file", "드라이브 링크 제출은 자동 처리하지 않아요.");
     const stages = stage === "transcribe" ? ["transcribe", "translate", "detect"] : ["detect"];
     await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: sub.id, stages } });
     return c.json({ ok: true });
@@ -70,7 +70,7 @@ export const candidateRoutes = new Hono<AppEnv>()
     const { sub, gi, workspace, user } = await loadSub(c, c.req.param("id"));
     await assertUnlocked(db, gi.id);
     const cand = await db.select().from(violationCandidates).where(and(eq(violationCandidates.id, c.req.param("cid")), eq(violationCandidates.submissionId, sub.id))).get();
-    if (!cand) throw new ApiError(404, "candidate_not_found", "위반 후보를 찾을 수 없습니다.");
+    if (!cand) throw new ApiError(404, "candidate_not_found", "위반 후보를 찾을 수 없어요.");
     await db
       .update(violationCandidates)
       .set({ decision: body.decision, decisionReason: body.decision === "rejected" ? body.reason : null, decidedBy: user.id, decidedAt: now() })
@@ -91,7 +91,7 @@ export const candidateRoutes = new Hono<AppEnv>()
     const { sub, gi, guide, workspace, user } = await loadSub(c, c.req.param("id"));
     await assertUnlocked(db, gi.id);
     const rule = (await guideRules(db, guide)).find((r) => r.id === body.ruleId);
-    if (!rule) throw new ApiError(400, "validation_error", "규칙을 찾을 수 없습니다.", { ruleId: "규칙을 골라 주세요." });
+    if (!rule) throw new ApiError(400, "validation_error", "규칙을 찾을 수 없어요.", { ruleId: "규칙을 골라 주세요." });
     await db.insert(feedbackItems).values({ id: newId(), submissionId: sub.id, frameId: body.frameId, tMs: body.tMs, shape: body.shape, text: body.text, source: "missed", ruleId: rule.id, authorId: user.id, createdAt: now() });
     await logEvents(db, workspace.id, [
       ["violation_missed_reported", { rule_type: rule.type }],

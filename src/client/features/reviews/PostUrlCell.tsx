@@ -12,7 +12,7 @@ export function PostUrlCell({ base, row, canEdit, onSaved }: { base: string; row
   const save = async (value: string, replace = false) => {
     try {
       const r = await api.post<{ status: string }>(`${base}/${row.id}/post-url`, { url: value, replace });
-      toast(r.status === "conflict" ? "이미 다른 주소가 있어요. 아래에서 확인해 주세요." : "게시물 URL을 저장했습니다.", r.status === "conflict" ? "danger" : "success");
+      toast(r.status === "conflict" ? "이미 다른 주소가 있어요. 아래에서 확인해 주세요." : "게시물 URL을 저장했어요.", r.status === "conflict" ? "danger" : "success");
       await onSaved();
     } catch (e) {
       toast(errorMessage(e), "danger");

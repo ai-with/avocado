@@ -31,7 +31,7 @@ export const fileRoutes = new Hono<AppEnv>().get("/:key{.+}", async (c) => {
   const db = c.var.db;
   const key = c.req.param("key");
   const guideId = await guideIdOfKey(db, key);
-  if (!guideId) throw new ApiError(404, "file_not_found", "파일을 찾을 수 없습니다.");
+  if (!guideId) throw new ApiError(404, "file_not_found", "파일을 찾을 수 없어요.");
   await findGuide(db, workspace.id, guideId);
   return streamObject(c.env.FILES, key, c.req.raw.headers, c.req.query("download") === "1");
 });

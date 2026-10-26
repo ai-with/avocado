@@ -31,7 +31,7 @@ async function request<T>(method: string, path: string, body?: unknown, opts: Op
   if (res.status === 403 && err?.code === "phone_required" && opts.redirectOn401 !== false && location.pathname !== "/verify-phone") {
     location.assign(`/verify-phone?next=${encodeURIComponent(location.pathname + location.search)}`);
   }
-  throw new ApiError(res.status, err?.code ?? "unknown", err?.message ?? "요청을 처리하지 못했습니다.", err?.fields);
+  throw new ApiError(res.status, err?.code ?? "unknown", err?.message ?? "요청을 처리하지 못했어요.", err?.fields);
 }
 
 // 401 이면 로그인 화면으로 보낸다. 공개 화면에서는 { redirectOn401: false } 를 넘긴다
@@ -42,4 +42,4 @@ export const api = {
   del: <T>(path: string, opts?: Options) => request<T>("DELETE", path, undefined, opts),
 };
 
-export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
+export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : "알 수 없는 오류가 발생했어요.");

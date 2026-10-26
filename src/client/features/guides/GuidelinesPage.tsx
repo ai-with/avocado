@@ -62,7 +62,7 @@ function NewSetForm({ onCreate }: { onCreate: (name: string) => Promise<void> })
 type SetDetailProps = { base: string; detail: RuleSetDetail; canEdit: boolean; run: (fn: () => Promise<RuleSetDetail>) => Promise<void>; onDelete: () => void };
 
 function SetDetail({ base, detail, canEdit, run, onDelete }: SetDetailProps) {
-  const confirmDelete = () => confirm("규정 세트를 지울까요? 이 세트를 쓰던 가이드는 세트 없이 남습니다.") && onDelete();
+  const confirmDelete = () => confirm("규정 세트를 지울까요? 이 세트를 쓰던 가이드는 세트 없이 남아요.") && onDelete();
   const actions = (
     <>
       <Badge>버전 {detail.set.version}</Badge>
@@ -93,7 +93,7 @@ export function GuidelinesPage() {
   const g = useGuidelineSets();
   return (
     <>
-      <PageHeader title="규정 세트" description="브랜드의 필수·금지 사항을 규칙으로 저장해 두면 가이드마다 다시 쓰고, 영상 검수에도 그대로 씁니다." />
+      <PageHeader title="규정 세트" description="브랜드의 필수·금지 사항을 규칙으로 저장해 두면 가이드마다 다시 쓰고, 영상 검수에도 그대로 써요." />
       <div className="split">
         <aside className="stack">
           {g.sets.map((s) => (

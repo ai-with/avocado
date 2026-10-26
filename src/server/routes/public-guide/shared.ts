@@ -20,7 +20,7 @@ type PublicColumn = "guideToken" | "uploadToken";
 // 발행된 가이드의 링크만 열린다
 export async function byToken(db: Db, column: PublicColumn, token: string) {
   const row = await findByToken(db, column, token);
-  if (row && row.guide.status !== "published") throw new ApiError(404, "guide_not_published", "아직 공개되지 않은 가이드입니다.");
+  if (row && row.guide.status !== "published") throw new ApiError(404, "guide_not_published", "아직 공개되지 않은 가이드예요.");
   return row;
 }
 
@@ -44,7 +44,7 @@ export async function uploadCtx(c: Context<AppEnv>) {
 
 export async function findSubmission(db: Db, gi: Gi, id: string) {
   const s = await db.select().from(submissions).where(and(eq(submissions.id, id), eq(submissions.guideInfluencerId, gi.id))).get();
-  if (!s) throw new ApiError(404, "submission_not_found", "업로드를 찾을 수 없습니다.");
+  if (!s) throw new ApiError(404, "submission_not_found", "업로드를 찾을 수 없어요.");
   return s;
 }
 

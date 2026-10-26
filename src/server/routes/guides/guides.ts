@@ -24,7 +24,7 @@ async function uniqueSlug(db: Db, name: string) {
 async function checkSet(db: Db, workspaceId: string, setId: string | null | undefined) {
   if (!setId) return;
   const s = await db.select({ id: guidelineSets.id }).from(guidelineSets).where(and(eq(guidelineSets.id, setId), eq(guidelineSets.workspaceId, workspaceId))).get();
-  if (!s) throw new ApiError(400, "set_not_found", "규정 세트를 찾을 수 없습니다.", { guidelineSetId: "규정 세트를 찾을 수 없습니다." });
+  if (!s) throw new ApiError(400, "set_not_found", "규정 세트를 찾을 수 없어요.", { guidelineSetId: "규정 세트를 찾을 수 없어요." });
 }
 
 async function guideWarnings(db: Db, guide: { guidelineSetId: string | null; extraRules: GuideRule[]; videoGuide: VideoGuide | null }) {
@@ -109,7 +109,7 @@ export const guideCrudRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const g = await ownGuide(c);
-    if (!g.product.name) throw new ApiError(400, "product_required", "제품 이름을 입력해야 발행할 수 있습니다.");
+    if (!g.product.name) throw new ApiError(400, "product_required", "제품 이름을 입력해야 발행할 수 있어요.");
     if (g.status !== "published") {
       await db.update(guides).set({ status: "published", publishedAt: now(), updatedAt: now() }).where(eq(guides.id, g.id));
       await logEvent(db, workspace.id, "guide_created", { guide_id: g.id });

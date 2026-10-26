@@ -67,5 +67,5 @@ export async function takeSnapshot(env: Env, workspaceId: string, id: string, ur
 
 export function ownDocument(c: Context<AppEnv>, id: string) {
   const { workspace } = workspaceCtx(c);
-  return findLive(c.var.db, documents, id, workspace.id, { code: "document_not_found", message: "자료를 찾을 수 없습니다." });
+  return findLive(c.var.db, documents, id, workspace.id, { code: "document_not_found", message: "자료를 찾을 수 없어요." });
 }

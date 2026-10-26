@@ -51,8 +51,8 @@ async function notifyPaused(db: Db, env: Env, rule: Rule) {
     await sendEmail(env, {
       to: r.email,
       subject: "댓글 키워드 DM 규칙이 일시정지됐어요",
-      text: `인스타그램 연결이 끊겨 규칙을 멈췄습니다. 연동 화면에서 다시 연결해 주세요.\n${env.APP_URL}/dashboard/settings/integrations`,
-      html: `<p>인스타그램 연결이 끊겨 규칙을 멈췄습니다. 연동 화면에서 다시 연결해 주세요.</p><p><a href="${env.APP_URL}/dashboard/settings/integrations">연동 열기</a></p>`,
+      text: `인스타그램 연결이 끊겨 규칙을 멈췄어요. 연동 화면에서 다시 연결해 주세요.\n${env.APP_URL}/dashboard/settings/integrations`,
+      html: `<p>인스타그램 연결이 끊겨 규칙을 멈췄어요. 연동 화면에서 다시 연결해 주세요.</p><p><a href="${env.APP_URL}/dashboard/settings/integrations">연동 열기</a></p>`,
     });
   }
 }

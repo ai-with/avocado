@@ -15,9 +15,9 @@ async function findValidInvite(db: Db, token: string) {
     .innerJoin(workspaces, eq(workspaces.id, invites.workspaceId))
     .where(eq(invites.token, token))
     .get();
-  if (!row) throw new ApiError(404, "invite_not_found", "초대 링크를 찾을 수 없습니다.");
-  if (row.invite.acceptedAt) throw new ApiError(410, "invite_used", "이미 사용된 초대 링크입니다.");
-  if (row.invite.expiresAt < now()) throw new ApiError(410, "invite_expired", "만료된 초대 링크입니다. 관리자에게 다시 요청해 주세요.");
+  if (!row) throw new ApiError(404, "invite_not_found", "초대 링크를 찾을 수 없어요.");
+  if (row.invite.acceptedAt) throw new ApiError(410, "invite_used", "이미 사용된 초대 링크예요.");
+  if (row.invite.expiresAt < now()) throw new ApiError(410, "invite_expired", "만료된 초대 링크예요. 관리자에게 다시 요청해 주세요.");
   return row;
 }
 

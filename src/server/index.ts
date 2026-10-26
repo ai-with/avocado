@@ -15,12 +15,12 @@ app.use("*", async (c, next) => {
 app.use("/api/*", loadSession);
 registerRoutes(app);
 
-app.notFound((c) => c.json(errorBody("not_found", "요청한 주소를 찾을 수 없습니다."), 404));
+app.notFound((c) => c.json(errorBody("not_found", "요청한 주소를 찾을 수 없어요."), 404));
 app.onError((err, c) => {
   if (err instanceof ApiError) return c.json(errorBody(err.code, err.message, err.fields), err.status);
-  if (err instanceof SyntaxError) return c.json(errorBody("invalid_json", "요청 본문이 JSON 형식이 아닙니다."), 400);
+  if (err instanceof SyntaxError) return c.json(errorBody("invalid_json", "요청 본문이 JSON 형식이 아니에요."), 400);
   console.error(err);
-  return c.json(errorBody("internal_error", "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."), 500);
+  return c.json(errorBody("internal_error", "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요."), 500);
 });
 
 export default {

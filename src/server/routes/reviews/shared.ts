@@ -38,7 +38,7 @@ export async function loadSub(c: Context<AppEnv>, id: string) {
     .innerJoin(influencers, eq(influencers.id, guideInfluencers.influencerId))
     .where(and(eq(submissions.id, id), eq(guides.workspaceId, workspace.id)))
     .get();
-  if (!row) throw new ApiError(404, "submission_not_found", "검수할 영상을 찾을 수 없습니다.");
+  if (!row) throw new ApiError(404, "submission_not_found", "검수할 영상을 찾을 수 없어요.");
   return { ...row, workspace, user };
 }
 
@@ -48,7 +48,7 @@ export function approvalOf(db: Db, giId: string) {
 
 // 승인 후 코멘트 잠금 (F-62)
 export async function assertUnlocked(db: Db, giId: string) {
-  if (await approvalOf(db, giId)) throw new ApiError(409, "approved_locked", "최종 승인된 뒤에는 피드백을 바꿀 수 없습니다.");
+  if (await approvalOf(db, giId)) throw new ApiError(409, "approved_locked", "최종 승인된 뒤에는 피드백을 바꿀 수 없어요.");
 }
 
 export async function influencerEmail(db: Db, giId: string, inf: Inf) {

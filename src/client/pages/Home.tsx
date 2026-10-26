@@ -101,7 +101,7 @@ export function HomePage() {
   const { me } = useMe();
   const [counts, setCounts] = useState<Counts | null>(null);
   useEffect(() => void api.get<Counts>("/home").then(setCounts), []);
-  const title = `${me?.user.name ?? ""}님, 반갑습니다`;
+  const title = `${me?.user.name ?? ""}님, 반가워요`;
   return (
     <>
       <PageHeader title={title} description="첫 가이드부터 첫 리드까지 순서대로 안내해 드려요." />

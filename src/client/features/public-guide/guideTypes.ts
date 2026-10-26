@@ -21,7 +21,7 @@ export type PersonalData = {
   guide: PublicGuide;
   consent: { agreedAt: number; docVersion: string } | null;
   uploadUrl: string | null;
-  leadLinks: { channel: string; url: string }[];
+  leadLinks: { channel: string; name: string; url: string }[];
 };
 export type GuideData = { mode: "shared"; lang: Lang; guide: PublicGuide } | PersonalData;
 export type T = (k: TKey) => string;

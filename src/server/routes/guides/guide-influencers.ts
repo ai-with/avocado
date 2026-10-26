@@ -21,7 +21,7 @@ function ownGuide(c: Context<AppEnv>) {
   return findGuide(c.var.db, workspace.id, c.req.param("id") ?? "");
 }
 
-const linkNotFound = () => new ApiError(404, "link_not_found", "인플루언서 링크를 찾을 수 없습니다.");
+const linkNotFound = () => new ApiError(404, "link_not_found", "인플루언서 링크를 찾을 수 없어요.");
 
 export const guideInfluencerRoutes = new Hono<AppEnv>()
   // 행마다 단계 상태 한 줄
@@ -47,7 +47,7 @@ export const guideInfluencerRoutes = new Hono<AppEnv>()
     const g = await ownGuide(c);
     let influencerId: string;
     if ("influencerId" in body) {
-      const notFound = { code: "influencer_not_found", message: "인플루언서를 찾을 수 없습니다." };
+      const notFound = { code: "influencer_not_found", message: "인플루언서를 찾을 수 없어요." };
       influencerId = (await findOwned(db, influencers, body.influencerId, workspace.id, notFound)).id;
     } else {
       influencerId = newId();
@@ -88,7 +88,7 @@ export const guideInfluencerRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const g = await ownGuide(c);
-    if (g.status !== "published") throw new ApiError(400, "not_published", "가이드를 발행한 뒤에 보낼 수 있습니다.");
+    if (g.status !== "published") throw new ApiError(400, "not_published", "가이드를 발행한 뒤에 보낼 수 있어요.");
     const row = await db
       .select({ gi: guideInfluencers, influencer: influencers })
       .from(guideInfluencers)
@@ -96,7 +96,7 @@ export const guideInfluencerRoutes = new Hono<AppEnv>()
       .where(and(eq(guideInfluencers.id, c.req.param("giId")), eq(guideInfluencers.guideId, g.id)))
       .get();
     if (!row) throw linkNotFound();
-    if (!row.influencer.email) throw new ApiError(400, "no_email", "인플루언서 이메일이 없습니다. 링크를 복사해 DM으로 보내 주세요.");
+    if (!row.influencer.email) throw new ApiError(400, "no_email", "인플루언서 이메일이 없어요. 링크를 복사해 DM으로 보내 주세요.");
     const who = { brand: workspace.name, name: row.influencer.displayName, en: row.influencer.lang === "en", url: guideLinks(c.env, row.gi).guide };
     const email = await sendEmail(c.env, { to: row.influencer.email, ...guideInviteMail(who) });
     return c.json({ email });

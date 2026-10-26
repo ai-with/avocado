@@ -18,14 +18,14 @@ import { byToken, currentConsent, notifyOwners, publicGuideBody, requireByToken 
 const consentBody = z.object({
   items: z.record(z.string(), z.boolean()),
   name: z.string().trim().min(1, "이름을 입력해 주세요.").max(60),
-  email: z.email("이메일 형식이 아닙니다."),
+  email: z.email("이메일 형식이 아니에요."),
   country: z.string().trim().toUpperCase().length(2, "국가를 골라 주세요."),
   ageConfirmed: z.boolean(),
 });
 const joinBody = z.object({
   displayName: z.string().trim().min(1, "이름을 입력해 주세요.").max(60),
   igHandle: z.string().trim().max(60).default(""),
-  email: z.union([z.literal(""), z.email("이메일 형식이 아닙니다.")]).default(""),
+  email: z.union([z.literal(""), z.email("이메일 형식이 아니에요.")]).default(""),
   lang: z.enum(["ko", "en"]).default("ko"),
 });
 type Row = NonNullable<Awaited<ReturnType<typeof byToken>>>;
@@ -44,8 +44,8 @@ async function recordView(db: Db, row: Row, lang: string) {
 
 function validateConsent(body: z.infer<typeof consentBody>) {
   const missing = missingConsent(body.items);
-  if (missing.length) throw new ApiError(400, "consent_missing", "필수 항목에 모두 동의해야 참여할 수 있습니다.", Object.fromEntries(missing.map((k) => [`items.${k}`, "필수 항목입니다."])));
-  if (!body.ageConfirmed) throw new ApiError(400, "age_required", "만 18세 이상만 참여할 수 있습니다.", { ageConfirmed: "만 18세 이상만 참여할 수 있습니다." });
+  if (missing.length) throw new ApiError(400, "consent_missing", "필수 항목에 모두 동의해야 참여할 수 있어요.", Object.fromEntries(missing.map((k) => [`items.${k}`, "필수 항목이에요."])));
+  if (!body.ageConfirmed) throw new ApiError(400, "age_required", "만 18세 이상만 참여할 수 있어요.", { ageConfirmed: "만 18세 이상만 참여할 수 있어요." });
 }
 
 async function saveConsent(db: Db, row: Row, body: z.infer<typeof consentBody>, ip: string | null) {
@@ -91,7 +91,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     const body = parse(joinBody, await c.req.json());
     const db = c.var.db;
     const guide = await publishedBySlug(db, c.req.param("slug"));
-    if (!guide) throw new ApiError(404, "link_not_found", "링크를 찾을 수 없습니다.");
+    if (!guide) throw new ApiError(404, "link_not_found", "링크를 찾을 수 없어요.");
     const influencerId = newId();
     await db.insert(influencers).values({ id: influencerId, workspaceId: guide.workspaceId, displayName: body.displayName, igHandle: body.igHandle.replace(/^@/, "") || null, email: body.email || null, lang: body.lang, createdAt: now() });
     const gi = await linkInfluencer(db, guide.workspaceId, guide.id, influencerId);
@@ -103,25 +103,25 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     const row = await requireByToken(db, "guideToken", c.req.param("token"));
     const { gi, guide, influencer } = row;
     validateConsent(body);
-    if (await currentConsent(db, gi.id)) throw new ApiError(409, "already_consented", "이미 동의를 완료했습니다.");
+    if (await currentConsent(db, gi.id)) throw new ApiError(409, "already_consented", "이미 동의를 완료했어요.");
     const agreedAt = await saveConsent(db, row, body, c.req.header("cf-connecting-ip") ?? null);
     await logEvents(db, guide.workspaceId, [
       ["participation_accepted", { guide_id: guide.id }],
       ["consent_submitted", { version: CONSENT_DOC_VERSION, country: body.country, optional_items: body.items.secondary_use === true ? ["secondary_use"] : [] }],
     ]);
-    c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 참여에 동의했습니다`, `${influencer.displayName}님이 가이드 "${guide.name}" 참여에 동의했습니다. 이제 영상을 올릴 수 있습니다.`));
+    c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 참여에 동의했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 참여에 동의했어요. 이제 영상을 올릴 수 있어요.`));
     return c.json({ uploadUrl: guideLinks(c.env, gi).upload, agreedAt }, 201);
   })
   .post("/guide/:token/withdraw", async (c) => {
     const db = c.var.db;
     const { gi, guide, influencer } = await requireByToken(db, "guideToken", c.req.param("token"));
     const consent = await currentConsent(db, gi.id);
-    if (!consent) throw new ApiError(400, "no_consent", "철회할 동의가 없습니다.");
+    if (!consent) throw new ApiError(400, "no_consent", "철회할 동의가 없어요.");
     await db.update(consents).set({ withdrawnAt: now() }).where(eq(consents.id, consent.id));
     await db.update(guideInfluencers).set({ stage: "withdrawn" }).where(eq(guideInfluencers.id, gi.id));
     await logEvent(db, guide.workspaceId, "consent_withdrawn", { guide_id: guide.id });
     // TASK-020: 대기·진행 중인 처리 작업 취소. 원본·프레임·전사 삭제 예약은 보관 정책 작업(7-1) 때 붙인다
     await cancelProcessingFor(db, gi.id);
-    c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 동의를 철회했습니다`, `${influencer.displayName}님이 가이드 "${guide.name}" 동의를 철회했습니다. 처리 중인 작업은 멈추고 원본·프레임·전사는 삭제 예정입니다. 이미 내려받은 파일은 브랜드가 관리해야 합니다.`));
+    c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 동의를 철회했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 동의를 철회했어요. 처리 중인 작업은 멈추고 원본·프레임·전사는 삭제 예정이에요. 이미 내려받은 파일은 브랜드가 관리해야 해요.`));
     return c.json({ ok: true });
   });

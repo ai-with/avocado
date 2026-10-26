@@ -3,10 +3,8 @@ import { Button, Card, Checkbox, Input, Select } from "../../../ui";
 import { api, ApiError, errorMessage } from "../../../lib/api";
 import { makeT, type Lang, type TKey } from "../../../i18n";
 import { CONSENT_ITEMS, CONSENT_NOTICES, EU_COUNTRIES, type SecondaryUseScope } from "../../../../shared/guides";
-import { COUNTRIES } from "../../guides/InfluencersPage";
+import { countryOptions } from "../../../lib/countries";
 import { PUBLIC_OPTS, type PersonalData, type T } from "../guideTypes";
-
-const EU_LABELS: [string, string][] = EU_COUNTRIES.filter((c) => !COUNTRIES.some(([k]) => k === c)).map((c) => [c, c]);
 
 function ScopeList({ scope, t }: { scope: SecondaryUseScope; t: T }) {
   return (
@@ -76,7 +74,7 @@ export function ConsentForm({ token, lang, data, onDone }: { token: string; lang
       <Input label={t("name")} value={s.name} onChange={(e) => s.setName(e.target.value)} error={s.err.name} required />
       <Input label={t("email")} type="email" value={s.email} onChange={(e) => s.setEmail(e.target.value)} error={s.err.email} required />
       <Select label={t("country")} value={s.country} onChange={(e) => s.setCountry(e.target.value)}>
-        {[...COUNTRIES, ...EU_LABELS].map(([code, label]) => <option key={code} value={code}>{lang === "en" ? code : label}</option>)}
+        {countryOptions(lang).map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
       </Select>
       {EU_COUNTRIES.includes(s.country) && <Card className="pub-consent"><span className="pub-tag">{t("notice")}</span> {t("consent_eu")}</Card>}
       <Checkbox checked={s.age} onChange={(e) => s.setAge(e.target.checked)} label={t("age_confirm")} />

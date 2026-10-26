@@ -73,7 +73,7 @@ function usePhoneVerify(onDone: () => Promise<void> | void) {
 type CodeFieldProps = { sent: Sent; code: string; setCode: (v: string) => void; validLeft: number; error?: string };
 
 function CodeField({ sent, code, setCode, validLeft, error }: CodeFieldProps) {
-  const hint = validLeft > 0 ? `${sent.phone}로 보낸 6자리를 ${mmss(validLeft)} 안에 입력해 주세요.` : "인증번호가 만료되었습니다. 재전송해 주세요.";
+  const hint = validLeft > 0 ? `${sent.phone}로 보낸 6자리를 ${mmss(validLeft)} 안에 입력해 주세요.` : "인증번호가 만료되었어요. 재전송해 주세요.";
   return (
     <>
       <Input label="인증번호" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} hint={hint} error={error} required />
@@ -100,7 +100,7 @@ export function PhoneVerifyForm({ onDone, submitLabel = "인증 완료" }: { onD
       {v.sent && <CodeField sent={v.sent} code={v.code} setCode={v.setCode} validLeft={v.validLeft} error={v.fields.code} />}
       <FormError message={v.error} />
       <Button type="submit" disabled={v.busy || (!!v.sent && v.code.length !== 6)}>{v.sent ? submitLabel : "인증번호 받기"}</Button>
-      <p className="field-hint">한 번호로는 계정을 하나만 만들 수 있습니다.</p>
+      <p className="field-hint">한 번호로는 계정을 하나만 만들 수 있어요.</p>
     </form>
   );
 }
@@ -120,7 +120,7 @@ export function VerifyPhonePage() {
     await refresh();
   };
   return (
-    <AuthCard title="휴대폰 번호 인증" description={`${me.user.email} 계정을 쓰려면 휴대폰 번호 인증이 필요합니다.`}>
+    <AuthCard title="휴대폰 번호 인증" description={`${me.user.email} 계정을 쓰려면 휴대폰 번호 인증이 필요해요.`}>
       <div className="mt-section"><PhoneVerifyForm onDone={refresh} /></div>
       <p className="auth-foot">
         다른 계정으로 바꾸시겠어요? <button type="button" className="link-button" onClick={() => void logout()}>로그아웃</button>

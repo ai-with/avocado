@@ -32,7 +32,7 @@ async function sentItem(db: Db, gi: Gi, itemId: string) {
     .innerJoin(reviewRounds, eq(reviewRounds.id, feedbackItems.roundId))
     .where(and(eq(feedbackItems.id, itemId), eq(reviewRounds.guideInfluencerId, gi.id)))
     .get();
-  if (!item) throw new ApiError(404, "item_not_found", "피드백 항목을 찾을 수 없습니다.");
+  if (!item) throw new ApiError(404, "item_not_found", "피드백 항목을 찾을 수 없어요.");
   return item.item;
 }
 
@@ -91,7 +91,7 @@ export const publicFeedbackRoutes = new Hono<AppEnv>()
       .innerJoin(submissions, eq(submissions.id, frames.submissionId))
       .where(and(eq(frames.id, c.req.param("frameId")), eq(submissions.guideInfluencerId, gi.id)))
       .get();
-    if (!f) throw new ApiError(404, "file_not_found", "이미지를 찾을 수 없습니다.");
+    if (!f) throw new ApiError(404, "file_not_found", "이미지를 찾을 수 없어요.");
     return streamObject(c.env.FILES, f.key, new Headers(), false);
   })
   // 항목별 '반영함' 체크와 질문 답글

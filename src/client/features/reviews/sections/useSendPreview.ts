@@ -29,7 +29,7 @@ export function useSendPreview(open: boolean, base: string, onClose: () => void,
     setBusy(true);
     try {
       const r = await api.post<{ round: number; email: { delivered: boolean } }>(`${base}/rounds`, { translations: edits, sendOriginal });
-      toast(r.email.delivered ? `${r.round}회차 피드백을 보냈습니다.` : `${r.round}회차 피드백을 저장했습니다. 이메일은 보내지 못했으니 피드백 링크를 전달해 주세요.`, "success");
+      toast(r.email.delivered ? `${r.round}회차 피드백을 보냈어요.` : `${r.round}회차 피드백을 저장했어요. 이메일은 보내지 못했으니 피드백 링크를 전달해 주세요.`, "success");
       onClose();
       await onSent();
     } catch (e) {

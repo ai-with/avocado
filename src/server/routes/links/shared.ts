@@ -29,7 +29,7 @@ export async function resolveDestination(db: Db, workspaceId: string, d: z.infer
   if (d.type === "url") return { type: "url", id: null, url: d.url };
   const table = d.type === "document" ? documents : forms;
   const row = await db.select({ id: table.id }).from(table).where(and(eq(table.id, d.id), eq(table.workspaceId, workspaceId), isNull(table.deletedAt))).get();
-  if (!row) throw new ApiError(404, "destination_not_found", d.type === "document" ? "자료를 찾을 수 없습니다." : "폼을 찾을 수 없습니다.");
+  if (!row) throw new ApiError(404, "destination_not_found", d.type === "document" ? "자료를 찾을 수 없어요." : "폼을 찾을 수 없어요.");
   return { type: d.type, id: d.id, url: null };
 }
 
@@ -61,4 +61,4 @@ export async function listLinks(db: Db, env: Env, workspaceId: string, guideId?:
   }));
 }
 
-export const ownLink = (db: Db, workspaceId: string, id: string) => findLive(db, shortLinks, id, workspaceId, { code: "link_not_found", message: "링크를 찾을 수 없습니다." });
+export const ownLink = (db: Db, workspaceId: string, id: string) => findLive(db, shortLinks, id, workspaceId, { code: "link_not_found", message: "링크를 찾을 수 없어요." });

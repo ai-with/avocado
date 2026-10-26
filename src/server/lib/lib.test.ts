@@ -27,13 +27,13 @@ describe("ids", () => {
 
 describe("parse", () => {
   it("검증 실패 시 필드별 메시지를 담은 ApiError", () => {
-    const schema = z.object({ email: z.email("이메일 형식이 아닙니다.") });
+    const schema = z.object({ email: z.email("이메일 형식이 아니에요.") });
     try {
       parse(schema, { email: "nope" });
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(ApiError);
-      expect((e as ApiError).fields).toEqual({ email: "이메일 형식이 아닙니다." });
+      expect((e as ApiError).fields).toEqual({ email: "이메일 형식이 아니에요." });
     }
   });
 });

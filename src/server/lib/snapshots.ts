@@ -138,8 +138,8 @@ async function notifyDeleted(db: Db, env: Env, workspaceId: string, content: Con
     await sendEmail(env, {
       to: o.email,
       subject: "게시물이 삭제된 것 같아요",
-      text: `성과 수집 중 게시물을 찾을 수 없었습니다. 남은 스냅샷은 취소했습니다.\n게시물: ${content.url}\n가이드: ${link}`,
-      html: `<p>성과 수집 중 게시물을 찾을 수 없었습니다. 남은 스냅샷은 취소했습니다.</p><p>게시물: <a href="${content.url}">${content.url}</a></p><p><a href="${link}">가이드 열기</a></p>`,
+      text: `성과 수집 중 게시물을 찾을 수 없었어요. 남은 스냅샷은 취소했어요.\n게시물: ${content.url}\n가이드: ${link}`,
+      html: `<p>성과 수집 중 게시물을 찾을 수 없었어요. 남은 스냅샷은 취소했어요.</p><p>게시물: <a href="${content.url}">${content.url}</a></p><p><a href="${link}">가이드 열기</a></p>`,
     });
   }
 }

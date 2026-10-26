@@ -27,14 +27,14 @@ const ruleSchema = z.object({
 
 async function ownRule(db: Db, workspaceId: string, id: string) {
   const r = await db.select().from(keywordDmRules).where(and(eq(keywordDmRules.id, id), eq(keywordDmRules.workspaceId, workspaceId))).get();
-  if (!r) throw new ApiError(404, "rule_not_found", "규칙을 찾을 수 없습니다.");
+  if (!r) throw new ApiError(404, "rule_not_found", "규칙을 찾을 수 없어요.");
   return r;
 }
 
 async function checkRefs(db: Db, workspaceId: string, guideId: string, influencerId: string) {
   const g = await db.select({ id: guides.id }).from(guides).where(and(eq(guides.id, guideId), eq(guides.workspaceId, workspaceId))).get();
   const i = await db.select({ id: influencers.id }).from(influencers).where(and(eq(influencers.id, influencerId), eq(influencers.workspaceId, workspaceId))).get();
-  if (!g || !i) throw new ApiError(404, "ref_not_found", "가이드 또는 인플루언서를 찾을 수 없습니다.");
+  if (!g || !i) throw new ApiError(404, "ref_not_found", "가이드 또는 인플루언서를 찾을 수 없어요.");
 }
 
 export const keywordDmRoutes = new Hono<AppEnv>()

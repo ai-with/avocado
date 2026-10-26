@@ -16,7 +16,7 @@ import { ruleBody } from "./schemas";
 
 function findSet(c: Context<AppEnv>, id: string) {
   const { workspace } = workspaceCtx(c);
-  return findOwned(c.var.db, guidelineSets, id, workspace.id, { code: "set_not_found", message: "규정 세트를 찾을 수 없습니다." });
+  return findOwned(c.var.db, guidelineSets, id, workspace.id, { code: "set_not_found", message: "규정 세트를 찾을 수 없어요." });
 }
 
 // 규칙이 바뀔 때마다 세트 버전을 올리고 새 버전 번호를 돌려준다
@@ -89,7 +89,7 @@ export const guidelineRoutes = new Hono<AppEnv>()
     const s = await findSet(c, c.req.param("id"));
     const db = c.var.db;
     const rule = await db.select().from(guidelineRules).where(and(eq(guidelineRules.id, c.req.param("ruleId")), eq(guidelineRules.setId, s.id))).get();
-    if (!rule) throw new ApiError(404, "rule_not_found", "규칙을 찾을 수 없습니다.");
+    if (!rule) throw new ApiError(404, "rule_not_found", "규칙을 찾을 수 없어요.");
     const version = await bumpSet(db, s.id);
     await db.update(guidelineRules).set({ ...body, version }).where(eq(guidelineRules.id, rule.id));
     if (body.enabled === false && rule.enabled) await logEvent(db, s.workspaceId, "guideline_rule_disabled", { type: rule.type });

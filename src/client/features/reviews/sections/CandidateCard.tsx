@@ -11,7 +11,7 @@ type Props = { c: Candidate; base: string; canEdit: boolean; frameById: Map<stri
 const MAX_EVIDENCE_FRAMES = 4;
 
 export function CandidateCard({ c, base, canEdit, frameById, segById, onSeek, onAct }: Props) {
-  const decide = (decision: string, r: DecisionReason | null = null) => onAct(() => api.post(`${base}/candidates/${c.id}`, { decision, reason: r }), decision === "adopted" ? "피드백 초안에 넣었습니다." : undefined);
+  const decide = (decision: string, r: DecisionReason | null = null) => onAct(() => api.post(`${base}/candidates/${c.id}`, { decision, reason: r }), decision === "adopted" ? "피드백 초안에 넣었어요." : undefined);
   const evidenceFrames = c.frameIds.map((id) => frameById.get(id)).filter((f): f is Frame => !!f).slice(0, MAX_EVIDENCE_FRAMES);
   const evidenceSegs = c.segmentIds.map((id) => segById.get(id)).filter((s) => !!s);
   return (

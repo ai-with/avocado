@@ -25,10 +25,10 @@ function useGuideInfluencers(base: string) {
     email: (r) =>
       act(async () => {
         const res = await api.post<{ email: { delivered: boolean } }>(`${base}/${r.id}/email`);
-        if (!res.email.delivered) throw new Error("이메일 발송 설정이 없어 보내지 못했습니다. 링크를 복사해 보내 주세요.");
-      }, "이메일을 보냈습니다."),
-    reissue: (r) => act(() => api.post(`${base}/${r.id}/reissue`), "새 링크를 만들었습니다."),
-    remove: (r) => act(() => api.del(`${base}/${r.id}`), "가이드에서 뺐습니다."),
+        if (!res.email.delivered) throw new Error("이메일 발송 설정이 없어 보내지 못했어요. 링크를 복사해 보내 주세요.");
+      }, "이메일을 보냈어요."),
+    reissue: (r) => act(() => api.post(`${base}/${r.id}/reissue`), "새 링크를 만들었어요."),
+    remove: (r) => act(() => api.del(`${base}/${r.id}`), "가이드에서 뺐어요."),
   };
   return { rows, load, actions };
 }

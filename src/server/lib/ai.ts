@@ -81,7 +81,7 @@ Return ONLY JSON: {"verdict":"violation"|"compliant"|"unclear","confidence":"hig
 "violation" means the transcript breaks the rule. Use "unclear" when the transcript does not give enough evidence.`;
 
 export async function judgeText(env: Env, rule: { type: string; content: string }, lines: { id: string; text: string; translated: string | null }[]): Promise<TextVerdict> {
-  if (isFake(env)) return { verdict: "unclear", confidence: "low", segment_ids: [], reason: "가짜 모델 응답입니다." };
+  if (isFake(env)) return { verdict: "unclear", confidence: "low", segment_ids: [], reason: "가짜 모델 응답이에요." };
   const out = (await env.AI.run(AI_MODELS.text, {
     messages: [
       { role: "system", content: TEXT_PROMPT },

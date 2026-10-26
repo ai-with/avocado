@@ -36,7 +36,7 @@ export const tagRoutes = new Hono<AppEnv>()
     const { leadIds } = parse(z.object({ leadIds: z.array(z.string()).min(1).max(1000) }), await c.req.json());
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
-    const tag = await findOwned(db, leadTags, c.req.param("id"), workspace.id, { code: "tag_not_found", message: "태그를 찾을 수 없습니다." });
+    const tag = await findOwned(db, leadTags, c.req.param("id"), workspace.id, { code: "tag_not_found", message: "태그를 찾을 수 없어요." });
     const mine = new Set((await db.select({ id: leads.id }).from(leads).where(eq(leads.workspaceId, workspace.id))).map((l) => l.id));
     const values = leadIds.filter((id) => mine.has(id)).map((leadId) => ({ leadId, tagId: tag.id }));
     for (let i = 0; i < values.length; i += INSERT_CHUNK) await db.insert(leadTagLinks).values(values.slice(i, i + INSERT_CHUNK)).onConflictDoNothing();

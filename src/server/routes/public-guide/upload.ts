@@ -30,12 +30,12 @@ const externalBody = z.object({ kind: z.enum(["final", "clean"]), driveUrl: z.ur
 const submissionRef = z.object({ submissionId: z.string() });
 
 const UPLOAD_REASONS = {
-  too_large: "파일이 2GB를 넘습니다. 드라이브 링크로 제출해 주세요.",
-  too_long: "영상이 3분을 넘습니다. 드라이브 링크로 제출해 주세요.",
-  bad_format: "mp4, mov, webm 파일만 올릴 수 있습니다.",
+  too_large: "파일이 2GB를 넘어요. 드라이브 링크로 제출해 주세요.",
+  too_long: "영상이 3분을 넘어요. 드라이브 링크로 제출해 주세요.",
+  bad_format: "mp4, mov, webm 파일만 올릴 수 있어요.",
 } as const;
 
-const notUploading = () => new ApiError(409, "not_uploading", "이미 끝났거나 취소된 업로드입니다.");
+const notUploading = () => new ApiError(409, "not_uploading", "이미 끝났거나 취소된 업로드예요.");
 
 // 이어 올리기: 같은 종류·파일명·크기의 미완료 업로드
 function resumableUpload(db: Db, giId: string, body: InitBody) {
@@ -114,11 +114,11 @@ export const uploadRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const { gi } = await uploadCtx(c);
     const n = Number(c.req.query("n"));
-    if (!Number.isInteger(n) || n < 1 || n > MAX_PART_NUMBER) throw new ApiError(400, "bad_part", "part 번호가 올바르지 않습니다.");
+    if (!Number.isInteger(n) || n < 1 || n > MAX_PART_NUMBER) throw new ApiError(400, "bad_part", "part 번호가 올바르지 않아요.");
     const s = await findSubmission(db, gi, c.req.query("submissionId") ?? "");
     if (s.status !== "uploading" || !s.originalKey || !s.uploadId) throw notUploading();
     const data = await c.req.arrayBuffer();
-    if (data.byteLength === 0 || data.byteLength > UPLOAD_LIMITS.partBytes) throw new ApiError(400, "bad_part_size", "part 크기가 올바르지 않습니다.");
+    if (data.byteLength === 0 || data.byteLength > UPLOAD_LIMITS.partBytes) throw new ApiError(400, "bad_part_size", "part 크기가 올바르지 않아요.");
     const part = await c.env.FILES.resumeMultipartUpload(s.originalKey, s.uploadId).uploadPart(n, data);
     await db
       .insert(uploadParts)
@@ -140,7 +140,7 @@ export const uploadRoutes = new Hono<AppEnv>()
     if (s.status !== "uploading" || !s.originalKey || !s.uploadId) throw notUploading();
     // 클라이언트가 보낸 목록 대신 서버가 기록한 part 로 완료한다
     const parts = await partsOf(db, s.id);
-    if (parts.reduce((a, p) => a + p.size, 0) !== s.sizeBytes) throw new ApiError(400, "incomplete", "아직 올라가지 않은 부분이 있습니다. 다시 시도해 주세요.");
+    if (parts.reduce((a, p) => a + p.size, 0) !== s.sizeBytes) throw new ApiError(400, "incomplete", "아직 올라가지 않은 부분이 있어요. 다시 시도해 주세요.");
     await c.env.FILES.resumeMultipartUpload(s.originalKey, s.uploadId).complete(parts.map((p) => ({ partNumber: p.partNumber, etag: p.etag })));
     const uploadedAt = now();
     await db.batch([

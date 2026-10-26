@@ -28,7 +28,7 @@ const submitBody = z.object({
 async function activeFormLink(db: Db, slug: string) {
   const link = await db.select().from(shortLinks).where(eq(shortLinks.slug, slug)).get();
   if (!link || link.deletedAt) throw new ApiError(410, "link_expired", "만료된 링크예요.");
-  if (link.destinationType !== "form") throw new ApiError(404, "not_found", "요청한 주소를 찾을 수 없습니다.");
+  if (link.destinationType !== "form") throw new ApiError(404, "not_found", "요청한 주소를 찾을 수 없어요.");
   return link;
 }
 

@@ -4,6 +4,7 @@ import { Button, Input, LoadingState, Tabs } from "../ui";
 import { api, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { ROLE_LABELS, type Role } from "../../shared/roles";
+import { withJosa } from "../../shared/josa";
 import { AuthCard, FormError } from "./AuthCard";
 import { useSubmit } from "./useSubmit";
 
@@ -43,7 +44,7 @@ function OtherAccountSection({ email }: { email: string }) {
   };
   return (
     <div className="stack mt-section">
-      <p>지금 {email} 계정으로 로그인되어 있습니다. 초대받은 이메일로 다시 로그인해 주세요.</p>
+      <p>지금 {email} 계정으로 로그인되어 있어요. 초대받은 이메일로 다시 로그인해 주세요.</p>
       <Button variant="secondary" onClick={() => void logout()}>로그아웃</Button>
     </div>
   );
@@ -91,12 +92,12 @@ export function InviteAcceptPage() {
       .catch((e: unknown) => setLoadError(errorMessage(e)));
   }, [token]);
 
-  if (loadError) return <AuthCard title="초대를 열 수 없습니다" description={loadError} />;
+  if (loadError) return <AuthCard title="초대를 열 수 없어요" description={loadError} />;
   if (!invite || loading) return <AuthCard><LoadingState label="초대 정보를 불러오는 중" /></AuthCard>;
 
   const sameUser = me?.user.email === invite.email;
   return (
-    <AuthCard title={`${invite.workspaceName} 팀 초대`} description={`${invite.email} 님을 ${ROLE_LABELS[invite.role]}(으)로 초대했습니다.`}>
+    <AuthCard title={`${invite.workspaceName} 팀 초대`} description={`${invite.email} 님을 ${withJosa(ROLE_LABELS[invite.role], "으로/로")} 초대했어요.`}>
       {me && sameUser && <AcceptSection token={token} />}
       {me && !sameUser && <OtherAccountSection email={me.user.email} />}
       {!me && <JoinForm token={token} invite={invite} />}

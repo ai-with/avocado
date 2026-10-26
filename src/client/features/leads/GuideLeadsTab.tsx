@@ -42,7 +42,7 @@ export function GuideLeadsTab({ guideId }: { guideId: string }) {
     <div className="stack-section">
       <section className="stack">
         <h4>묶어 보기</h4>
-        <p className="text-caption">같은 리드 링크로 이어진 수만 셉니다. 사람 단위 추적은 게이트·폼 제출 뒤부터예요. 어느 콘텐츠 하나 때문이라고 단정하지 않아요. 사이트 열은 사이트 분석에서 스크립트를 설치한 사이트로 간 클릭만 세고, 스크롤·전환 비율은 방문이 생긴 클릭 수 기준이에요.</p>
+        <p className="text-caption">같은 리드 링크로 이어진 수만 세어요. 사람 단위 추적은 게이트·폼 제출 뒤부터예요. 어느 콘텐츠 하나 때문이라고 단정하지 않아요. 사이트 열은 사이트 분석에서 스크립트를 설치한 사이트로 간 클릭만 세고, 스크롤·전환 비율은 방문이 생긴 클릭 수 기준이에요.</p>
         {funnel.length === 0 ? (
           <EmptyState title="아직 인플루언서가 없어요" description="가이드에 인플루언서를 추가하고 리드 링크를 보내면 단계별 수가 보여요." />
         ) : (

@@ -11,7 +11,7 @@ type Props = { d: ReviewDetail; base: string; canEdit: boolean; processing: bool
 export function CandidatesTab({ d, base, canEdit, processing, selected, onSeek, onAct }: Props) {
   const [missed, setMissed] = useState(false);
   const detectFailed = d.jobs.find((j) => j.stage === "detect")?.status === "failed";
-  if (detectFailed) return <DetectFailed canEdit={canEdit} onRetry={() => void onAct(() => api.post(`${base}/retry`, { stage: "detect" }), "다시 분석을 요청했습니다.")} />;
+  if (detectFailed) return <DetectFailed canEdit={canEdit} onRetry={() => void onAct(() => api.post(`${base}/retry`, { stage: "detect" }), "다시 분석을 요청했어요.")} />;
   if (processing && d.candidates.length === 0) return <EmptyState title="처리 중이에요" description="음성 전사와 위반 후보 탐지가 끝나면 여기에 보여요. 보통 5분 안에 끝나요." />;
   const frameById = new Map(d.frames.map((f) => [f.id, f]));
   const segById = new Map(d.segments.map((s) => [s.id, s]));
@@ -50,7 +50,7 @@ function MissedForm({ d, base, selected, onDone, onAct }: { d: ReviewDetail; bas
     onAct(async () => {
       await api.post(`${base}/missed`, { ruleId, frameId: selected?.id ?? null, tMs: selected?.tMs ?? 0, shape: null, text });
       onDone();
-    }, "놓친 위반을 피드백에 넣었습니다.");
+    }, "놓친 위반을 피드백에 넣었어요.");
   return (
     <Card className="stack">
       <Select label="규칙" value={ruleId} onChange={(e) => setRuleId(e.target.value)}>

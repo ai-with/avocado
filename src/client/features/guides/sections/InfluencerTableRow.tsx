@@ -3,6 +3,7 @@ import { Badge, Button, CopyButton } from "../../../ui";
 import { fmtDateTime, type GuideInfluencerRow, type StageSummary } from "../types";
 import { handlesText, langLabel } from "../InfluencersPage";
 import { PostUrlCell } from "../../reviews/PostUrlCell";
+import { countryName } from "../../../lib/countries";
 
 export type RowActions = Record<"email" | "reissue" | "remove", (r: GuideInfluencerRow) => Promise<void>>;
 type Props = { row: GuideInfluencerRow; base: string; canEdit: boolean; published: boolean; actions: RowActions; onConsent: (r: GuideInfluencerRow) => void; onSaved: () => Promise<void> };
@@ -66,7 +67,7 @@ export function InfluencerTableRow({ row: r, base, canEdit, published, actions, 
       <td>{handlesText(r.influencer)}</td>
       <td>{r.influencer.email}</td>
       <td className="nowrap">{langLabel(r.influencer.lang)}</td>
-      <td className="nowrap">{r.influencer.country}</td>
+      <td className="nowrap">{countryName(r.influencer.country)}</td>
       <LinkCell row={r} canEdit={canEdit} published={published} actions={actions} />
       <td className="nowrap">{r.status.viewedAt ? fmtDateTime(r.status.viewedAt) : <span className="text-caption">미열람</span>}</td>
       <td><StageStatus status={r.status} /></td>

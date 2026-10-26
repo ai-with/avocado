@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Button, EmptyState, Input, LoadingState, Modal, PageHeader, Select, Table, useToast } from "../../ui";
 import { api, ApiError, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
+import { countryOptions } from "../../lib/countries";
 import type { Influencer } from "./types";
 
 export type InfluencerDraft = { displayName: string; igHandle: string; threadsHandle: string; email: string; lang: "ko" | "en"; country: string };
 export const emptyDraft = (): InfluencerDraft => ({ displayName: "", igHandle: "", threadsHandle: "", email: "", lang: "ko", country: "KR" });
-export const COUNTRIES: [string, string][] = [["KR", "한국"], ["US", "미국"], ["JP", "일본"], ["GB", "영국"], ["DE", "독일"], ["FR", "프랑스"], ["CA", "캐나다"], ["AU", "호주"], ["SG", "싱가포르"], ["VN", "베트남"], ["TH", "태국"], ["ID", "인도네시아"]];
 export const handlesText = (i: Influencer) => [i.igHandle && `@${i.igHandle}`, i.threadsHandle && `스레드 @${i.threadsHandle}`].filter(Boolean).join(" · ");
 export const langLabel = (lang: Influencer["lang"]) => (lang === "en" ? "영어" : "한국어");
 const toDraft = (r: Influencer): InfluencerDraft => ({ displayName: r.displayName, igHandle: r.igHandle ?? "", threadsHandle: r.threadsHandle ?? "", email: r.email ?? "", lang: r.lang, country: r.country ?? "" });
@@ -27,7 +27,7 @@ export function InfluencerFields({ draft, onChange, fields }: { draft: Influence
           <option value="en">영어</option>
         </Select>
         <Select label="국가" value={draft.country} onChange={(e) => set("country", e.target.value)}>
-          {COUNTRIES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          {countryOptions("ko").map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
         </Select>
       </div>
     </>
@@ -60,7 +60,7 @@ function useInfluencers() {
       toast(errorMessage(err), "danger");
     }
   };
-  const remove = (r: Influencer) => confirm(`${r.displayName}님을 지울까요? 연결된 가이드 링크도 함께 지워집니다.`) && void api.del(`/influencers/${r.id}`).then(load);
+  const remove = (r: Influencer) => confirm(`${r.displayName}님을 지울까요? 연결된 가이드 링크도 함께 지워져요.`) && void api.del(`/influencers/${r.id}`).then(load);
   return { rows, editing, setEditing, fields, save, remove };
 }
 

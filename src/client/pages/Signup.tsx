@@ -24,7 +24,7 @@ export function SignupPage() {
   };
 
   return (
-    <AuthCard title="가입하기" description="워크스페이스를 만들고 팀을 초대할 수 있습니다. 가입 후 휴대폰 번호 인증이 필요합니다.">
+    <AuthCard title="가입하기" description="워크스페이스를 만들고 팀을 초대할 수 있어요. 가입 후 휴대폰 번호 인증이 필요해요.">
       <GoogleSection />
       <form className="stack" onSubmit={submit}>
         <Input label="이름" autoComplete="name" value={form.name} onChange={set("name")} error={fields.name} required />

@@ -19,8 +19,8 @@ export function ForgotPasswordPage() {
   };
 
   const description = done
-    ? "가입된 이메일이면 재설정 링크를 보냈습니다. 30분 안에 메일의 링크를 눌러 주세요."
-    : "가입한 이메일로 비밀번호 재설정 링크를 보내 드립니다.";
+    ? "가입된 이메일이면 재설정 링크를 보냈어요. 30분 안에 메일의 링크를 눌러 주세요."
+    : "가입한 이메일로 비밀번호 재설정 링크를 보내 드려요.";
   return (
     <AuthCard title="비밀번호 찾기" description={description}>
       {!done && (
@@ -49,7 +49,7 @@ export function ResetPasswordPage() {
     });
   };
 
-  const description = done ? "비밀번호를 바꿨습니다. 다른 기기의 로그인은 모두 끊었습니다. 새 비밀번호로 로그인해 주세요." : undefined;
+  const description = done ? "비밀번호를 바꿨어요. 다른 기기의 로그인은 모두 끊었어요. 새 비밀번호로 로그인해 주세요." : undefined;
   return (
     <AuthCard title="새 비밀번호 정하기" description={description}>
       {!done && (

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { guides } from "../../db/schema";
+import { withJosa } from "../../../shared/josa";
 import { checklistFromRules, emptyVideoGuide, forbiddenTerms, type GuideRule, type SceneKey, type VideoGuide } from "../../../shared/guides";
 
 // 영상 가이드 초안 생성 (F-56). 실패하거나 형식이 틀리면 빈 초안(fallback)을 돌려준다
@@ -74,7 +75,7 @@ export async function generateDraft(env: Env, guide: Guide, rules: GuideRule[]):
   const base = baseDraft(guide, rules);
   // 로컬·테스트용. 다른 AI 호출(lib/ai.ts)과 같이 AI_FAKE=1 이면 모델을 부르지 않는다
   if (env.AI_FAKE === "1") {
-    base.purposeLine = `${guide.product.name}을(를) 직접 써 본 경험을 자연스럽게 보여 주세요.`;
+    base.purposeLine = `${withJosa(guide.product.name, "을/를")} 직접 써 본 경험을 자연스럽게 보여 주세요.`;
     return { guide: base, model: "fake", fallback: false };
   }
   try {

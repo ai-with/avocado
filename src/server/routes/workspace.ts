@@ -9,6 +9,7 @@ import { logEvent } from "../lib/events";
 import { sendEmail } from "../lib/email";
 import { requireRole, workspaceCtx } from "../middleware/auth";
 import { ROLE_LABELS } from "../../shared/roles";
+import { withJosa } from "../../shared/josa";
 import { onboardingSchema } from "../../shared/onboarding";
 
 const INVITE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,7 +29,7 @@ export const workspaceRoutes = new Hono<AppEnv>()
   .post("/onboarding", async (c) => {
     const body = parse(onboardingSchema, await c.req.json());
     const { workspace } = workspaceCtx(c);
-    if (workspace.onboardedAt) throw new ApiError(409, "already_onboarded", "이미 온보딩을 마쳤습니다.");
+    if (workspace.onboardedAt) throw new ApiError(409, "already_onboarded", "이미 온보딩을 마쳤어요.");
     const skipped = body.skipped === true;
     const onboardedAt = now();
     await c.var.db.update(workspaces).set({ onboarding: skipped ? null : JSON.stringify(body), onboardedAt }).where(eq(workspaces.id, workspace.id));
@@ -58,7 +59,7 @@ export const workspaceRoutes = new Hono<AppEnv>()
   })
   .post("/invites", ownerOnly, async (c) => {
     const body = parse(
-      z.object({ email: z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아닙니다.")), role: assignableRole }),
+      z.object({ email: z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아니에요.")), role: assignableRole }),
       await c.req.json(),
     );
     const { workspace, user } = workspaceCtx(c);
@@ -69,16 +70,16 @@ export const workspaceRoutes = new Hono<AppEnv>()
       .innerJoin(users, eq(users.id, members.userId))
       .where(and(eq(members.workspaceId, workspace.id), eq(users.email, body.email)))
       .get();
-    if (already) throw new ApiError(409, "already_member", "이미 팀에 속한 이메일입니다.", { email: "이미 팀에 속한 이메일입니다." });
+    if (already) throw new ApiError(409, "already_member", "이미 팀에 속한 이메일이에요.", { email: "이미 팀에 속한 이메일이에요." });
 
     const invite = { id: newId(), workspaceId: workspace.id, email: body.email, role: body.role, token: newToken(), invitedBy: user.id, expiresAt: now() + INVITE_MS, createdAt: now() };
     await db.insert(invites).values(invite);
     const url = inviteUrl(c.env, invite.token);
     const email = await sendEmail(c.env, {
       to: body.email,
-      subject: `${workspace.name} 워크스페이스에 초대되었습니다`,
-      text: `${user.name}님이 ${workspace.name} 워크스페이스에 ${ROLE_LABELS[body.role]}(으)로 초대했습니다.\n아래 링크에서 수락해 주세요. 링크는 7일 동안 유효합니다.\n${url}`,
-      html: `<p>${escapeHtml(user.name)}님이 <b>${escapeHtml(workspace.name)}</b> 워크스페이스에 ${ROLE_LABELS[body.role]}(으)로 초대했습니다.</p><p><a href="${url}">초대 수락하기</a></p><p>링크는 7일 동안 유효합니다.</p>`,
+      subject: `${workspace.name} 워크스페이스에 초대되었어요`,
+      text: `${user.name}님이 ${workspace.name} 워크스페이스에 ${withJosa(ROLE_LABELS[body.role], "으로/로")} 초대했어요.\n아래 링크에서 수락해 주세요. 링크는 7일 동안 쓸 수 있어요.\n${url}`,
+      html: `<p>${escapeHtml(user.name)}님이 <b>${escapeHtml(workspace.name)}</b> 워크스페이스에 ${withJosa(ROLE_LABELS[body.role], "으로/로")} 초대했어요.</p><p><a href="${url}">초대 수락하기</a></p><p>링크는 7일 동안 쓸 수 있어요.</p>`,
     });
     await logEvent(db, workspace.id, "member_invited", { role: body.role, delivered: email.delivered });
     return c.json({ invite: { id: invite.id, email: invite.email, role: invite.role, expiresAt: invite.expiresAt, url }, email }, 201);
@@ -109,8 +110,8 @@ async function findMember(c: Parameters<typeof workspaceCtx>[0], userId: string)
     .from(members)
     .where(and(eq(members.workspaceId, workspace.id), eq(members.userId, userId)))
     .get();
-  if (!m) throw new ApiError(404, "member_not_found", "멤버를 찾을 수 없습니다.");
-  if (m.role === "owner") throw new ApiError(400, "owner_locked", "소유자는 역할을 바꾸거나 제거할 수 없습니다.");
+  if (!m) throw new ApiError(404, "member_not_found", "멤버를 찾을 수 없어요.");
+  if (m.role === "owner") throw new ApiError(400, "owner_locked", "소유자는 역할을 바꾸거나 제거할 수 없어요.");
   return m;
 }
 

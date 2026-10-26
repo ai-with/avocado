@@ -59,7 +59,7 @@ export function useReviewDetail(submissionId: string) {
     }
   };
   const approve = () =>
-    confirm("최종 승인할까요? 승인하면 코멘트를 더 바꿀 수 없고, 인플루언서에게 게시 안내가 갑니다.") && void act(() => api.post(`${base}/approve`), "최종 승인했습니다.");
+    confirm("최종 승인할까요? 승인하면 코멘트를 더 바꿀 수 없고, 인플루언서에게 게시 안내가 가요.") && void act(() => api.post(`${base}/approve`), "최종 승인했어요.");
 
   return { d, base, load, act, approve, ...picker, processing: d ? isProcessing(d) : false };
 }

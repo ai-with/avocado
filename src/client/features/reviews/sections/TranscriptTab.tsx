@@ -13,7 +13,7 @@ export function TranscriptTab({ d, base, canEdit, onSeek, onAct }: { d: ReviewDe
       <Card className="stack">
         <strong>전사 실패</strong>
         <p className="text-secondary">음성을 텍스트로 바꾸지 못했어요. 영상과 프레임은 그대로 볼 수 있어요.</p>
-        {canEdit && <div><Button variant="secondary" onClick={() => void onAct(() => api.post(`${base}/retry`, { stage: "transcribe" }), "다시 요청했습니다.")}>전사 다시 요청</Button></div>}
+        {canEdit && <div><Button variant="secondary" onClick={() => void onAct(() => api.post(`${base}/retry`, { stage: "transcribe" }), "다시 요청했어요.")}>전사 다시 요청</Button></div>}
       </Card>
     );
   if (stt?.status === "skipped") return <EmptyState title="음성 없음" description="대사가 없는 영상이에요. 위반 후보는 화면 기준으로만 찾았어요." />;

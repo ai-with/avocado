@@ -14,7 +14,7 @@ export async function requireObject(bucket: R2Bucket, key: string | null | undef
 export async function streamObject(bucket: R2Bucket, key: string, reqHeaders: Headers, download: boolean) {
   const ranged = reqHeaders.has("range");
   const obj = await bucket.get(key, ranged ? { range: reqHeaders } : {});
-  if (!obj) throw new ApiError(404, "file_not_found", "파일을 찾을 수 없습니다.");
+  if (!obj) throw new ApiError(404, "file_not_found", "파일을 찾을 수 없어요.");
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set("etag", obj.httpEtag);

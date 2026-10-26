@@ -24,7 +24,7 @@ type Loaded = Awaited<ReturnType<typeof loadSub>>;
 function translationFor(drafts: Draft[], translations: Record<string, string>, sendOriginal: boolean) {
   const pick = (d: Draft) => translations[d.id]?.trim() || d.textTranslated;
   const missing = drafts.filter((d) => !pick(d));
-  if (missing.length && !sendOriginal) throw new ApiError(409, "translation_missing", `번역이 없는 코멘트가 ${missing.length}건 있습니다. 원문으로 보낼지 골라 주세요.`);
+  if (missing.length && !sendOriginal) throw new ApiError(409, "translation_missing", `번역이 없는 코멘트가 ${missing.length}건 있어요. 원문으로 보낼지 골라 주세요.`);
   return (d: Draft) => pick(d) || null;
 }
 
@@ -53,7 +53,7 @@ export const roundRoutes = new Hono<AppEnv>()
     const s = await loadSub(c, c.req.param("id"));
     await assertUnlocked(db, s.gi.id);
     const drafts = await db.select().from(feedbackItems).where(and(eq(feedbackItems.submissionId, s.sub.id), isNull(feedbackItems.roundId))).orderBy(asc(feedbackItems.tMs), asc(feedbackItems.createdAt));
-    if (drafts.length === 0) throw new ApiError(400, "no_feedback", "보낼 코멘트가 없습니다.");
+    if (drafts.length === 0) throw new ApiError(400, "no_feedback", "보낼 코멘트가 없어요.");
     const textOf = s.influencer.lang !== BRAND_LANG ? translationFor(drafts, body.translations, body.sendOriginal) : () => null;
     const round = await saveRound(db, s, drafts, textOf);
     await logEvent(db, s.workspace.id, "review_round_submitted", { round: round.n, comment_count: drafts.length });
@@ -67,8 +67,8 @@ export const roundRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const s = await loadSub(c, c.req.param("id"));
     const { sub, gi } = s;
-    if (sub.kind !== "final") throw new ApiError(400, "not_final", "완성본만 승인할 수 있습니다.");
-    if (await approvalOf(db, gi.id)) throw new ApiError(409, "already_approved", "이미 최종 승인했습니다.");
+    if (sub.kind !== "final") throw new ApiError(400, "not_final", "완성본만 승인할 수 있어요.");
+    if (await approvalOf(db, gi.id)) throw new ApiError(409, "already_approved", "이미 최종 승인했어요.");
     const at = now();
     await db.batch([
       db.insert(approvals).values({ id: newId(), guideInfluencerId: gi.id, submissionId: sub.id, approvedBy: s.user.id, approvedAt: at }),

@@ -40,7 +40,7 @@ export function WorkspaceSettingsPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const rename = async (e: FormEvent) => {
     e.preventDefault();
-    await act(() => api.patch("/workspace", { name }), "이름을 바꿨습니다.");
+    await act(() => api.patch("/workspace", { name }), "이름을 바꿨어요.");
     await refresh();
   };
 

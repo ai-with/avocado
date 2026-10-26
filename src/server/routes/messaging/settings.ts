@@ -45,7 +45,7 @@ export const messagingRoutes = new Hono<AppEnv>()
   .get("/leads/:id/logs", async (c) => {
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
-    const lead = await findOwned(db, leads, c.req.param("id"), workspace.id, { code: "lead_not_found", message: "리드를 찾을 수 없습니다." });
+    const lead = await findOwned(db, leads, c.req.param("id"), workspace.id, { code: "lead_not_found", message: "리드를 찾을 수 없어요." });
     const logs = await db.select().from(messageLogs).where(eq(messageLogs.leadId, lead.id)).orderBy(desc(messageLogs.at)).limit(LOG_LIMIT);
     const names = await sourceNames(db, [...new Set(logs.map((l) => l.sourceId))]);
     return c.json({ logs: logs.map((l) => ({ id: l.id, source: l.source, sourceName: names.get(l.sourceId) ?? "삭제된 발송", channel: l.channel, status: l.status, reason: l.reason, at: l.at })) });

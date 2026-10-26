@@ -121,10 +121,12 @@ export async function stageSummaries(db: Db, guideId: string): Promise<Summaries
 // 인플루언서 공개 가이드에 보여 줄 본인 리드 링크 (TASK-019 short_links). 없으면 빈 배열
 export async function influencerLeadLinks(db: Db, shortBase: string, guideId: string, influencerId: string) {
   if (!(await tableExists(db, "short_links"))) return [];
-  const rows = await db.all<{ slug: string; channel_key: string }>(
-    sql`SELECT slug, channel_key FROM short_links WHERE guide_id = ${guideId} AND influencer_id = ${influencerId} AND deleted_at IS NULL ORDER BY channel_key`,
+  // 브랜드가 추가한 채널(custom:<id>) 이름을 보여 주려고 link_channels 를 붙인다
+  const rows = await db.all<{ slug: string; channel_key: string; name: string | null }>(
+    sql`SELECT l.slug, l.channel_key, c.name FROM short_links l LEFT JOIN link_channels c ON c.workspace_id = l.workspace_id AND c.key = l.channel_key
+        WHERE l.guide_id = ${guideId} AND l.influencer_id = ${influencerId} AND l.deleted_at IS NULL ORDER BY l.channel_key`,
   );
-  return rows.map((r) => ({ channel: r.channel_key, url: `${shortBase}/${r.slug}` }));
+  return rows.map((r) => ({ channel: r.channel_key, name: r.name ?? r.channel_key, url: `${shortBase}/${r.slug}` }));
 }
 
 // 홈 지표와 시작 체크리스트용 워크스페이스 집계

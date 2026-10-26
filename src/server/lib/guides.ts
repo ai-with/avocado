@@ -10,12 +10,12 @@ import { TOKEN_TTL_MS, isTokenExpired, type GuideRule } from "../../shared/guide
 // 가이드·인플루언서 링크 공용 헬퍼. 브랜드 라우트, 공개 라우트, 처리 파이프라인이 같이 쓴다
 
 export const findGuide = (db: Db, workspaceId: string, id: string) =>
-  findOwned(db, guides, id, workspaceId, { code: "guide_not_found", message: "가이드를 찾을 수 없습니다." });
+  findOwned(db, guides, id, workspaceId, { code: "guide_not_found", message: "가이드를 찾을 수 없어요." });
 
 // 가이드에 연결된 인플루언서 행 하나
 export async function findGuideInfluencer(db: Db, guideId: string, giId: string) {
   const gi = await db.select().from(guideInfluencers).where(and(eq(guideInfluencers.id, giId), eq(guideInfluencers.guideId, guideId))).get();
-  if (!gi) throw new ApiError(404, "link_not_found", "인플루언서 링크를 찾을 수 없습니다.");
+  if (!gi) throw new ApiError(404, "link_not_found", "인플루언서 링크를 찾을 수 없어요.");
   return gi;
 }
 
@@ -65,11 +65,11 @@ export async function findByToken(db: Db, column: TokenColumn, token: string) {
     .where(eq(guideInfluencers[column], token))
     .get();
   if (!row) return null;
-  if (isTokenExpired(row.gi.tokenExpiresAt, now())) throw new ApiError(410, "link_expired", "링크가 만료되었습니다. 브랜드에 새 링크를 요청해 주세요.");
+  if (isTokenExpired(row.gi.tokenExpiresAt, now())) throw new ApiError(410, "link_expired", "링크가 만료되었어요. 브랜드에 새 링크를 요청해 주세요.");
   return row;
 }
 
-export const linkNotFound = () => new ApiError(404, "link_not_found", "링크를 찾을 수 없습니다. 주소를 다시 확인해 주세요.");
+export const linkNotFound = () => new ApiError(404, "link_not_found", "링크를 찾을 수 없어요. 주소를 다시 확인해 주세요.");
 
 // 이름·slug 만 필요한 곳(링크, 자료, 폼)에서 쓰는 가이드 확인
 export async function getGuide(db: Db, workspaceId: string, guideId: string) {
