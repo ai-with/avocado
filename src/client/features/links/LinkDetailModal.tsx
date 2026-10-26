@@ -1,6 +1,6 @@
 import { Button, Modal } from "../../ui";
 import { channelLabel } from "../../../shared/leads";
-import { LinkSummary, OgCardSection, UtmSection } from "./sections/LinkDetailSections";
+import { ContentNameSection, LinkSummary, OgCardSection, UtmSection } from "./sections/LinkDetailSections";
 import { useLinkDetail } from "./useLinkDetail";
 import type { Channel, LinkRow } from "./common";
 
@@ -10,9 +10,10 @@ type Props = { link: LinkRow; channels: Channel[]; onClose: () => void; onChange
 export function LinkDetailModal({ link, channels, onClose, onChanged }: Props) {
   const s = useLinkDetail(link, onClose, onChanged);
   return (
-    <Modal open title={`${link.influencerName ?? "가이드 공용"} · ${channelLabel(link.channelKey, channels)}`} onClose={onClose}>
+    <Modal open title={[link.influencerName ?? "가이드 공용", channelLabel(link.channelKey, channels), link.contentLabel].filter(Boolean).join(" · ")} onClose={onClose}>
       <div className="stack">
         <LinkSummary link={link} s={s} />
+        {link.contentKey && <ContentNameSection link={link} s={s} />}
         <OgCardSection s={s} />
         <UtmSection link={link} s={s} />
         <div><Button size="sm" variant="danger" onClick={() => void s.remove()}>링크 삭제</Button></div>

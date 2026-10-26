@@ -14,7 +14,7 @@ function LinkTableRow({ l, channels, docs, onOpen }: { l: LinkRow } & Omit<Props
     <tr>
       <td>{l.guideId ? <Link to={`/dashboard/guides/${l.guideId}`}>{l.guideName}</Link> : "공용"}</td>
       <td>{l.influencerName ?? "가이드 공용"}</td>
-      <td>{channelLabel(l.channelKey, channels)}</td>
+      <td>{channelLabel(l.channelKey, channels)}{l.contentLabel && <div className="text-caption">{l.contentLabel}</div>}</td>
       <td className="truncate lt-dest-cell" title={dest ?? undefined}>{dest}</td>
       <td className="num">{l.stats.clicks}</td><td className="num">{l.stats.unique}</td><td className="num">{l.stats.views}</td><td className="num">{l.stats.leads}</td>
       <td className="num">{l.stats.siteSessions}</td><td className="num">{l.stats.siteConversions}</td>

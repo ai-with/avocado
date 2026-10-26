@@ -6,6 +6,8 @@
 .lt-stat { background: var(--color-surface-subtle); border-radius: var(--radius-md); padding: var(--space-5) var(--space-6); }
 .lt-stat b { display: block; font-size: var(--text-h4-size); line-height: var(--text-h4-lh); }
 .lt-cell { display: flex; flex-direction: column; gap: var(--space-1); min-width: 120px; }
+.lt-content-list { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
+.lt-content-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 .lt-cell button.lt-link { border: 0; background: none; padding: 0; color: var(--color-accent); cursor: pointer; font-family: var(--font-mono); font-size: var(--text-caption-size); text-align: left; }
 .lt-mono { font-family: var(--font-mono); font-size: var(--text-caption-size); word-break: break-all; }
 .lt-bars { display: flex; flex-direction: column; gap: var(--space-3); }

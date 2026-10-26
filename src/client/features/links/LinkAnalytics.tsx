@@ -10,6 +10,7 @@ type Analytics = {
   total: { clicks: number; unique: number };
   byChannel: Bucket[];
   byInfluencer: (Bucket & { name: string })[];
+  byContent: (Bucket & { name: string })[];
   daily: { key: string; clicks: number }[];
   referrers: Bucket[];
   devices: Bucket[];
@@ -63,6 +64,7 @@ function AnalyticsBody({ data, channels }: { data: Analytics; channels: Channel[
       <div className="lt-grid2">
         <BarCard title="채널별" rows={data.byChannel.map((b) => ({ label: channelLabel(b.key, channels), value: b.clicks }))} />
         <BarCard title="인플루언서별" rows={data.byInfluencer.map((b) => ({ label: b.name, value: b.clicks }))} />
+        <BarCard title="콘텐츠별" rows={data.byContent.map((b) => ({ label: b.name, value: b.clicks }))} />
         <BarCard title="유입 경로(리퍼러)" rows={data.referrers.map((b) => ({ label: b.key ? hostOf(b.key) : "직접 입력·앱 안", value: b.clicks }))} />
         <BarCard
           title="기기 · 국가"

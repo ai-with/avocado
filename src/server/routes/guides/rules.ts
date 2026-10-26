@@ -9,7 +9,7 @@ import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { findOwned } from "../../lib/owned";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
-import { DEFAULT_AD_RULE, ruleConflicts } from "../../../shared/guides";
+import { DEFAULT_AD_RULE, SET_RULE_TYPES, ruleConflicts } from "../../../shared/guides";
 import { ruleBody } from "./schemas";
 
 // 규정 세트 (F-55)
@@ -34,6 +34,11 @@ async function setDetail(db: Db, setId: string) {
   const set = await db.select().from(guidelineSets).where(eq(guidelineSets.id, setId)).get();
   const rules = await db.select().from(guidelineRules).where(eq(guidelineRules.setId, setId)).orderBy(asc(guidelineRules.createdAt));
   return { set, rules, warnings: ruleConflicts(rules) };
+}
+
+// 표 CHECK 제약 위반으로 500 이 나기 전에 막는다
+function assertSetType(type: string | undefined) {
+  if (type && !(SET_RULE_TYPES as readonly string[]).includes(type)) throw new ApiError(400, "rule_type_guide_only", "이 규칙 유형은 가이드 편집 화면에서만 넣을 수 있어요.");
 }
 
 const setName = z.object({ name: z.string().trim().min(1, "이름을 입력해 주세요.").max(60) });
@@ -77,6 +82,7 @@ export const guidelineRoutes = new Hono<AppEnv>()
   })
   .post("/:id/rules", editorsOnly, async (c) => {
     const body = parse(ruleBody, await c.req.json());
+    assertSetType(body.type);
     const s = await findSet(c, c.req.param("id"));
     const db = c.var.db;
     const version = await bumpSet(db, s.id);
@@ -86,6 +92,7 @@ export const guidelineRoutes = new Hono<AppEnv>()
   })
   .patch("/:id/rules/:ruleId", editorsOnly, async (c) => {
     const body = parse(ruleBody.partial(), await c.req.json());
+    assertSetType(body.type);
     const s = await findSet(c, c.req.param("id"));
     const db = c.var.db;
     const rule = await db.select().from(guidelineRules).where(and(eq(guidelineRules.id, c.req.param("ruleId")), eq(guidelineRules.setId, s.id))).get();

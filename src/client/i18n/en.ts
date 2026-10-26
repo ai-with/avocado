@@ -15,6 +15,7 @@ export const en: Dict = {
   tips: "Shooting tips",
   rules_must: "Please do",
   rules_forbidden: "Please don't",
+  rule_competitor: "No competitor mentions",
   checklist: "Checklist before uploading",
   schedule: "Schedule",
   deadline: "Draft due",

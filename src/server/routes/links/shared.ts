@@ -51,6 +51,8 @@ export async function listLinks(db: Db, env: Env, workspaceId: string, guideId?:
     influencerId: link.influencerId,
     influencerName,
     channelKey: link.channelKey,
+    contentKey: link.contentKey,
+    contentLabel: link.contentLabel,
     destinationType: link.destinationType,
     destinationId: link.destinationId,
     destinationUrl: link.destinationUrl,

@@ -87,7 +87,7 @@ export async function loadLeads(db: Db, workspaceId: string) {
   const [rows, sources, tagLinks] = await Promise.all([
     db.select().from(leads).where(and(eq(leads.workspaceId, workspaceId), isNull(leads.deletedAt))).orderBy(desc(leads.createdAt)),
     db
-      .select({ leadId: leadSources.leadId, type: leadSources.type, guideId: leadSources.guideId, influencerId: leadSources.influencerId, channelKey: leadSources.channelKey })
+      .select({ leadId: leadSources.leadId, type: leadSources.type, guideId: leadSources.guideId, influencerId: leadSources.influencerId, channelKey: leadSources.channelKey, linkId: leadSources.linkId })
       .from(leadSources)
       .innerJoin(leads, eq(leads.id, leadSources.leadId))
       .where(and(eq(leads.workspaceId, workspaceId), isNull(leads.deletedAt))),

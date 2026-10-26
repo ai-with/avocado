@@ -61,3 +61,16 @@ export function UtmSection({ link, s }: { link: LinkRow; s: LinkDetailState }) {
     </section>
   );
 }
+
+// 콘텐츠별 링크만: 이름 바꾸기. 키(utm_content)는 이전 클릭과 섞이지 않게 그대로 둔다
+export function ContentNameSection({ link, s }: { link: LinkRow; s: LinkDetailState }) {
+  const [label, setLabel] = useState(link.contentLabel ?? "");
+  return (
+    <section className="row row-bottom">
+      <div className="grow">
+        <Input label="콘텐츠 이름" maxLength={50} hint={`utm_content: ${link.utm.content}`} value={label} onChange={(e) => setLabel(e.target.value)} />
+      </div>
+      <Button size="sm" variant="secondary" disabled={!label.trim()} onClick={() => void s.save({ contentLabel: label.trim() }, "콘텐츠 이름을 바꿨어요.")}>이름 저장</Button>
+    </section>
+  );
+}

@@ -6,7 +6,7 @@ export type LeadFacts = {
   alimtalkOptIn: boolean;
   createdAt: number;
   tagIds: string[];
-  sources: { type: LeadSourceType; guideId: string | null; influencerId: string | null; channelKey: string | null }[];
+  sources: { type: LeadSourceType; guideId: string | null; influencerId: string | null; channelKey: string | null; linkId?: string | null }[];
 };
 
 function matches(c: GroupCondition, lead: LeadFacts): boolean {

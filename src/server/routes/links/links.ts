@@ -8,6 +8,7 @@ import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { getGuide } from "../../lib/guides";
 import { createShortLinks, ensureChannels } from "../../lib/links";
+import { createContentLink } from "../../lib/link-content";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { destinationSchema, listLinks, ownLink, resolveDestination } from "./shared";
 
@@ -17,7 +18,8 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const utmSchema = z.object({ source: z.string().max(100), medium: z.string().max(100), campaign: z.string().max(100), content: z.string().max(100), term: z.string().max(100) });
 const ogSchema = z.object({ title: z.string().max(100).optional(), description: z.string().max(200).optional(), imageKey: z.string().max(200).optional() });
 const createBody = z.object({ destination: destinationSchema, guideId: z.string().nullable().optional(), channelKey: z.string().default("ig_bio") });
-const patchBody = z.object({ utm: utmSchema.optional(), og: ogSchema.optional(), destination: destinationSchema.optional() });
+const contentLabelSchema = z.string().trim().min(1, "콘텐츠 이름을 넣어 주세요.").max(50);
+const patchBody = z.object({ utm: utmSchema.optional(), og: ogSchema.optional(), destination: destinationSchema.optional(), contentLabel: contentLabelSchema.optional() });
 
 export const linkCrudRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
@@ -44,18 +46,31 @@ export const linkCrudRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const link = await ownLink(db, workspace.id, c.req.param("id"));
+    if (body.contentLabel && !link.contentKey) throw new ApiError(400, "not_content_link", "기본 링크에는 콘텐츠 이름을 붙일 수 없어요.");
     const dest = body.destination ? await resolveDestination(db, workspace.id, body.destination) : null;
     await db
       .update(shortLinks)
       .set({
         ...(body.utm && { utm: body.utm }),
         ...(body.og && { og: body.og }),
+        ...(body.contentLabel && { contentLabel: body.contentLabel }),
         ...(dest && { destinationType: dest.type, destinationId: dest.id, destinationUrl: dest.url }),
       })
       .where(eq(shortLinks.id, link.id));
     return c.json({ ok: true });
   })
-  // 링크 삭제. 이후 /l/:slug 는 만료 안내를 보여 준다
+  // 콘텐츠별 링크 추가: 기본 링크(:id) 칸에 utm_content 만 다른 링크를 하나 더 만든다
+  .post("/:id/contents", editorsOnly, async (c) => {
+    const { label } = parse(z.object({ label: contentLabelSchema }), await c.req.json());
+    const { workspace } = workspaceCtx(c);
+    const db = c.var.db;
+    const base = await ownLink(db, workspace.id, c.req.param("id"));
+    if (base.contentKey) throw new ApiError(400, "not_base_link", "기본 링크에서만 콘텐츠별 링크를 추가할 수 있어요.");
+    const link = await createContentLink(db, base, label);
+    await logEvent(db, workspace.id, "short_link_created", { count: 1, channel_count: 1, guide_id: base.guideId, content: true });
+    return c.json({ link: { id: link.id, slug: link.slug, contentKey: link.contentKey, contentLabel: link.contentLabel, utm: link.utm } }, 201);
+  })
+  // 링크 삭제(콘텐츠 링크 포함). 클릭 기록은 남는다. 이후 /l/:slug 는 만료 안내를 보여 준다
   .delete("/:id", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);
     const link = await ownLink(c.var.db, workspace.id, c.req.param("id"));

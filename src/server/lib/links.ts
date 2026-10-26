@@ -4,6 +4,7 @@ import { linkChannels, shortLinks } from "../db/schema";
 import { DEFAULT_CHANNELS, type DestinationType, type Utm } from "../../shared/leads";
 import { newId, now } from "./ids";
 
+const INSERT_CHUNK = 6;
 const BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 // 7자 base62. 62^7 ≈ 3.5조라 충돌은 드물지만 호출 측이 unique 위반 시 다시 만든다
@@ -57,16 +58,20 @@ export async function ensureChannels(db: Db, workspaceId: string) {
 export type Destination = { type: DestinationType; id: string | null; url: string | null };
 export type LinkTarget = { influencerId: string | null; handle: string | null };
 
+// 기본 링크가 이미 있는 칸. 콘텐츠 링크만 있는 칸은 비어 있는 것으로 본다
+export const takenBaseCells = (rows: { influencerId: string | null; channelKey: string; contentKey: string | null }[]) =>
+  new Set(rows.filter((r) => r.contentKey === null).map((r) => `${r.influencerId ?? ""}|${r.channelKey}`));
+
 // 대상(인플루언서 또는 공용) × 채널 링크를 만든다. 같은 가이드·대상·채널에 살아 있는 링크가 있으면 건너뛴다
 export async function createShortLinks(
   db: Db,
   p: { workspaceId: string; guideId: string | null; guideSlug: string; targets: LinkTarget[]; channelKeys: string[]; destination: Destination },
 ): Promise<{ created: number; skipped: number }> {
   const existing = await db
-    .select({ influencerId: shortLinks.influencerId, channelKey: shortLinks.channelKey })
+    .select({ influencerId: shortLinks.influencerId, channelKey: shortLinks.channelKey, contentKey: shortLinks.contentKey })
     .from(shortLinks)
     .where(and(eq(shortLinks.workspaceId, p.workspaceId), p.guideId ? eq(shortLinks.guideId, p.guideId) : isNull(shortLinks.guideId), isNull(shortLinks.deletedAt)));
-  const taken = new Set(existing.map((e) => `${e.influencerId ?? ""}|${e.channelKey}`));
+  const taken = takenBaseCells(existing);
   const values = [];
   for (const t of p.targets) {
     for (const ch of p.channelKeys) {
@@ -87,7 +92,7 @@ export async function createShortLinks(
       });
     }
   }
-  // D1 바인딩 변수 한도(100)를 넘지 않게 나눠 넣는다 (행당 13열)
-  for (let i = 0; i < values.length; i += 7) await db.insert(shortLinks).values(values.slice(i, i + 7));
+  // D1 바인딩 변수 한도(100)를 넘지 않게 나눠 넣는다 (행당 최대 15열)
+  for (let i = 0; i < values.length; i += INSERT_CHUNK) await db.insert(shortLinks).values(values.slice(i, i + INSERT_CHUNK));
   return { created: values.length, skipped: p.targets.length * p.channelKeys.length - values.length };
 }

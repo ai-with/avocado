@@ -5,8 +5,8 @@ import type { GroupRules } from "../../../shared/leads";
 import { EMPTY_LOOKUPS, type LeadRow, type Lookups } from "./types";
 
 export type Group = { id: string; name: string; rules: GroupRules; count: number };
-export type Filters = Record<"q" | "sourceType" | "guideId" | "influencerId" | "channelKey" | "marketing" | "alimtalk" | "tagId" | "groupId", string>;
-export const NO_FILTERS: Filters = { q: "", sourceType: "", guideId: "", influencerId: "", channelKey: "", marketing: "", alimtalk: "", tagId: "", groupId: "" };
+export type Filters = Record<"q" | "sourceType" | "guideId" | "influencerId" | "channelKey" | "marketing" | "alimtalk" | "tagId" | "groupId" | "contentLinkId", string>;
+export const NO_FILTERS: Filters = { q: "", sourceType: "", guideId: "", influencerId: "", channelKey: "", marketing: "", alimtalk: "", tagId: "", groupId: "", contentLinkId: "" };
 export type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
 
 // 리드 화면 데이터: 필터가 바뀌면 리드·조회값·그룹을 다시 불러온다

@@ -97,6 +97,7 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 |------|------|---------|
 | `RESEND_API_KEY` | 이메일 발송 (Resend) | 메일을 보내지 않고 로그만. 발송 로그는 `no_provider` |
 | `EMAIL_FROM` | 발신 주소 (Resend에서 인증한 도메인) | `no-reply@example.com` |
+| `SUPPORT_EMAIL` | 도움 받기 문의를 받을 운영 주소 (선택, 실제 발송은 `RESEND_API_KEY`도 필요) | 문의를 저장만 하고 메일은 보내지 않는다 |
 | `SMS_PROVIDER` | `solapi`로 두면 문자 발송 | 문자 미발송. 운영에서는 인증번호를 받을 수 없어 가입이 막힌다 (필수) |
 | `SOLAPI_API_KEY`, `SOLAPI_API_SECRET` | Solapi 인증 | 위와 같음 |
 | `SMS_FROM` | Solapi에 등록한 발신 번호 | 위와 같음 |

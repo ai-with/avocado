@@ -1,7 +1,9 @@
 // 가이드·규정·동의·업로드에서 서버와 클라이언트가 함께 쓰는 타입과 순수 로직
 
-export const RULE_TYPES = ["required_phrase", "forbidden_phrase", "required_scene", "forbidden_scene", "ad_disclosure", "format", "language"] as const;
+export const RULE_TYPES = ["required_phrase", "forbidden_phrase", "required_scene", "forbidden_scene", "ad_disclosure", "format", "language", "competitor_mention"] as const;
 export type RuleType = (typeof RULE_TYPES)[number];
+// 규정 세트 표(guideline_rules)는 type CHECK 제약이 있어 마이그레이션 전까지 경쟁사 규칙을 받지 않는다. 가이드 전용 규칙(JSON)만 받는다
+export const SET_RULE_TYPES = RULE_TYPES.filter((t) => t !== "competitor_mention");
 export const RULE_TYPE_LABELS: Record<RuleType, string> = {
   required_phrase: "필수 문구",
   forbidden_phrase: "금지 표현",
@@ -10,6 +12,7 @@ export const RULE_TYPE_LABELS: Record<RuleType, string> = {
   ad_disclosure: "광고 표기",
   format: "형식",
   language: "언어",
+  competitor_mention: "경쟁사 언급 금지",
 };
 
 export const RULE_TARGETS = ["speech", "screen_text", "scene", "caption"] as const;
@@ -75,13 +78,17 @@ export function ruleConflicts(rules: Pick<GuideRule, "type" | "content" | "enabl
   return warnings;
 }
 
-// 금지 표현 규칙의 내용을 쉼표로 나눈 단어 목록
-export function forbiddenTerms(rules: Pick<GuideRule, "type" | "content" | "enabled">[]): string[] {
-  return rules
-    .filter((r) => r.enabled && r.type === "forbidden_phrase")
-    .flatMap((r) => r.content.split(/[,，]/))
+// 쉼표·줄바꿈으로 나눈 단어 목록 (금지 표현, 경쟁사 이름)
+export const splitNames = (content: string) =>
+  content
+    .split(/[,，\n]/)
     .map((s) => s.trim())
     .filter(Boolean);
+
+// 초안에 들어가면 안 되는 단어: 금지 표현과 경쟁사 이름
+const AVOID_TYPES = new Set<RuleType>(["forbidden_phrase", "competitor_mention"]);
+export function forbiddenTerms(rules: Pick<GuideRule, "type" | "content" | "enabled">[]): string[] {
+  return rules.filter((r) => r.enabled && AVOID_TYPES.has(r.type)).flatMap((r) => splitNames(r.content));
 }
 
 // 대사 예시 중 금지 표현이 들어간 문장
@@ -105,6 +112,7 @@ export function checklistFromRules(rules: Pick<GuideRule, "type" | "content" | "
     ad_disclosure: "광고 표기",
     format: "형식",
     language: "언어",
+    competitor_mention: "경쟁사 언급 안 하기",
   };
   return rules.filter((r) => r.enabled).map((r) => `[${r.severity === "must" ? "필수" : "권장"}] ${prefix[r.type]}: ${r.content}`);
 }

@@ -5,7 +5,7 @@ import type { Lookups } from "../types";
 
 type Props = { filters: Filters; onChange: (f: Filters) => void; lk: Lookups; groups: Group[] };
 
-// 연락처 목록 위 검색과 8개 조건 필터. 좁은 화면에서는 FilterBar 가 두 칸씩 접는다
+// 연락처 목록 위 검색과 9개 조건 필터. 좁은 화면에서는 FilterBar 가 두 칸씩 접는다
 export function LeadFilters({ filters, onChange, lk, groups }: Props) {
   const select = (key: keyof Filters, label: string, options: Option[]) => (
     <Select aria-label={label} value={filters[key]} onChange={(e) => onChange({ ...filters, [key]: e.target.value })}>
@@ -20,6 +20,7 @@ export function LeadFilters({ filters, onChange, lk, groups }: Props) {
       {select("guideId", "가이드", toOptions(lk.guides))}
       {select("influencerId", "인플루언서", toOptions(lk.influencers))}
       {select("channelKey", "채널", channelOptions(lk))}
+      {lk.contents.length > 0 && select("contentLinkId", "콘텐츠", toOptions(lk.contents))}
       {select("marketing", "마케팅 동의", CONSENT_OPTIONS)}
       {select("alimtalk", "알림톡 동의", CONSENT_OPTIONS)}
       {select("tagId", "태그", toOptions(lk.tags))}

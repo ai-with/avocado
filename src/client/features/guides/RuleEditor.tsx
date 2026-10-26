@@ -12,7 +12,9 @@ const PLACEHOLDER: Record<RuleType, string> = {
   ad_disclosure: "예: 영상 시작에 '광고' 표기와 음성 고지",
   format: "예: 세로 9:16, 15~30초, 첫 3초 안에 제품 노출",
   language: "예: 영어로 말하기",
+  competitor_mention: "예: 경쟁사A, CompetitorB",
 };
+const HINT: Partial<Record<RuleType, string>> = { competitor_mention: "경쟁사 이름을 쉼표로 구분해 넣어 주세요" };
 const DEFAULT_TARGETS: Record<RuleType, RuleTarget[]> = {
   required_phrase: ["speech", "caption"],
   forbidden_phrase: ["speech", "screen_text", "caption"],
@@ -21,6 +23,7 @@ const DEFAULT_TARGETS: Record<RuleType, RuleTarget[]> = {
   ad_disclosure: ["speech", "screen_text"],
   format: ["scene"],
   language: ["speech"],
+  competitor_mention: ["speech", "screen_text", "caption"],
 };
 
 type Props = {
@@ -29,12 +32,14 @@ type Props = {
   onUpdate: (id: string, patch: Partial<RuleInput>) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
   readOnly?: boolean;
+  types?: readonly RuleType[];
 };
 
-const typeTone = (t: RuleType) => (t === "forbidden_phrase" || t === "forbidden_scene" ? "danger" : t === "ad_disclosure" ? "warn" : "accent");
+const DANGER_TYPES = new Set<RuleType>(["forbidden_phrase", "forbidden_scene", "competitor_mention"]);
+const typeTone = (t: RuleType) => (DANGER_TYPES.has(t) ? "danger" : t === "ad_disclosure" ? "warn" : "accent");
 
 // 규칙 목록 + 추가 폼. 규정 세트 화면과 가이드 전용 규칙에서 같이 쓴다
-export function RuleEditor({ rules, onAdd, onUpdate, onDelete, readOnly }: Props) {
+export function RuleEditor({ rules, onAdd, onUpdate, onDelete, readOnly, types = RULE_TYPES }: Props) {
   const [confirmOff, setConfirmOff] = useState<string | null>(null);
   const toggle = (r: GuideRule) => {
     // 광고 표기 규칙을 끌 때는 경고를 띄운다 (F-55 정책)
@@ -51,7 +56,7 @@ export function RuleEditor({ rules, onAdd, onUpdate, onDelete, readOnly }: Props
           {rules.map((r) => <RuleItem key={r.id} rule={r} readOnly={readOnly} onToggle={() => toggle(r)} onDelete={() => confirm("이 규칙을 지울까요?") && void onDelete(r.id)} />)}
         </ul>
       )}
-      {!readOnly && <RuleAddForm onAdd={onAdd} />}
+      {!readOnly && <RuleAddForm onAdd={onAdd} types={types} />}
       <AdOffConfirm open={confirmOff !== null} onClose={() => setConfirmOff(null)} onConfirm={() => { if (confirmOff) void onUpdate(confirmOff, { enabled: false }); setConfirmOff(null); }} />
     </div>
   );
@@ -77,7 +82,7 @@ function RuleItem({ rule: r, readOnly, onToggle, onDelete }: { rule: GuideRule; 
   );
 }
 
-function RuleAddForm({ onAdd }: { onAdd: Props["onAdd"] }) {
+function RuleAddForm({ onAdd, types }: { onAdd: Props["onAdd"]; types: readonly RuleType[] }) {
   const [type, setType] = useState<RuleType>("required_phrase");
   const [content, setContent] = useState("");
   const [severity, setSeverity] = useState<RuleSeverity>("must");
@@ -93,14 +98,14 @@ function RuleAddForm({ onAdd }: { onAdd: Props["onAdd"] }) {
     <div className="rule-form stack">
       <div className="grid-3">
         <Select label="유형" value={type} onChange={(e) => { const t = e.target.value as RuleType; setType(t); setTargets(DEFAULT_TARGETS[t]); }}>
-          {RULE_TYPES.map((t) => <option key={t} value={t}>{RULE_TYPE_LABELS[t]}</option>)}
+          {types.map((t) => <option key={t} value={t}>{RULE_TYPE_LABELS[t]}</option>)}
         </Select>
         <Select label="중요도" value={severity} onChange={(e) => setSeverity(e.target.value as RuleSeverity)}>
           <option value="must">필수</option>
           <option value="should">권장</option>
         </Select>
       </div>
-      <Input label="내용" value={content} onChange={(e) => setContent(e.target.value)} placeholder={PLACEHOLDER[type]} maxLength={300} />
+      <Input label="내용" value={content} onChange={(e) => setContent(e.target.value)} placeholder={PLACEHOLDER[type]} hint={HINT[type]} maxLength={300} />
       <fieldset className="fieldset-plain row row-wrap">
         <legend className="field-label">검사 대상</legend>
         {RULE_TARGETS.map((t) => (

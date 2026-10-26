@@ -50,11 +50,14 @@ function ScenesSection({ vg, t, lang }: { vg: VideoGuide; t: T; lang: Lang }) {
 const leadChannelName = (l: PersonalData["leadLinks"][number], t: T) =>
   DEFAULT_CHANNELS.some((c) => c.key === l.channel) ? t(`channel_${l.channel}` as TKey) : l.name;
 
-const isForbidden = (type: string) => type === "forbidden_phrase" || type === "forbidden_scene";
+const FORBIDDEN_TYPES = new Set(["forbidden_phrase", "forbidden_scene", "competitor_mention"]);
+const isForbidden = (type: string) => FORBIDDEN_TYPES.has(type);
+// 경쟁사 규칙은 이름만 있으면 뜻을 알 수 없어 유형 이름을 앞에 붙인다
+const ruleText = (r: PublicGuide["rules"][number], t: T) => (r.type === "competitor_mention" ? `${t("rule_competitor")}: ${r.content}` : r.content);
 
 function RulesSections({ g, t }: GuideProps) {
   const must = g.rules.filter((r) => !isForbidden(r.type)).map((r) => r.content);
-  const forbidden = g.rules.filter((r) => isForbidden(r.type)).map((r) => r.content);
+  const forbidden = g.rules.filter((r) => isForbidden(r.type)).map((r) => ruleText(r, t));
   return (
     <>
       {must.length > 0 && <PublicSection title={t("rules_must")}><TextList items={must} /></PublicSection>}

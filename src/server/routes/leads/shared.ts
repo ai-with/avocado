@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import type { Db } from "../../db";
-import { guides, influencers, leadGroups, leadTags, leads } from "../../db/schema";
+import { guides, influencers, leadGroups, leadTags, leads, shortLinks } from "../../db/schema";
 import { findLive } from "../../lib/owned";
 import { loadLeads } from "../../lib/leads";
 import { evaluateGroup } from "../../lib/lead-groups";
@@ -38,20 +38,34 @@ export async function filteredLeads(db: Db, workspaceId: string, q: Record<strin
     if (g) rules.all.push(...g.rules.all);
   }
   const text = (q.q ?? "").trim().toLowerCase();
+  // 콘텐츠 필터는 콘텐츠 링크 ID 하나로 고른다(그룹 규칙에는 없는 조건)
+  const fromContent = (sources: { linkId?: string | null }[]) => !q.contentLinkId || sources.some((s) => s.linkId === q.contentLinkId);
   return all.filter(
     ({ lead, facts }) =>
-      evaluateGroup(rules, facts) && (!text || [lead.email, lead.name, lead.company, lead.phone].some((v) => v?.toLowerCase().includes(text))),
+      evaluateGroup(rules, facts) && fromContent(facts.sources) && (!text || [lead.email, lead.name, lead.company, lead.phone].some((v) => v?.toLowerCase().includes(text))),
   );
 }
 
+// 콘텐츠 링크 이름표. 지운 링크로 들어온 리드도 이름이 보이게 지운 것까지 포함
+async function contentLookups(db: Db, workspaceId: string) {
+  const rows = await db
+    .select({ id: shortLinks.id, label: shortLinks.contentLabel, influencerName: influencers.displayName })
+    .from(shortLinks)
+    .leftJoin(influencers, eq(influencers.id, shortLinks.influencerId))
+    .where(and(eq(shortLinks.workspaceId, workspaceId), isNotNull(shortLinks.contentKey)))
+    .orderBy(asc(shortLinks.createdAt));
+  return rows.map((r) => ({ id: r.id, label: r.label ?? "", name: `${r.label ?? ""} · ${r.influencerName ?? "가이드 공용"}` }));
+}
+
 export async function lookups(db: Db, workspaceId: string) {
-  const [g, i, channels, tags] = await Promise.all([
+  const [g, i, channels, tags, contents] = await Promise.all([
     db.select({ id: guides.id, name: guides.name }).from(guides).where(eq(guides.workspaceId, workspaceId)),
     db.select({ id: influencers.id, name: influencers.displayName }).from(influencers).where(eq(influencers.workspaceId, workspaceId)),
     ensureChannels(db, workspaceId),
     db.select().from(leadTags).where(eq(leadTags.workspaceId, workspaceId)).orderBy(asc(leadTags.name)),
+    contentLookups(db, workspaceId),
   ]);
-  return { guides: g, influencers: i, channels: channels.map((ch) => ({ key: ch.key, name: ch.name })), tags };
+  return { guides: g, influencers: i, channels: channels.map((ch) => ({ key: ch.key, name: ch.name })), tags, contents };
 }
 
 export const ownLead = (db: Db, workspaceId: string, id: string) => findLive(db, leads, id, workspaceId, { code: "lead_not_found", message: "리드를 찾을 수 없어요." });

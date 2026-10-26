@@ -22,4 +22,6 @@ interface Env {
   APP_ENV?: string;
   // TASK-029: Analytics Engine SQL API 조회용 계정 토큰. 1단계 화면은 D1 만 쓰므로 아직 읽지 않는다
   CF_API_TOKEN_AE?: string;
+  // TASK-054: 도움 받기 문의를 받을 운영 주소. 없으면 저장만 한다
+  SUPPORT_EMAIL?: string;
 }

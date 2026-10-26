@@ -14,6 +14,7 @@ export const ko = {
   tips: "촬영 팁",
   rules_must: "꼭 지켜 주세요",
   rules_forbidden: "하지 말아 주세요",
+  rule_competitor: "경쟁사 언급 금지",
   checklist: "올리기 전 체크리스트",
   schedule: "일정",
   deadline: "초안 마감",

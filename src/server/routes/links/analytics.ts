@@ -5,9 +5,10 @@ import type { Db } from "../../db";
 import { influencers, linkClicks, shortLinks } from "../../db/schema";
 import { now } from "../../lib/ids";
 import { realClick } from "../../lib/link-stats";
+import { contentBuckets } from "../../lib/link-content";
 import { workspaceCtx } from "../../middleware/auth";
 
-// 분석: 채널별·인플루언서별·일별·리퍼러·기기·국가. 봇과 구성원 클릭은 뺀다
+// 분석: 채널별·인플루언서별·콘텐츠별·일별·리퍼러·기기·국가. 봇과 구성원 클릭은 뺀다
 
 const DAY_MS = 86_400_000;
 const DEFAULT_DAYS = 30;
@@ -46,6 +47,7 @@ function breakdowns(db: Db, where: SQL | undefined) {
     base(sql<string>`${linkClicks.device}`),
     base(sql<string>`coalesce(${linkClicks.country}, '')`),
     db.select({ clicks: count(), unique: countDistinct(linkClicks.sessionId) }).from(linkClicks).innerJoin(shortLinks, eq(shortLinks.id, linkClicks.linkId)).where(where).get(),
+    base(sql<string>`coalesce(${shortLinks.contentLabel}, '')`),
   ]);
 }
 
@@ -53,13 +55,14 @@ export const linkAnalyticsRoutes = new Hono<AppEnv>().get("/analytics", async (c
   const { workspace } = workspaceCtx(c);
   const db = c.var.db;
   const days = Math.min(Number(c.req.query("days") ?? DEFAULT_DAYS) || DEFAULT_DAYS, MAX_DAYS);
-  const [byChannel, byInfluencer, daily, referrers, devices, countries, total] = await breakdowns(db, clickWhere(workspace.id, c.req.query(), days));
+  const [byChannel, byInfluencer, daily, referrers, devices, countries, total, byContent] = await breakdowns(db, clickWhere(workspace.id, c.req.query(), days));
   const names = await db.select({ id: influencers.id, name: influencers.displayName }).from(influencers).where(eq(influencers.workspaceId, workspace.id));
   return c.json({
     days,
     total: total ?? { clicks: 0, unique: 0 },
     byChannel,
     byInfluencer: byInfluencer.map((r) => ({ ...r, name: names.find((n) => n.id === r.key)?.name ?? "가이드 공용" })),
+    byContent: contentBuckets(byContent),
     daily,
     referrers: referrers.slice(0, TOP_N),
     devices,

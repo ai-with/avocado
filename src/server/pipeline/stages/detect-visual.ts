@@ -3,7 +3,7 @@ import { frames } from "../../db/schema";
 import { judgeFrame } from "../../lib/ai";
 import { aggregateVotes, openingWindowMs, sampleFrames, type FrameVote, type Verdict } from "../rules";
 import type { Ctx } from "../context";
-import type { GuideRule } from "../../../shared/guides";
+import { splitNames, type GuideRule } from "../../../shared/guides";
 
 // 위반 탐지의 시각 질문: 규칙마다 프레임에 묻고 표를 모아 판정한다
 const UNIFORM_FRAMES = 12;
@@ -21,6 +21,8 @@ function visualQuestions(rules: GuideRule[], productName: string): Question[] {
     if (r.type === "required_scene") questions.push({ id: r.id, question: `Does this frame show: ${r.content}?`, windowMs: null, kind: "required" });
     if (r.type === "forbidden_scene") questions.push({ id: r.id, question: `Does this frame show: ${r.content}?`, windowMs: null, kind: "forbidden" });
     if (r.type === "ad_disclosure" && r.targets.includes("screen_text")) questions.push({ id: r.id, question: SCREEN_AD_QUESTION, windowMs: null, kind: "required" });
+    if (r.type === "competitor_mention" && r.targets.includes("screen_text"))
+      questions.push({ id: r.id, question: `Does any on-screen text or logo in this frame show any of these names: ${splitNames(r.content).join(", ")}?`, windowMs: null, kind: "forbidden" });
     const opening = r.type === "format" ? openingWindowMs(r.content) : null;
     if (opening != null)
       questions.push({ id: r.id, question: `Is the product${productName ? ` (${productName})` : ""} clearly visible in this frame?`, windowMs: opening, kind: "required" });

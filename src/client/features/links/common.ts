@@ -19,6 +19,9 @@ export type LinkRow = {
   influencerId: string | null;
   influencerName: string | null;
   channelKey: string;
+  // null 이면 칸의 기본 링크, 값이 있으면 콘텐츠별 링크(c2, c3 ...)
+  contentKey: string | null;
+  contentLabel: string | null;
   destinationType: DestinationType;
   destinationId: string | null;
   destinationUrl: string | null;

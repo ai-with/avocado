@@ -1,6 +1,7 @@
-import { Button, EmptyState, Input, Table, useToast } from "../../../ui";
+import { Button, EmptyState, Input, Table } from "../../../ui";
 import type { Channel, DocumentRow, FormRow, LinkRow } from "../common";
 import type { GuideLinks, GuideLinksState } from "../useGuideLinks";
+import { LinkCell } from "./LinkCell";
 
 type Row = { id: string | null; name: string; handle: string | null };
 
@@ -12,22 +13,8 @@ const gridRows = (data: GuideLinks): Row[] => [
 const destName = (l: LinkRow, docs: DocumentRow[], forms: FormRow[]) =>
   l.destinationType === "url" ? l.destinationUrl : l.destinationType === "document" ? docs.find((d) => d.id === l.destinationId)?.title : forms.find((f) => f.id === l.destinationId)?.title;
 
-function LinkCell({ l, title, onOpen }: { l: LinkRow | undefined; title: string; onOpen: (l: LinkRow) => void }) {
-  const toast = useToast();
-  if (!l) return <span className="text-caption">없음</span>;
-  return (
-    <div className="lt-cell">
-      <button type="button" className="lt-link" title={title} aria-label={`/l/${l.slug} 링크 복사`} onClick={() => void navigator.clipboard.writeText(l.url).then(() => toast("링크를 복사했어요."))}>
-        /l/{l.slug} 복사
-      </button>
-      <span className="text-caption">클릭 {l.stats.clicks} · 리드 {l.stats.leads}</span>
-      <button type="button" className="lt-link" onClick={() => onOpen(l)}>QR · 카드 · UTM</button>
-    </div>
-  );
-}
-
 function LinkGrid({ data, channels, s }: { data: GuideLinks; channels: Channel[]; s: GuideLinksState }) {
-  const cell = (inf: string | null, ch: string) => data.links.find((l) => l.influencerId === inf && l.channelKey === ch);
+  const inCell = (inf: string | null, ch: string) => data.links.filter((l) => l.influencerId === inf && l.channelKey === ch);
   return (
     <Table>
       <thead>
@@ -38,8 +25,11 @@ function LinkGrid({ data, channels, s }: { data: GuideLinks; channels: Channel[]
           <tr key={r.id ?? "shared"}>
             <td><b>{r.name}</b>{r.handle && <div className="text-caption">@{r.handle}</div>}</td>
             {channels.map((ch) => {
-              const l = cell(r.id, ch.key);
-              return <td key={ch.key}><LinkCell l={l} title={l ? `목적지: ${destName(l, s.docs, s.forms) ?? ""}` : ""} onOpen={s.setOpen} /></td>;
+              const links = inCell(r.id, ch.key);
+              const base = links.find((l) => !l.contentKey);
+              const contents = links.filter((l) => l.contentKey);
+              const title = base ? `목적지: ${destName(base, s.docs, s.forms) ?? ""}` : "";
+              return <td key={ch.key}><LinkCell base={base} contents={contents} title={title} onOpen={s.setOpen} onAddContent={s.setContentBase} /></td>;
             })}
           </tr>
         ))}

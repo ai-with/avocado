@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
 import type { AfterSubmit, DestinationType, DocJson, DocumentSourceType, FormFields, GroupRules, LeadSourceType, OgCard, Utm } from "../../../shared/leads";
 import { workspaces } from "./workspaces";
@@ -33,10 +34,18 @@ export const shortLinks = sqliteTable(
     destinationUrl: text("destination_url"),
     utm: text("utm", { mode: "json" }).$type<Utm>().notNull(),
     og: text("og", { mode: "json" }).$type<OgCard>().notNull(),
+    // NULL 이면 칸의 기본 링크. 콘텐츠 링크는 c2, c3 ... 와 브랜드가 붙인 이름 (migrations/0012)
+    contentKey: text("content_key"),
+    contentLabel: text("content_label"),
     createdAt: integer("created_at").notNull(),
     deletedAt: integer("deleted_at"),
   },
-  (t) => [index("short_links_guide_idx").on(t.guideId), index("short_links_ws_idx").on(t.workspaceId)],
+  (t) => [
+    index("short_links_guide_idx").on(t.guideId),
+    index("short_links_ws_idx").on(t.workspaceId),
+    uniqueIndex("short_links_base_cell_idx").on(t.guideId, t.influencerId, t.channelKey).where(sql`${t.contentKey} IS NULL AND ${t.deletedAt} IS NULL`),
+    uniqueIndex("short_links_content_cell_idx").on(t.guideId, t.influencerId, t.channelKey, t.contentKey).where(sql`${t.contentKey} IS NOT NULL AND ${t.deletedAt} IS NULL`),
+  ],
 );
 
 export const linkClicks = sqliteTable(

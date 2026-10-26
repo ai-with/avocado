@@ -8,3 +8,4 @@ export * from "./messaging";
 export * from "./performance";
 export * from "./auth";
 export * from "./sites";
+export * from "./support";

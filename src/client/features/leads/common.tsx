@@ -7,7 +7,7 @@ import "../links/lead-tools.css";
 import "./leads.css";
 import { LeadMessageLog } from "../messaging/LeadMessageLog";
 import { AnswerList, LeadTags, SourceList, ViewList } from "./sections/LeadDrawerParts";
-import { nameOf, type LeadDetail, type LeadRow, type Lookups } from "./types";
+import { contentLabelOf, nameOf, type LeadDetail, type LeadRow, type Lookups } from "./types";
 
 export { nameOf, type LeadRow, type Lookups } from "./types";
 
@@ -52,7 +52,7 @@ function LeadTableRow({ lead: l, lk, checked, onToggle, onOpen }: RowProps) {
       <td>{l.sourceTypes.map((t) => SOURCE_TYPE_LABELS[t]).join(", ")}</td>
       <td>{nameOf(lk.guides, l.lastSource.guideId)}</td>
       <td>{nameOf(lk.influencers, l.lastSource.influencerId) || (l.lastSource.linkId ? "가이드 공용" : "")}</td>
-      <td>{l.lastSource.channelKey ? channelLabel(l.lastSource.channelKey, lk.channels) : ""}</td>
+      <td>{[l.lastSource.channelKey ? channelLabel(l.lastSource.channelKey, lk.channels) : "", contentLabelOf(lk, l.lastSource.linkId)].filter(Boolean).join(" · ")}</td>
       <td><ConsentBadge on={l.marketingOptIn} off={!!l.unsubscribedAt} /></td>
       <td><ConsentBadge on={l.alimtalkOptIn} off={!!l.unsubscribedAt} /></td>
       <td>{dateTime(l.firstSource.at)}</td>

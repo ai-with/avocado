@@ -58,3 +58,14 @@ describe("업로드·동의 검증", () => {
     expect(missingConsent({ ...all, transfer: false })).toEqual(["transfer"]);
   });
 });
+
+describe("경쟁사 언급 금지", () => {
+  it("초안 경고 단어에 경쟁사 이름(쉼표·줄바꿈)을 넣고 체크리스트 접두를 붙인다", () => {
+    const rules = [rule("forbidden_phrase", "완치"), rule("competitor_mention", "토스,\nKakaoPay")];
+    expect(forbiddenTerms(rules)).toEqual(["완치", "토스", "KakaoPay"]);
+    const g = emptyVideoGuide();
+    g.scenes[0]!.lineEn = "Better than kakaopay";
+    expect(lineWarnings(g, forbiddenTerms(rules))).toHaveLength(1);
+    expect(checklistFromRules([{ type: "competitor_mention", content: "토스", severity: "must", enabled: true }])).toEqual(["[필수] 경쟁사 언급 안 하기: 토스"]);
+  });
+});

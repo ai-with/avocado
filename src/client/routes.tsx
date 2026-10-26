@@ -38,6 +38,7 @@ import { ReviewDetailPage } from "./features/reviews/ReviewDetailPage";
 import { FeedbackPublicPage } from "./features/reviews/FeedbackPublicPage";
 import { SitesPage } from "./features/sites/Page";
 import { OnboardingPage } from "./features/onboarding/OnboardingPage";
+import { HelpPage } from "./features/support/HelpPage";
 
 // 로그인 후 앱 셸(LNB) 안의 화면. /dashboard 아래 상대 경로
 export const appRoutes: RouteObject[] = [
@@ -63,7 +64,7 @@ export const appRoutes: RouteObject[] = [
   { path: "settings/plan", element: <PlanPage /> },
   { path: "settings/integrations", element: <IntegrationsPage /> },
   { path: "referral", element: <Placeholder title="추천 프로그램" /> },
-  { path: "help", element: <Placeholder title="도움 받기" /> },
+  { path: "help", element: <HelpPage /> },
   { path: "documents/new", element: <DocumentNewPage /> },
   { path: "documents/:id", element: <DocumentEditPage /> },
 ];

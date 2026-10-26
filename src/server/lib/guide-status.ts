@@ -121,10 +121,10 @@ export async function stageSummaries(db: Db, guideId: string): Promise<Summaries
 // 인플루언서 공개 가이드에 보여 줄 본인 리드 링크 (TASK-019 short_links). 없으면 빈 배열
 export async function influencerLeadLinks(db: Db, shortBase: string, guideId: string, influencerId: string) {
   if (!(await tableExists(db, "short_links"))) return [];
-  // 브랜드가 추가한 채널(custom:<id>) 이름을 보여 주려고 link_channels 를 붙인다
+  // 브랜드가 추가한 채널(custom:<id>) 이름을 보여 주려고 link_channels 를 붙인다. 콘텐츠별 링크는 빼고 칸의 기본 링크만
   const rows = await db.all<{ slug: string; channel_key: string; name: string | null }>(
     sql`SELECT l.slug, l.channel_key, c.name FROM short_links l LEFT JOIN link_channels c ON c.workspace_id = l.workspace_id AND c.key = l.channel_key
-        WHERE l.guide_id = ${guideId} AND l.influencer_id = ${influencerId} AND l.deleted_at IS NULL ORDER BY l.channel_key`,
+        WHERE l.guide_id = ${guideId} AND l.influencer_id = ${influencerId} AND l.deleted_at IS NULL AND l.content_key IS NULL ORDER BY l.channel_key`,
   );
   return rows.map((r) => ({ channel: r.channel_key, name: r.name ?? r.channel_key, url: `${shortBase}/${r.slug}` }));
 }

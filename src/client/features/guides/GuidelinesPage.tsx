@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Badge, Button, EmptyState, Input, PageHeader, SectionCard, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
+import { SET_RULE_TYPES } from "../../../shared/guides";
 import { RuleEditor, type RuleInput } from "./RuleEditor";
 import type { RuleSet, RuleSetDetail } from "./types";
 import "./guides.css";
@@ -76,6 +77,7 @@ function SetDetail({ base, detail, canEdit, run, onDelete }: SetDetailProps) {
         <RuleEditor
           readOnly={!canEdit}
           rules={detail.rules}
+          types={SET_RULE_TYPES}
           onAdd={(r: RuleInput) => run(() => api.post(`${base}/rules`, r))}
           onUpdate={(id, patch) => run(() => api.patch(`${base}/rules/${id}`, patch))}
           onDelete={(id) => run(() => api.del(`${base}/rules/${id}`))}

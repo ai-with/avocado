@@ -1,7 +1,7 @@
 import { Badge } from "../../../ui";
 import { channelLabel, SOURCE_TYPE_LABELS } from "../../../../shared/leads";
 import { dateTime, seconds } from "../../links/common";
-import { nameOf, type LeadDetail, type Lookups } from "../types";
+import { contentLabelOf, nameOf, type LeadDetail, type Lookups } from "../types";
 
 export function LeadTags({ tagIds, lk, onRemove }: { tagIds: string[]; lk: Lookups; onRemove: (tagId: string) => void }) {
   return (
@@ -29,6 +29,7 @@ export function SourceList({ sources, lk }: { sources: LeadDetail["sources"]; lk
           {s.guideId && ` · ${nameOf(lk.guides, s.guideId)}`}
           {s.linkId && ` · ${nameOf(lk.influencers, s.influencerId) || "가이드 공용"}`}
           {s.channelKey && ` · ${channelLabel(s.channelKey, lk.channels)}`}
+          {contentLabelOf(lk, s.linkId) && ` · ${contentLabelOf(lk, s.linkId)}`}
         </div>
       ))}
     </section>

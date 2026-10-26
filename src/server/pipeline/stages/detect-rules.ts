@@ -2,7 +2,8 @@ import { judgeText } from "../../lib/ai";
 import { adDisclosureHits, checkFormat, fromTextVerdict, mainLang, openingWindowMs, parseLangRule, phraseHits, splitTerms, worst, type Seg, type Verdict } from "../rules";
 import type { Sub } from "../context";
 import type { VisualJudge } from "./detect-visual";
-import type { GuideRule } from "../../../shared/guides";
+import { splitNames, type GuideRule } from "../../../shared/guides";
+import { josa } from "../../../shared/josa";
 
 // 규칙 종류별 판정. 규칙 하나에 판정 하나
 
@@ -34,6 +35,27 @@ function forbiddenPhrase(rule: GuideRule, d: DetectInput): Judged {
   const hit = phraseHits(d.segs, splitTerms(rule.content));
   if (hit.ids.length) return { verdict: { result: "candidate", confidence: "high", reason: `대사에 금지 표현 "${hit.terms.join('", "')}"이 있어요.` }, model: "rule", segmentIds: hit.ids };
   return { verdict: { result: "compliant", confidence: "medium", reason: "대사에서 금지 표현을 찾지 못했어요." }, model: "rule" };
+}
+
+const competitorReason = (names: string[]) => names.map((n) => `경쟁사 이름 '${n}'${josa(n, "이/가")} 나와요.`).join(" ");
+
+// 대사는 금지 표현과 같은 문자열 매칭, 화면 텍스트는 프레임 질문 표로 본다. 캡션은 저장된 텍스트가 없어 보지 않는다
+export function competitorMention(rule: GuideRule, d: DetectInput): Judged {
+  let v: Verdict | null = null;
+  let segmentIds: string[] = [];
+  let frameIds: string[] = [];
+  if (rule.targets.includes("speech")) {
+    const hit = phraseHits(d.segs, splitNames(rule.content));
+    segmentIds = hit.ids;
+    v = d.noSpeech ?? (hit.ids.length ? { result: "candidate", confidence: "high", reason: `대사: ${competitorReason(hit.terms)}` } : { result: "compliant", confidence: "medium", reason: "대사에서 경쟁사 이름을 찾지 못했어요." });
+  }
+  const screenText = rule.targets.includes("screen_text");
+  if (screenText) {
+    const s = d.visual(rule.id, "forbidden");
+    frameIds = s.frameIds;
+    v = v ? worst(v, { ...s, reason: `화면: ${s.reason}` }) : { ...s, reason: `화면: ${s.reason}` };
+  }
+  return { verdict: v ?? UNDETERMINED_TARGET, model: screenText ? d.visionModel : "rule", frameIds, segmentIds };
 }
 
 // 그대로는 없으면 비슷한 표현으로 말했는지 모델에 묻는다
@@ -100,6 +122,8 @@ export async function judgeRule(rule: GuideRule, d: DetectInput): Promise<Judged
     }
     case "format":
       return format(rule, d);
+    case "competitor_mention":
+      return competitorMention(rule, d);
   }
   return null;
 }

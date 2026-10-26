@@ -68,6 +68,24 @@ function useAddChannel(load: () => Promise<void>) {
   return { newChannel, setNewChannel, addChannel };
 }
 
+// 콘텐츠별 링크 추가: 기본 링크 칸을 고르면 모달이 열리고, 이름을 넣으면 같은 칸에 링크가 하나 더 생긴다
+function useAddContent(load: () => Promise<void>) {
+  const toast = useToast();
+  const [contentBase, setContentBase] = useState<LinkRow | null>(null);
+  const addContent = async (label: string) => {
+    if (!contentBase) return;
+    try {
+      await api.post(`/links/${contentBase.id}/contents`, { label });
+      toast("콘텐츠별 링크를 만들었어요.", "success");
+      setContentBase(null);
+      await load();
+    } catch (e) {
+      toast(errorMessage(e), "danger");
+    }
+  };
+  return { contentBase, setContentBase, addContent };
+}
+
 // busy 를 켠 채로 실행하고 실패는 토스트로 알린다
 function useBusy() {
   const toast = useToast();
@@ -113,7 +131,8 @@ export function useGuideLinks(guideId: string) {
   };
 
   const channel = useAddChannel(base.load);
-  return { ...base, ...channel, dest, busy, upload, issue };
+  const content = useAddContent(base.load);
+  return { ...base, ...channel, ...content, dest, busy, upload, issue };
 }
 
 export type GuideLinksState = ReturnType<typeof useGuideLinks>;

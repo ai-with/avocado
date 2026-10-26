@@ -1,6 +1,8 @@
 import { LoadingState } from "../../ui";
+import { channelLabel } from "../../../shared/leads";
 import { LinkAnalytics } from "./LinkAnalytics";
 import { LinkDetailModal } from "./LinkDetailModal";
+import { AddContentModal } from "./sections/AddContentModal";
 import { DestinationSection } from "./sections/DestinationSection";
 import { GuideDocsSection } from "./sections/GuideDocsSection";
 import { LinkGridSection } from "./sections/LinkGridSection";
@@ -21,6 +23,14 @@ export function GuideLinksTab({ guideId }: { guideId: string }) {
       <LinkGridSection data={data} s={s} />
       <GuideDocsSection docs={guideDocs} channels={data.channels} onSaved={reload} />
       <LinkAnalytics guideId={guideId} channels={data.channels} />
+      {s.contentBase && (
+        <AddContentModal
+          base={s.contentBase}
+          cellName={`${s.contentBase.influencerName ?? "가이드 공용"} · ${channelLabel(s.contentBase.channelKey, data.channels)}`}
+          onClose={() => s.setContentBase(null)}
+          onSubmit={s.addContent}
+        />
+      )}
       {s.open && <LinkDetailModal link={s.open} channels={data.channels} onClose={() => s.setOpen(null)} onChanged={reload} />}
     </div>
   );
