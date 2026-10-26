@@ -11,7 +11,7 @@
 
 /* 박스는 왼쪽 위에서 오른쪽 아래로 커지고, 커서가 같은 속도로 따라간다 */
 .fdemo-box { position: absolute; border: 2px solid var(--color-markup); border-radius: var(--radius-xs); transition: width var(--fdemo-draw-ms) var(--ease-out), height var(--fdemo-draw-ms) var(--ease-out); }
-.fdemo-box-no, .fdemo-no { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-full); background: var(--color-markup); color: var(--neutral-white); font-size: var(--text-caption-size); font-weight: var(--weight-semibold); }
+.fdemo-box-no, .fdemo-no { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-full); background: var(--color-markup); color: var(--color-on-status); font-size: var(--text-caption-size); font-weight: var(--weight-semibold); }
 .fdemo-box-no { position: absolute; top: -10px; left: -10px; }
 .fdemo-cursor { position: absolute; margin: -2px 0 0 -4px; color: var(--color-text-primary); fill: var(--color-surface); transition: left var(--fdemo-draw-ms) var(--ease-out), top var(--fdemo-draw-ms) var(--ease-out); pointer-events: none; }
 .fdemo-cursor svg { fill: var(--color-surface); }
@@ -30,7 +30,7 @@
 .fdemo-inf-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
 .fdemo-inf-text { flex: 1 1 140px; min-width: 0; }
 .fdemo-check { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-xs); color: transparent; transition: background-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out); }
-.fdemo-check.is-on { border-color: var(--color-success); background: var(--color-success); color: var(--neutral-white); }
+.fdemo-check.is-on { border-color: var(--color-success); background: var(--color-success); color: var(--color-on-status); }
 .fdemo-v2 { display: flex; flex-direction: column; gap: var(--space-4); }
 .fdemo-v2-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .fdemo-versions { display: grid; grid-template-columns: minmax(0, 88px); gap: var(--space-4); }

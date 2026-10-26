@@ -1,6 +1,18 @@
-/* docs/13-design-tokens.md 의 토큰. 라이트 모드만 */
+/* docs/13-design-tokens.md 의 토큰. 라이트 모드만
+ *
+ * 2층 구조 (AIWITH-429)
+ * 1층 원시(primitive): 색 팔레트 값 그대로. 화면 코드(기능·셸·ui CSS, TSX)에서 직접 쓰지 않는다.
+ * 2층 의미(semantic): 쓰임새 이름. 화면 코드는 이것만 쓴다.
+ *   --color-*, --space-*, --text-*, --weight-*, --font-*, --radius-*, --shadow-*, --layout-*,
+ *   --z-*, --duration-*, --ease-*, --control-*, --focus-ring, --touch-target, --icon-size-*
+ * 맞는 의미 토큰이 없으면 원시 값을 쓰지 말고 여기 2층에 이름을 추가한다.
+ * 일회성 값은 scripts/lint-design.allow.json 허용 목록에 사유와 함께 올린다.
+ */
+
+/* ===== 1층 원시(primitive): 화면 코드에서 직접 쓰지 않음 ===== */
 :root {
-  /* color primitive */
+  /* color palette */
+  --neutral-black: #000000;
   --neutral-0: #fefdfb;
   --neutral-white: #ffffff;
   --neutral-50: #f7f6f3;
@@ -28,8 +40,12 @@
   --red-700: #bf000f;
   --blue-50: #f0f9ff;
   --blue-700: #1447e6;
+  --markup-red: #ff3b30;
+}
 
-  /* color semantic */
+/* ===== 2층 의미(semantic): 화면 코드는 이것만 씀 ===== */
+:root {
+  /* color */
   --color-bg: var(--neutral-0);
   --color-surface: var(--neutral-white);
   --color-surface-subtle: var(--neutral-50);
@@ -46,7 +62,10 @@
   --color-accent: var(--green-600);
   --color-accent-hover: var(--green-700);
   --color-accent-subtle: var(--green-50);
+  --color-accent-muted: var(--green-100); /* subtle보다 한 단계 진한 연초록 면 */
+  --color-accent-bright: var(--green-500); /* 차트 막대·장식용 밝은 초록 */
   --color-on-accent: var(--neutral-white);
+  --color-on-status: var(--neutral-white); /* success·markup 같은 진한 상태색 면 위 글자 */
   --color-success: var(--emerald-700);
   --color-success-subtle: var(--emerald-50);
   --color-warn: var(--amber-800);
@@ -58,8 +77,9 @@
   --color-overlay: rgba(14, 14, 16, 0.4);
   --color-overlay-strong: rgba(14, 14, 16, 0.6);
   --color-paper: var(--neutral-white); /* 문서 페이지·iframe 바탕. 테마와 무관하게 흰색 */
-  --color-media-bg: #000000; /* 영상 레터박스 */
-  --color-markup: #ff3b30; /* 검수 프레임 위 표시선. 어떤 영상 색에서도 눈에 띄는 빨강 */
+  --color-media-bg: var(--neutral-black); /* 영상 레터박스 */
+  --color-markup: var(--markup-red); /* 검수 프레임 위 표시선. 어떤 영상 색에서도 눈에 띄는 빨강 */
+  --color-viewer-bg: var(--neutral-800); /* 문서·PDF 뷰어 뒤 어두운 바탕 */
 
   /* typography */
   --font-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", system-ui, sans-serif;
@@ -80,6 +100,7 @@
   --text-caption-size: 12px; --text-caption-lh: 16px;
   --text-title-size: 20px; --text-title-lh: 28px; /* 앱 화면 제목(PageHeader) */
   --text-overline-size: 11px; --text-overline-lh: 16px; /* 사이드바 그룹 제목 */
+  --text-input-min-size: 16px; /* 터치 기기 입력 글자 하한. 이보다 작으면 iOS가 확대한다 */
 
   /* spacing */
   --space-0: 0; --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;

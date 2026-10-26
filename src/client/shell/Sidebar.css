@@ -39,7 +39,7 @@
 
 /* 접힌 상태 툴팁 */
 .is-collapsed [data-tip]:hover::after {
-  content: attr(data-tip); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+  content: attr(data-tip); position: absolute; left: calc(100% + var(--space-4)); top: 50%; transform: translateY(-50%);
   background: var(--color-surface-inverted); color: var(--color-text-inverted);
   font-size: var(--text-caption-size); line-height: var(--text-caption-lh); white-space: nowrap;
   padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); z-index: var(--z-popover); pointer-events: none;
@@ -54,7 +54,7 @@
   background: var(--color-accent); color: var(--color-on-accent); font-size: var(--text-caption-size); font-weight: var(--weight-semibold);
 }
 .account-button .avatar { border-radius: var(--radius-full); background: var(--color-surface-inverted); color: var(--color-text-inverted); }
-.avatar-sm { width: 20px; height: 20px; font-size: 11px; }
+.avatar-sm { width: 20px; height: 20px; font-size: var(--text-overline-size); }
 .account-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .account-name, .account-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-name { font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-medium); color: var(--color-text-primary); }

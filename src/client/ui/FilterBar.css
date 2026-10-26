@@ -11,4 +11,4 @@
   .filter-bar-fields > * { min-width: 0; }
   .filter-bar-fields > :first-child:has(input) { grid-column: 1 / -1; }
 }
-@media (pointer: coarse) { .filter-bar-fields .control { height: var(--touch-target); font-size: 16px; } }
+@media (pointer: coarse) { .filter-bar-fields .control { height: var(--touch-target); font-size: var(--text-input-min-size); } }

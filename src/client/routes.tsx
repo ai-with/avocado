@@ -87,8 +87,17 @@ export const publicRoutes: RouteObject[] = [
   { path: "/reset-password/:token", element: <ResetPasswordPage /> },
 ];
 
+// 개발 서버에서만 등록한다. 운영 빌드에서는 DEV가 false라 동적 import까지 번들에서 빠진다
+const devRoutes: RouteObject[] = import.meta.env.DEV
+  ? [
+      { path: "/dev/ui", HydrateFallback: () => null, lazy: async () => ({ Component: (await import("./pages/dev-ui/Page")).DevUiPage }) },
+      { path: "/dev/ui/sample", HydrateFallback: () => null, lazy: async () => ({ Component: (await import("./pages/dev-ui/sample/Page")).SampleCandidatesPage }) },
+    ]
+  : [];
+
 export const router = createBrowserRouter([
   ...publicRoutes,
+  ...devRoutes,
   { path: "/dashboard", element: <AppShell />, children: appRoutes },
   ...legacyRoutes,
   { path: "*", element: <NotFoundPage /> },

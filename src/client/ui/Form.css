@@ -25,5 +25,5 @@ select.control {
 select.control[multiple] { background-image: none; padding-right: var(--space-5); }
 .checkbox { display: inline-flex; align-items: center; gap: var(--space-4); font-size: var(--text-body-sm-size); cursor: pointer; min-height: 24px; }
 .checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--color-accent); }
-@media (max-width: 599px) { .control { font-size: 16px; } }
+@media (max-width: 599px) { .control { font-size: var(--text-input-min-size); } }
 @media (pointer: coarse) { .control { min-height: var(--touch-target); } .checkbox { min-height: var(--touch-target); } }

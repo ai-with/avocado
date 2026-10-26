@@ -49,8 +49,17 @@ npm run typecheck
 npm test
 npm run sdk:test
 npm run build                # prebuild 로 SDK 도 빌드 (gzip 10KB 넘으면 실패)
+npm run lint:design          # 토큰 밖 색·간격 검사 (허용 목록: scripts/lint-design.allow.json)
 npx wrangler deploy --dry-run --outdir dist-dry
 ```
+
+## 프론트 디자인
+
+디자이너 없이 에이전트가 화면을 만든다. 화면 작업 전에 [`DESIGN.md`](DESIGN.md)를 읽는다.
+
+- 색·간격·글자·모서리·그림자는 `src/client/styles/tokens.css`의 2층 의미 토큰만 쓴다
+- 버튼·입력·표·모달은 `src/client/ui/` 공통 컴포넌트를 먼저 쓴다
+- 토큰과 컴포넌트 견본: 개발 서버의 `/dev/ui` (운영 빌드에는 없음)
 
 ## 마이그레이션
 

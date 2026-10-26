@@ -1,0 +1,12 @@
+/* AppShell 없이 단독으로 열리므로 앱 본문 폭·여백만 토큰으로 흉내 낸다 */
+.sample-page {
+  max-width: var(--layout-app-max);
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-9) var(--space-12);
+}
+
+@media (max-width: 599px) {
+  .sample-page {
+    padding: var(--space-8) var(--space-6) var(--space-12);
+  }
+}

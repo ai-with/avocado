@@ -1,8 +1,8 @@
 /* 리드 수집 자료: 에디터, 원본 유형 카드, 뷰어 (TASK-025) */
-.doc-prose { font-size: 16px; line-height: 1.75; color: var(--color-text-primary); word-break: keep-all; overflow-wrap: anywhere; }
+.doc-prose { font-size: var(--text-body-lg-size); line-height: 1.75; color: var(--color-text-primary); word-break: keep-all; overflow-wrap: anywhere; }
 .doc-prose h1 { font-size: var(--text-h2-size); line-height: var(--text-h2-lh); margin: 1.4em 0 0.5em; }
 .doc-prose h2 { font-size: var(--text-h3-size); line-height: var(--text-h3-lh); margin: 1.3em 0 0.4em; }
-.doc-prose h3 { font-size: 20px; line-height: 28px; margin: 1.2em 0 0.4em; }
+.doc-prose h3 { font-size: var(--text-title-size); line-height: var(--text-title-lh); margin: 1.2em 0 0.4em; }
 .doc-prose p { margin: 0.4em 0; }
 .doc-prose ul, .doc-prose ol { padding-left: 1.4em; margin: 0.4em 0; }
 .doc-prose blockquote { border-left: 3px solid var(--color-border-strong); margin: 0.8em 0; padding: 0.1em 1em; color: var(--color-text-secondary); }
@@ -35,15 +35,15 @@
 .dv .viewer-bar { position: static; flex: none; }
 .dv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dv-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.dv-body.dv-pdf { background: var(--neutral-800); }
+.dv-body.dv-pdf { background: var(--color-viewer-bg); }
 .dv-body.dv-url { overflow: hidden; }
 .dv-article { max-width: 760px; margin: 0 auto; background: var(--color-surface); padding: var(--space-10) var(--space-8); min-height: 100%; box-sizing: border-box; }
 .dv-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--color-paper); }
 .dv-note { margin: var(--space-8) auto; text-align: center; align-items: center; }
-.dv-overlay { position: absolute; inset: 0; z-index: 30; background: var(--color-overlay); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow-y: auto; padding: var(--space-8) 16px; }
+.dv-overlay { position: absolute; inset: 0; z-index: 30; background: var(--color-overlay); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow-y: auto; padding: var(--space-8) var(--space-6); }
 .dv-dialog { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
 .dv-dialog-foot { display: flex; justify-content: center; }
-@media (max-width: 640px) { .dv-article { padding: var(--space-7) 16px; } }
+@media (max-width: 640px) { .dv-article { padding: var(--space-7) var(--space-6); } }
 
 .dv-bar-text { display: flex; flex-direction: column; min-width: 0; }
 .doc-gate-panel { position: sticky; top: var(--space-6); }

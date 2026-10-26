@@ -1,0 +1,89 @@
+{
+ "rules": [
+  {
+   "file": "src/client/**/*.css",
+   "value": "1px",
+   "reason": "box-shadow inset 테두리 두께. 테두리 두께는 토큰 대상 아님"
+  },
+  {
+   "file": "src/client/**/*.css",
+   "value": "-1px",
+   "reason": "1px 테두리 겹침 보정(탭 밑줄, 스크린리더 전용 클립)"
+  },
+  {
+   "file": "src/client/**/*.css",
+   "value": "3px",
+   "reason": "box-shadow 포커스 링 두께(--focus-ring과 같은 3px 두께, 색만 다름)"
+  },
+  {
+   "file": "src/client/features/links/lead-tools.css",
+   "value": "2px",
+   "reason": "일별 막대 차트 윗모서리 반경. 2px 반경 토큰 없음, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/candidates.css",
+   "value": "2px",
+   "reason": "데모 선택 링 두께(box-shadow). 테두리 두께는 토큰 대상 아님"
+  },
+  {
+   "file": "src/client/pages/landing/landing.css",
+   "value": "2px",
+   "reason": "랜딩 목업 표시점 링 두께(box-shadow). 테두리 두께는 토큰 대상 아님"
+  },
+  {
+   "file": "src/client/shell/AppShell.css",
+   "value": "-100px",
+   "reason": "본문 바로가기 링크를 화면 밖에 숨기는 위치, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/landing.css",
+   "value": "-2px",
+   "reason": "랜딩 배지 아이콘 광학 정렬 보정, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/*.css",
+   "value": "-10px",
+   "reason": "데모 목업 위 표시 배지를 모서리 밖으로 걸치는 위치, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/feedback.css",
+   "value": "-2px",
+   "reason": "피드백 데모 번호 배지 광학 정렬, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/feedback.css",
+   "value": "-4px",
+   "reason": "피드백 데모 번호 배지 광학 정렬, 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/upload.css",
+   "value": "28px",
+   "reason": "업로드 데모 원형 버튼 반경(56px 원의 절반), 일회성"
+  },
+  {
+   "file": "src/client/pages/landing/demos/upload.css",
+   "value": "-28px",
+   "reason": "업로드 데모 원형 버튼 가운데 정렬(폭 절반만큼 당김), 일회성"
+  },
+  {
+   "file": "src/client/pages/AuthGoogle.tsx",
+   "value": "#FFC107",
+   "reason": "구글 로고 공식 색(브랜드 가이드상 변경 불가)"
+  },
+  {
+   "file": "src/client/pages/AuthGoogle.tsx",
+   "value": "#FF3D00",
+   "reason": "구글 로고 공식 색(브랜드 가이드상 변경 불가)"
+  },
+  {
+   "file": "src/client/pages/AuthGoogle.tsx",
+   "value": "#4CAF50",
+   "reason": "구글 로고 공식 색(브랜드 가이드상 변경 불가)"
+  },
+  {
+   "file": "src/client/pages/AuthGoogle.tsx",
+   "value": "#1976D2",
+   "reason": "구글 로고 공식 색(브랜드 가이드상 변경 불가)"
+  }
+ ]
+}

@@ -23,6 +23,6 @@
 .links-bar { height: 10px; border-radius: var(--radius-full); background: var(--color-surface-muted); overflow: hidden; }
 .links-bar-fill { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width 700ms var(--ease-out); }
 .links-bar-fill.is-0 { background: var(--color-accent); }
-.links-bar-fill.is-1 { background: var(--green-500); }
+.links-bar-fill.is-1 { background: var(--color-accent-bright); }
 .links-bar-fill.is-2 { background: var(--color-text-primary); }
 @media (prefers-reduced-motion: reduce) { .links-bar-fill { transition: none; } }
