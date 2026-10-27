@@ -63,6 +63,7 @@ export const violationCandidates = sqliteTable(
     promptVersion: text("prompt_version").notNull(),
     decision: text("decision").$type<CandidateDecision>(),
     decisionReason: text("decision_reason").$type<DecisionReason>(),
+    decisionNote: text("decision_note"),
     decidedBy: text("decided_by").references(() => users.id, { onDelete: "set null" }),
     decidedAt: integer("decided_at"),
     createdAt: integer("created_at").notNull(),
@@ -116,6 +117,18 @@ export const approvals = sqliteTable("approvals", {
   approvedBy: text("approved_by").references(() => users.id, { onDelete: "set null" }),
   approvedAt: integer("approved_at").notNull(),
 });
+
+// 승인 뒤 올라온 새 버전을 '기존 승인 유지'로 닫은 기록 (340). 인플루언서에게 알리지 않는다
+export const supersededVersions = sqliteTable(
+  "superseded_versions",
+  {
+    submissionId: text("submission_id").primaryKey().references(() => submissions.id, { onDelete: "cascade" }),
+    guideInfluencerId: text("guide_influencer_id").notNull().references(() => guideInfluencers.id, { onDelete: "cascade" }),
+    keptBy: text("kept_by").references(() => users.id, { onDelete: "set null" }),
+    keptAt: integer("kept_at").notNull(),
+  },
+  (t) => [index("superseded_versions_gi_idx").on(t.guideInfluencerId)],
+);
 
 // F-48 게시물 URL 받기. 가이드 인플루언서당 1건, 먼저 들어온 값을 쓰고 다르면 conflict_url 에 남긴다
 export const contents = sqliteTable(

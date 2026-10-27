@@ -1,6 +1,7 @@
 import { Input, SectionCard, Select, Textarea } from "../../../ui";
-import { lines, toDateInput, type GuideForm, type SetField } from "../useGuideForm";
+import { toDateInput, type GuideForm, type SetField } from "../useGuideForm";
 import { ProductImportRow } from "./ProductImportRow";
+import { PhotoField } from "./PhotoField";
 
 type Props = { form: GuideForm; set: SetField; fields: Record<string, string> };
 
@@ -21,7 +22,7 @@ export function BasicInfoSection({ form, set, fields }: Props) {
           ))}
         </div>
         <Textarea label="사용법" value={form.product.usage} onChange={(e) => setProduct({ usage: e.target.value })} />
-        <Textarea label="제품 사진 주소 (한 줄에 하나)" value={form.product.photos.join("\n")} onChange={(e) => setProduct({ photos: lines(e.target.value) })} />
+        <PhotoField photos={form.product.photos} onChange={(photos) => setProduct({ photos })} error={fields["product.photos"]} />
         <div className="grid-3">
           <Input label="영상 길이(초)" type="number" min={5} max={180} value={form.lengthS ?? ""} onChange={(e) => set("lengthS", e.target.value ? Number(e.target.value) : null)} error={fields.lengthS} />
           <Select label="인플루언서 기본 언어" value={form.lang} onChange={(e) => set("lang", e.target.value as "ko" | "en")}>

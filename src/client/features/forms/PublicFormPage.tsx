@@ -49,7 +49,7 @@ function StatusCard({ form, done, error }: { form: PublicForm | null; done: Resu
     <div className="visitor">
       <div className="visitor-card text-center">
         {form && <span className="visitor-brand">{form.brandName}</span>}
-        <h3>{done ? "제출했어요" : form?.closed ? "신청이 마감됐어요" : "폼을 열 수 없어요"}</h3>
+        <h3>{done ? "제출했어요" : form?.closed ? "마감된 신청이에요" : "폼을 열 수 없어요"}</h3>
         <p className="text-secondary pre-wrap">{done?.text || (form?.closed ? form.closedMessage : error)}</p>
         {done?.type === "document" && done.url && <Button onClick={() => location.assign(done.url!)}>자료 보기</Button>}
       </div>

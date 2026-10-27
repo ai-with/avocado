@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { IconButton, LoadingState } from "../ui";
 import { useMe } from "../lib/me";
 import { Sidebar } from "./Sidebar";
+import { NotificationBell } from "./NotificationBell";
 import { MOBILE_QUERY, useMediaQuery } from "./useMediaQuery";
 import "./AppShell.css";
 
@@ -34,6 +35,7 @@ export function AppShell() {
         <header className="topbar">
           <IconButton icon="menu" label="메뉴 열기" aria-expanded={menuOpen} aria-controls="app-sidebar" onClick={() => setMenuOpen(true)} />
           <span className="topbar-title">{workspaceName}</span>
+          <span className="topbar-end"><NotificationBell align="end" /></span>
         </header>
       )}
       <Sidebar me={me} isMobile={isMobile} mobileOpen={menuOpen} onNavigate={() => setMenuOpen(false)} />

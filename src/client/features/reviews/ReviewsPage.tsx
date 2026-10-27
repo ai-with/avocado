@@ -3,18 +3,30 @@ import { Link } from "react-router-dom";
 import { Badge, EmptyState, FilterBar, LoadingState, PageHeader, Select, Table, Tabs, type BadgeTone } from "../../ui";
 import { api } from "../../lib/api";
 import { fmtDateTime } from "../guides/types";
-import { REVIEW_STATE_LABELS, type ReviewState } from "../../../shared/review";
+import { CONFLICT_LABEL, REVIEW_STATE_LABELS, type ReviewState } from "../../../shared/review";
+import { RuleSuggestions } from "./sections/RuleSuggestions";
 import type { ReviewRow } from "./types";
+import { DRIVE_BLOCKED_LABEL } from "./labels";
 import "./reviews.css";
 
-const STATE_TONE: Record<ReviewState, BadgeTone> = { waiting: "neutral", processing: "info", needs_review: "warn", feedback_sent: "accent", approved: "success" };
+const STATE_TONE: Record<ReviewState, BadgeTone> = {
+  waiting: "neutral",
+  processing: "info",
+  needs_review: "warn",
+  feedback_sent: "accent",
+  approved: "success",
+  after_approval: "warn",
+  superseded: "neutral",
+};
 type Filter = "all" | ReviewState;
 const FILTERS: { value: Filter; label: string }[] = [{ value: "all", label: "전체" }, ...(Object.keys(REVIEW_STATE_LABELS) as ReviewState[]).map((s) => ({ value: s, label: REVIEW_STATE_LABELS[s] }))];
 
-export const StateBadge = ({ row }: { row: Pick<ReviewRow, "state" | "delayed"> }) => (
-  <span className="row row-tight">
-    <Badge tone={STATE_TONE[row.state]}>{REVIEW_STATE_LABELS[row.state]}</Badge>
+// 승인 뒤 새 버전은 '검수 필요'와 같은 주의 색이라 점을 붙여 구분한다
+export const StateBadge = ({ row }: { row: Pick<ReviewRow, "state" | "delayed"> & Partial<Pick<ReviewRow, "conflicts">> }) => (
+  <span className="row row-tight row-wrap">
+    <Badge tone={STATE_TONE[row.state]} dot={row.state === "after_approval"}>{REVIEW_STATE_LABELS[row.state]}</Badge>
     {row.delayed && <Badge tone="danger">처리 지연</Badge>}
+    {!!row.conflicts && <Badge tone="warn">{CONFLICT_LABEL}</Badge>}
   </span>
 );
 
@@ -45,6 +57,7 @@ export function ReviewList({ guideId }: { guideId?: string }) {
 
   return (
     <div className="stack">
+      <RuleSuggestions guideId={guideId} />
       <Tabs tabs={FILTERS.map((f) => ({ ...f, label: `${f.label} ${count(f.value)}` }))} value={filter} onChange={setFilter} />
       <FilterBar label="검수 목록 필터">
         {!guideId && (
@@ -78,7 +91,7 @@ function ReviewTable({ rows, showGuide }: { rows: ReviewRow[]; showGuide: boolea
           <tr key={r.id}>
             <td><Link to={`/dashboard/reviews/${r.id}`}>{r.influencer.displayName}</Link>{r.influencer.igHandle && <span className="text-caption"> @{r.influencer.igHandle}</span>}</td>
             {showGuide && <td>{r.guide.name}</td>}
-            <td>v{r.version}{r.driveUrl && <span className="text-caption"> 드라이브 링크</span>}</td>
+            <td>v{r.version}{r.driveUrl && <span className="text-caption"> 드라이브 링크</span>}{r.driveAccess === "blocked" && <> <Badge tone="warn">{DRIVE_BLOCKED_LABEL}</Badge></>}</td>
             <td><StateBadge row={r} /></td>
             <td className="num">{r.state === "waiting" || r.state === "processing" ? <span className="text-caption">처리 후 표시</span> : `${r.candidates}건`}</td>
             <td className="nowrap">{r.uploadedAt ? fmtDateTime(r.uploadedAt) : ""}</td>

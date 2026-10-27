@@ -33,10 +33,10 @@ function useGuideInfluencers(base: string) {
   return { rows, load, actions };
 }
 
-export function InfluencersTab({ guideId, canEdit, published }: { guideId: string; canEdit: boolean; published: boolean }) {
+export function InfluencersTab({ guideId, canEdit, published, openAdd = false }: { guideId: string; canEdit: boolean; published: boolean; openAdd?: boolean }) {
   const base = `/guides/${guideId}/influencers`;
   const { rows, load, actions } = useGuideInfluencers(base);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(openAdd && canEdit);
   const [consentOf, setConsentOf] = useState<GuideInfluencerRow | null>(null);
 
   if (rows === null) return <LoadingState />;

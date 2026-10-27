@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { Icon } from "../ui";
 import type { Me } from "../lib/me";
 import { AccountMenu, WorkspaceSwitcher } from "./AccountMenu";
+import { NotificationBell } from "./NotificationBell";
 import { NAV } from "./nav";
 import "./Sidebar.css";
 
@@ -45,6 +46,8 @@ export function Sidebar({ me, isMobile, mobileOpen, onNavigate }: Props) {
     <aside className={className} id="app-sidebar" aria-label="주 메뉴">
       <div className="sidebar-head">
         <WorkspaceSwitcher me={me} collapsed={collapsed} onNavigate={onNavigate} />
+        {/* 휴대폰은 상단 바에 따로 있다 */}
+        {!isMobile && <NotificationBell collapsed={collapsed} />}
         <button className="sidebar-toggle" onClick={isMobile ? onNavigate : stored.toggle} aria-label={isMobile ? "메뉴 닫기" : collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-expanded={isMobile ? mobileOpen : !collapsed} data-tip={collapsed ? "펼치기" : undefined}>
           <Icon name={isMobile ? "x" : "panel-left"} size={16} />
         </button>

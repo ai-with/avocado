@@ -19,6 +19,7 @@ import { fileRoutes, guideContentRoutes, publicFeedbackRoutes, reviewRoutes } fr
 import { collectRoutes } from "./collect";
 import { siteRoutes } from "./sites";
 import { supportRoutes } from "./support";
+import { notificationRoutes } from "./notifications";
 
 // 라우트는 한 줄씩 추가한다. 공개 경로(/l/*, /webhooks/*)도 여기서 등록한다
 export function registerRoutes(app: Hono<AppEnv>) {
@@ -52,4 +53,5 @@ export function registerRoutes(app: Hono<AppEnv>) {
   app.route("/collect", collectRoutes);
   app.route("/api/sites", siteRoutes);
   app.route("/api/support", supportRoutes);
+  app.route("/api/notifications", notificationRoutes);
 }

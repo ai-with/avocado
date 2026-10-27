@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Lang, TKey } from "../../../i18n";
 import type { VideoGuide } from "../../../../shared/guides";
 import { DEFAULT_CHANNELS } from "../../../../shared/leads";
+import { defaultSceneKey } from "../../../../shared/guide-public";
 import type { PersonalData, PublicGuide, T } from "../guideTypes";
 import { PublicSection, TextList } from "./PublicShell";
 
@@ -24,6 +25,12 @@ function ProductSection({ g, t }: GuideProps) {
   );
 }
 
+// AI 초안의 기본 제목은 화면 언어로, 브랜드가 쓴 제목은 그대로
+const sceneTitle = (s: VideoGuide["scenes"][number], t: T) => {
+  const key = defaultSceneKey(s);
+  return key ? t(`scene_${key}`) : s.title;
+};
+
 function ScenesSection({ vg, t, lang }: { vg: VideoGuide; t: T; lang: Lang }) {
   return (
     <PublicSection title={t("scenes")}>
@@ -32,7 +39,7 @@ function ScenesSection({ vg, t, lang }: { vg: VideoGuide; t: T; lang: Lang }) {
           const [first, second] = lang === "en" ? [s.lineEn, s.lineKo] : [s.lineKo, s.lineEn];
           return (
             <li key={s.key}>
-              <strong>{s.title}</strong>
+              <strong>{sceneTitle(s, t)}</strong>
               {s.description && <p>{s.description}</p>}
               {first && <p className="pub-line">"{first}"</p>}
               {second && <p className="text-caption">"{second}"</p>}
@@ -84,9 +91,10 @@ function ScheduleSections({ g, t, lang }: GuideProps & { lang: Lang }) {
   );
 }
 
-// 인플루언서용 가이드 본문 (읽기 전용)
-export function GuideBody({ data, t, lang }: { data: PersonalData; t: T; lang: Lang }) {
-  const g = data.guide;
+type BodyProps = { guide: PublicGuide; leadLinks?: PersonalData["leadLinks"]; t: T; lang: Lang };
+
+// 인플루언서용 가이드 본문 (읽기 전용). 브랜드 편집 화면 미리보기도 같은 컴포넌트를 쓴다
+export function GuideBody({ guide: g, leadLinks = [], t, lang }: BodyProps) {
   const vg = g.videoGuide;
   return (
     <>
@@ -96,10 +104,10 @@ export function GuideBody({ data, t, lang }: { data: PersonalData; t: T; lang: L
       {vg && <ScenesSection vg={vg} t={t} lang={lang} />}
       <RulesSections g={g} t={t} />
       <ScheduleSections g={g} t={t} lang={lang} />
-      {data.leadLinks.length > 0 && (
+      {leadLinks.length > 0 && (
         <PublicSection title={t("my_links")}>
           <p className="text-caption">{t("my_links_hint")}</p>
-          <ul className="pub-list">{data.leadLinks.map((l) => <li key={l.url} className="pub-link">{leadChannelName(l, t)}: <a href={l.url}>{l.url}</a></li>)}</ul>
+          <ul className="pub-list">{leadLinks.map((l) => <li key={l.url} className="pub-link">{leadChannelName(l, t)}: <a href={l.url}>{l.url}</a></li>)}</ul>
         </PublicSection>
       )}
     </>

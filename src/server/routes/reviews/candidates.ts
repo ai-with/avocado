@@ -17,6 +17,7 @@ import { assertUnlocked, feedbackBody, loadSub } from "./shared";
 const decisionBody = z.object({
   decision: z.enum(["adopted", "rejected", "held"]),
   reason: z.enum(["compliant", "irrelevant", "ambiguous", "other"]).nullable().default(null),
+  note: z.string().trim().max(300).nullable().default(null),
 });
 type Candidate = typeof violationCandidates.$inferSelect;
 
@@ -65,15 +66,16 @@ export const candidateRoutes = new Hono<AppEnv>()
   // 후보 판정: 채택이면 피드백 초안이 생기고, 채택을 풀면 보내지 않은 초안은 지운다
   .post("/:id/candidates/:cid", editorsOnly, async (c) => {
     const body = parse(decisionBody, await c.req.json());
-    if (body.decision === "rejected" && !body.reason) throw new ApiError(400, "validation_error", "기각 사유를 골라 주세요.", { reason: "기각 사유를 골라 주세요." });
+    const rejected = body.decision === "rejected";
+    if (rejected && !body.reason) throw new ApiError(400, "validation_error", "기각 사유를 골라 주세요.", { reason: "기각 사유를 골라 주세요." });
     const db = c.var.db;
     const { sub, gi, workspace, user } = await loadSub(c, c.req.param("id"));
-    await assertUnlocked(db, gi.id);
+    await assertUnlocked(db, sub);
     const cand = await db.select().from(violationCandidates).where(and(eq(violationCandidates.id, c.req.param("cid")), eq(violationCandidates.submissionId, sub.id))).get();
     if (!cand) throw new ApiError(404, "candidate_not_found", "위반 후보를 찾을 수 없어요.");
     await db
       .update(violationCandidates)
-      .set({ decision: body.decision, decisionReason: body.decision === "rejected" ? body.reason : null, decidedBy: user.id, decidedAt: now() })
+      .set({ decision: body.decision, decisionReason: rejected ? body.reason : null, decisionNote: rejected ? body.note || null : null, decidedBy: user.id, decidedAt: now() })
       .where(eq(violationCandidates.id, cand.id));
     const draft = await db.select({ id: feedbackItems.id }).from(feedbackItems).where(and(eq(feedbackItems.candidateId, cand.id), isNull(feedbackItems.roundId))).get();
     if (body.decision === "adopted" && !draft) {
@@ -81,7 +83,7 @@ export const candidateRoutes = new Hono<AppEnv>()
       await logEvent(db, workspace.id, "feedback_comment_added", { source: "candidate" });
     }
     if (body.decision !== "adopted" && draft) await db.delete(feedbackItems).where(eq(feedbackItems.id, draft.id));
-    await logEvent(db, workspace.id, "violation_candidate_reviewed", { decision: body.decision, reason: body.reason, rule_type: cand.ruleType, confidence: cand.confidence });
+    await logEvent(db, workspace.id, "violation_candidate_reviewed", { decision: body.decision, reason: body.reason, has_note: !!body.note, rule_type: cand.ruleType, confidence: cand.confidence });
     return c.json({ ok: true });
   })
   // '놓친 위반 추가': 미탐 라벨로 저장되고 일반 피드백처럼 전달된다
@@ -89,7 +91,7 @@ export const candidateRoutes = new Hono<AppEnv>()
     const body = parse(feedbackBody.extend({ ruleId: z.string().min(1, "규칙을 골라 주세요.") }), await c.req.json());
     const db = c.var.db;
     const { sub, gi, guide, workspace, user } = await loadSub(c, c.req.param("id"));
-    await assertUnlocked(db, gi.id);
+    await assertUnlocked(db, sub);
     const rule = (await guideRules(db, guide)).find((r) => r.id === body.ruleId);
     if (!rule) throw new ApiError(400, "validation_error", "규칙을 찾을 수 없어요.", { ruleId: "규칙을 골라 주세요." });
     await db.insert(feedbackItems).values({ id: newId(), submissionId: sub.id, frameId: body.frameId, tMs: body.tMs, shape: body.shape, text: body.text, source: "missed", ruleId: rule.id, authorId: user.id, createdAt: now() });

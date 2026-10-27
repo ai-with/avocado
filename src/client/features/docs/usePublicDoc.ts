@@ -3,6 +3,7 @@ import { api, errorMessage } from "../../lib/api";
 import type { DocumentSourceType } from "../../../shared/leads";
 import { COMPLETE_PCT } from "../../../shared/doc-gate";
 import type { ViewerGate } from "./DocViewer";
+import { readUnlock, saveUnlock } from "./useDocGate";
 
 export type DocMeta = {
   viewToken: string;
@@ -23,12 +24,33 @@ const FLUSH_INTERVAL_MS = 5000;
 
 type Track = { dwell: Map<number, number>; current: number; maxPage: number; maxScroll: number; completed: boolean; last: number };
 
-// 자료 정보 불러오기. v 는 이미 받은 열람 토큰(게이트 통과 뒤 다시 읽을 때)
+type LoadDoc = (v: string | null, t: string) => Promise<void>;
+
+// 첫 열기. 메일 인증 링크(?verify=)로 왔으면 먼저 확인해 열람 토큰을 받고 주소에서 지운다
+async function openDoc(slug: string, load: LoadDoc) {
+  const params = new URLSearchParams(location.search);
+  const verify = params.get("verify");
+  if (!verify) return load(params.get("v"), readUnlock(slug));
+  const r = await api.post<{ unlockToken: string; viewToken: string }>(`/public/doc/${slug}/verify`, { token: verify }, { redirectOn401: false });
+  saveUnlock(slug, r.unlockToken);
+  history.replaceState(null, "", `${location.pathname}?v=${encodeURIComponent(r.viewToken)}`);
+  return load(r.viewToken, r.unlockToken);
+}
+
+// 자료 정보 불러오기. v 는 이미 받은 열람 세션, t 는 게이트 통과 증표(열람 토큰)
 export function usePublicDoc(slug: string) {
   const [meta, setMeta] = useState<DocMeta | null>(null);
+  const [unlock, setUnlock] = useState("");
   const [error, setError] = useState("");
-  const load = useCallback(
-    (v: string | null) => api.get<DocMeta>(`/public/doc/${slug}${v ? `?v=${encodeURIComponent(v)}` : ""}`, { redirectOn401: false }).then(setMeta),
+  const load = useCallback<LoadDoc>(
+    async (v, t) => {
+      const q = new URLSearchParams();
+      if (v) q.set("v", v);
+      if (t) q.set("t", t);
+      const qs = q.toString();
+      setMeta(await api.get<DocMeta>(`/public/doc/${slug}${qs ? `?${qs}` : ""}`, { redirectOn401: false }));
+      setUnlock(t);
+    },
     [slug],
   );
 
@@ -37,9 +59,9 @@ export function usePublicDoc(slug: string) {
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    load(new URLSearchParams(location.search).get("v")).catch((e: unknown) => setError(errorMessage(e)));
+    openDoc(slug, load).catch((e: unknown) => setError(errorMessage(e)));
   }, [load]);
-  return { meta, error, load };
+  return { meta, unlock, error, load };
 }
 
 function useFlush(meta: DocMeta | null, slug: string, track: { current: Track }) {

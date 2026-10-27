@@ -41,26 +41,39 @@ function assertSafe(url: string) {
 
 const isRedirect = (status: number) => status >= 300 && status < 400;
 
-// 리다이렉트는 직접 따라가며 단계마다 같은 검사를 한다. 전체 체인에 타임아웃 하나
-export async function fetchHtmlSafely(startUrl: string): Promise<{ html: string; finalUrl: string }> {
+// 리다이렉트는 직접 따라가며 단계마다 같은 검사를 한다. 전체 체인에 타임아웃 하나.
+// stopAt 이 참인 주소로 옮겨 가면 그 주소는 가져오지 않고 멈춘다(로그인 화면처럼 도착지만 알면 되는 경우)
+async function followSafely(startUrl: string, accept: string, stopAt?: (url: URL) => boolean): Promise<{ res: Response | null; finalUrl: string }> {
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   let url = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     assertSafe(url);
+    if (hop > 0 && stopAt?.(new URL(url))) return { res: null, finalUrl: url };
     const res = await fetch(url, {
       redirect: "manual",
       signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; AvocadoProductReader/1.0)", Accept: "text/html" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AvocadoProductReader/1.0)", Accept: accept },
     });
     const location = res.headers.get("location");
-    if (isRedirect(res.status) && location) {
-      url = new URL(location, url).toString();
-      continue;
-    }
-    if (!res.ok) throw new FetchError(`status_${res.status}`);
-    if (!/^text\/html|^application\/xhtml\+xml/i.test(res.headers.get("content-type") ?? "")) throw new FetchError("not_html");
-    // 큰 쇼핑몰 페이지는 2MB 를 넘기도 한다. 상품 meta·JSON-LD 는 앞쪽에 있으니 2MB 까지만 읽는다
-    return { html: await readCapped(res, MAX_BYTES, true), finalUrl: url };
+    if (!isRedirect(res.status) || !location) return { res, finalUrl: url };
+    await res.body?.cancel();
+    url = new URL(location, url).toString();
   }
   throw new FetchError("too_many_redirects");
+}
+
+export async function fetchHtmlSafely(startUrl: string): Promise<{ html: string; finalUrl: string }> {
+  const { res, finalUrl } = await followSafely(startUrl, "text/html");
+  if (!res) throw new FetchError("stopped");
+  if (!res.ok) throw new FetchError(`status_${res.status}`);
+  if (!/^text\/html|^application\/xhtml\+xml/i.test(res.headers.get("content-type") ?? "")) throw new FetchError("not_html");
+  // 큰 쇼핑몰 페이지는 2MB 를 넘기도 한다. 상품 meta·JSON-LD 는 앞쪽에 있으니 2MB 까지만 읽는다
+  return { html: await readCapped(res, MAX_BYTES, true), finalUrl };
+}
+
+// 본문은 읽지 않고 상태 코드와 도착 주소만 본다. stopAt 에서 멈추면 status 는 null
+export async function probeSafely(startUrl: string, stopAt?: (url: URL) => boolean): Promise<{ status: number | null; finalUrl: string }> {
+  const { res, finalUrl } = await followSafely(startUrl, "text/html", stopAt);
+  await res?.body?.cancel();
+  return { status: res?.status ?? null, finalUrl };
 }

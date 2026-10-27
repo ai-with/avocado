@@ -123,6 +123,21 @@ export const documentPageViews = sqliteTable(
   (t) => [primaryKey({ columns: [t.viewId, t.page] })],
 );
 
+// 게이트 이메일 인증(requireVerify) 1회용 토큰. 원문은 메일 링크에만 있고 여기에는 해시만 둔다
+export const docVerifyTokens = sqliteTable(
+  "doc_verify_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    documentId: text("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+    viewId: text("view_id").notNull().references(() => documentViews.id, { onDelete: "cascade" }),
+    leadId: text("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+    expiresAt: integer("expires_at").notNull(),
+    usedAt: integer("used_at"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("doc_verify_tokens_view_idx").on(t.viewId, t.createdAt)],
+);
+
 export const leads = sqliteTable(
   "leads",
   {

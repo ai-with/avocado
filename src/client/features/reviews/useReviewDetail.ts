@@ -4,6 +4,9 @@ import { api, errorMessage } from "../../lib/api";
 import type { ActFn, Frame, ReviewDetail } from "./types";
 
 const POLL_MS = 10_000;
+const APPROVE_CONFIRM = "최종 승인할까요? 승인하면 코멘트를 더 바꿀 수 없고, 인플루언서에게 게시 안내가 가요.";
+const APPROVE_MOVE_CONFIRM = "이 버전으로 승인을 옮길까요? 이전 승인 버전 대신 이 버전이 최종본이 되고, 인플루언서에게 승인 안내가 다시 가요.";
+const KEEP_CONFIRM = "기존 승인을 유지할까요? 이 버전은 기존 승인 유지로 닫히고, 인플루언서에게는 알리지 않아요.";
 const isProcessing = (d: ReviewDetail) => d.submission.status === "processing" || d.submission.status === "uploaded";
 
 // 처리 중이면 10초마다 새로 읽는다
@@ -59,7 +62,8 @@ export function useReviewDetail(submissionId: string) {
     }
   };
   const approve = () =>
-    confirm("최종 승인할까요? 승인하면 코멘트를 더 바꿀 수 없고, 인플루언서에게 게시 안내가 가요.") && void act(() => api.post(`${base}/approve`), "최종 승인했어요.");
+    confirm(d?.afterApproval ? APPROVE_MOVE_CONFIRM : APPROVE_CONFIRM) && void act(() => api.post(`${base}/approve`), "최종 승인했어요.");
+  const keepApproval = () => confirm(KEEP_CONFIRM) && void act(() => api.post(`${base}/keep-approval`), "기존 승인을 유지했어요.");
 
-  return { d, base, load, act, approve, ...picker, processing: d ? isProcessing(d) : false };
+  return { d, base, load, act, approve, keepApproval, ...picker, processing: d ? isProcessing(d) : false };
 }

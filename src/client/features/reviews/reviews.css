@@ -42,3 +42,4 @@
 .pub-fb-item .markup { align-self: center; }
 .pub-fb-item .markup img { max-height: 60vh; }
 .pub-fb-head { display: flex; align-items: center; gap: var(--space-3); }
+.rule-suggest-list { list-style: none; margin: 0; padding: 0; }

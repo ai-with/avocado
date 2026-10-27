@@ -27,13 +27,13 @@ async function byFeedbackToken(db: Db, token: string) {
 // 보낸 라운드의 항목만 인플루언서가 볼 수 있다
 async function sentItem(db: Db, gi: Gi, itemId: string) {
   const item = await db
-    .select({ item: feedbackItems })
+    .select({ item: feedbackItems, submissionId: reviewRounds.submissionId })
     .from(feedbackItems)
     .innerJoin(reviewRounds, eq(reviewRounds.id, feedbackItems.roundId))
     .where(and(eq(feedbackItems.id, itemId), eq(reviewRounds.guideInfluencerId, gi.id)))
     .get();
   if (!item) throw new ApiError(404, "item_not_found", "피드백 항목을 찾을 수 없어요.");
-  return item.item;
+  return item;
 }
 
 const publicItem = (token: string) => (i: Item) => ({
@@ -98,12 +98,14 @@ export const publicFeedbackRoutes = new Hono<AppEnv>()
   .post("/feedback/:token/items/:itemId", async (c) => {
     const body = parse(z.object({ done: z.boolean().optional(), reply: z.string().trim().max(2000).optional() }), await c.req.json());
     const db = c.var.db;
-    const { gi, influencer } = await byFeedbackToken(db, c.req.param("token"));
-    const item = await sentItem(db, gi, c.req.param("itemId"));
+    const { gi, guide, influencer } = await byFeedbackToken(db, c.req.param("token"));
+    const { item, submissionId } = await sentItem(db, gi, c.req.param("itemId"));
     const patch: Partial<typeof feedbackItems.$inferInsert> = {};
     if (body.done !== undefined) patch.influencerDone = body.done;
     if (body.reply !== undefined) Object.assign(patch, await replyPatch(c.env, body.reply, influencer.lang));
     if (Object.keys(patch).length) await db.update(feedbackItems).set(patch).where(eq(feedbackItems.id, item.id));
+    // 안 함에서 반영함으로 바뀔 때만 남긴다(알림 대상)
+    if (body.done && !item.influencerDone) await logEvent(db, guide.workspaceId, "feedback_item_done", { submission_id: submissionId, gi_id: gi.id, item_n: item.n });
     return c.json({ ok: true });
   })
   // 최종 승인 뒤 게시물 URL (F-48). 먼저 들어온 값을 쓰고 다르면 브랜드에 확인 요청

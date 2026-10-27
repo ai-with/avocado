@@ -121,10 +121,12 @@ function useGuideSave(id: string | undefined, form: GuideForm, rules: GuideRule[
     if (!form.product.name.trim()) return setFields({ "product.name": "초안을 만들려면 제품 이름이 필요해요." });
     void run("generate", async () => {
       const gid = await persist();
-      const r = await api.post<{ videoGuide: VideoGuide; fallback: boolean }>(`/guides/${gid}/generate`);
+      const r = await api.post<{ videoGuide: VideoGuide; fallback: boolean; scriptWarning: boolean }>(`/guides/${gid}/generate`);
       if (id) set("videoGuide", r.videoGuide);
       else navigate(`/dashboard/guides/${gid}/edit`, { replace: true, state: { draft: r.videoGuide } });
-      toast(r.fallback ? "초안 생성이 늦어져 빈 템플릿으로 시작해요." : "초안을 만들었어요. 고친 뒤 저장해 주세요.", r.fallback ? "neutral" : "success");
+      if (r.fallback) toast("초안 생성이 늦어져 빈 템플릿으로 시작해요.", "neutral");
+      else if (r.scriptWarning) toast("초안을 만들었어요. 외국 문자가 섞인 문장을 뺐으니 일부 문장을 다시 확인해 주세요.", "neutral");
+      else toast("초안을 만들었어요. 고친 뒤 저장해 주세요.", "success");
     });
   };
   const cancel = () => navigate(id ? `/dashboard/guides/${id}` : "/dashboard/guides");

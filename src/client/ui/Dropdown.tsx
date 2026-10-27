@@ -4,6 +4,10 @@ import "./Dropdown.css";
 
 export type DropdownItem = {
   label: string;
+  /** label 이 겹칠 수 있는 목록(알림 등)에서 React key 로 쓴다 */
+  id?: string;
+  /** label 아래 작은 글씨 한 줄(시간 등). 있으면 label 이 두 줄까지 줄바꿈된다 */
+  description?: string;
   onSelect: () => void;
   icon?: IconName;
   /** 아이콘 대신 앞에 놓을 요소(워크스페이스 아바타 등) */
@@ -25,6 +29,8 @@ type Props = {
   /** 목록 맨 위 안내 줄(이메일 등). 선택 항목이 아니다 */
   header?: ReactNode;
   triggerClassName?: string;
+  /** 메뉴 상자에 덧붙일 클래스(폭 조정 등). 이 Dropdown 한 곳에만 적용된다 */
+  menuClassName?: string;
   /** 접힌 사이드바 툴팁 */
   tip?: string;
 };
@@ -61,7 +67,7 @@ function useMenuState(rootRef: RefObject<HTMLDivElement | null>, menuRef: RefObj
   return [open, setOpen] as const;
 }
 
-export function Dropdown({ items, label, children, align = "start", side = "bottom", header, triggerClassName = "", tip }: Props) {
+export function Dropdown({ items, label, children, align = "start", side = "bottom", header, triggerClassName = "", menuClassName = "", tip }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -92,9 +98,9 @@ export function Dropdown({ items, label, children, align = "start", side = "bott
         {children}
       </button>
       {open && (
-        <div ref={menuRef} className={`dropdown-menu dropdown-${align} dropdown-${side}`} role="menu" aria-label={label} onKeyDown={onMenuKey}>
+        <div ref={menuRef} className={`dropdown-menu dropdown-${align} dropdown-${side} ${menuClassName}`} role="menu" aria-label={label} onKeyDown={onMenuKey}>
           {header && <div className="dropdown-header">{header}</div>}
-          {items.map((item) => <DropdownRow key={item.label} item={item} onSelect={select} />)}
+          {items.map((item) => <DropdownRow key={item.id ?? item.label} item={item} onSelect={select} />)}
         </div>
       )}
     </div>
@@ -105,9 +111,16 @@ function DropdownRow({ item, onSelect }: { item: DropdownItem; onSelect: (item: 
   return (
     <>
       {item.divider && <div className="dropdown-divider" role="separator" />}
-      <button type="button" role="menuitem" tabIndex={-1} className={`dropdown-item ${item.danger ? "is-danger" : ""}`} disabled={item.disabled} onClick={() => onSelect(item)}>
+      <button type="button" role="menuitem" tabIndex={-1} className={`dropdown-item ${item.danger ? "is-danger" : ""} ${item.description ? "has-description" : ""}`} disabled={item.disabled} onClick={() => onSelect(item)}>
         {item.leading ?? (item.icon && <Icon name={item.icon} size={16} />)}
-        <span className="truncate">{item.label}</span>
+        {item.description ? (
+          <span className="dropdown-item-text">
+            <span className="dropdown-item-label">{item.label}</span>
+            <span className="dropdown-item-description">{item.description}</span>
+          </span>
+        ) : (
+          <span className="truncate">{item.label}</span>
+        )}
       </button>
     </>
   );

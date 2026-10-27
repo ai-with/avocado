@@ -1,0 +1,8 @@
+.notif-button { position: relative; flex-shrink: 0; }
+.notif-count { position: absolute; top: calc(-1 * var(--space-2)); right: calc(-1 * var(--space-2)); pointer-events: none; }
+.notif-count .badge { padding: 0 var(--space-3); }
+/* 안 읽음 점. 읽은 항목도 같은 자리를 비워 제목 줄을 맞춘다. 글자 "안 읽음"이 같이 붙어 색만으로 구분하지 않는다 */
+.notif-dot { flex-shrink: 0; width: var(--space-4); height: var(--space-4); margin-top: var(--space-3); border-radius: var(--radius-full); }
+.notif-dot.is-unread { background: var(--color-accent); }
+/* 알림 제목이 2줄 안에 들어오도록 기본 메뉴보다 넓게. 좁은 화면은 화면 폭에서 좌우 여백을 뺀 만큼 */
+.dropdown-menu.notif-menu { width: min(360px, calc(100vw - 2 * var(--space-6))); max-width: none; }

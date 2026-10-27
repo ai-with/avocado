@@ -13,6 +13,7 @@ type Props = { d: ReviewDetail; base: string; canEdit: boolean; locked: boolean;
 export function FeedbackTab({ d, base, canEdit, locked, selected, pickCurrent, onSeek, onAct, reload }: Props) {
   const [preview, setPreview] = useState(false);
   const sentHere = d.rounds.filter((r) => r.submissionId === d.submission.id);
+  const flagged = new Set(d.conflicts.ids);
   return (
     <div className="stack">
       {locked && <p className="text-caption">최종 승인되어 코멘트가 잠겼어요.</p>}
@@ -22,14 +23,14 @@ export function FeedbackTab({ d, base, canEdit, locked, selected, pickCurrent, o
       ) : (
         <ol className="fb-list">
           {d.drafts.map((it, i) => (
-            <FeedbackRow key={it.id} n={i + 1} it={it} onSeek={onSeek} onDelete={canEdit ? () => void onAct(() => api.del(`${base}/feedback/${it.id}`)) : undefined} />
+            <FeedbackRow key={it.id} n={i + 1} it={it} flagged={flagged.has(it.id)} onSeek={onSeek} onDelete={canEdit ? () => void onAct(() => api.del(`${base}/feedback/${it.id}`)) : undefined} />
           ))}
         </ol>
       )}
       {canEdit && d.drafts.length > 0 && (
         <div><Button onClick={() => setPreview(true)}>피드백 보내기 ({d.drafts.length})</Button></div>
       )}
-      {sentHere.map((r) => <RoundSection key={r.id} title={`${r.n}회차 보냄 · ${fmtDateTime(r.submittedAt)}`} items={r.items} onSeek={onSeek} />)}
+      {sentHere.map((r) => <RoundSection key={r.id} title={`${r.n}회차 보냄 · ${fmtDateTime(r.submittedAt)}`} items={r.items} flagged={flagged} onSeek={onSeek} />)}
       <SendModal open={preview} d={d} base={base} onClose={() => setPreview(false)} onSent={reload} />
     </div>
   );

@@ -20,7 +20,7 @@ export const feedbackRoutes = new Hono<AppEnv>()
     const body = parse(feedbackBody, await c.req.json());
     const db = c.var.db;
     const { sub, gi, workspace, user } = await loadSub(c, c.req.param("id"));
-    await assertUnlocked(db, gi.id);
+    await assertUnlocked(db, sub);
     await db.insert(feedbackItems).values({ id: newId(), submissionId: sub.id, frameId: body.frameId, tMs: body.tMs, shape: body.shape, text: body.text, source: "manual", authorId: user.id, createdAt: now() });
     await logEvent(db, workspace.id, "feedback_comment_added", { source: "manual" });
     return c.json({ ok: true }, 201);
@@ -29,7 +29,7 @@ export const feedbackRoutes = new Hono<AppEnv>()
     const body = parse(patchBody, await c.req.json());
     const db = c.var.db;
     const { sub, gi } = await loadSub(c, c.req.param("id"));
-    await assertUnlocked(db, gi.id);
+    await assertUnlocked(db, sub);
     // 번역문을 직접 고치지 않았는데 원문이 바뀌면 번역은 다시 만든다
     const patch = { ...body, ...(body.text !== undefined && body.textTranslated === undefined ? { textTranslated: null } : {}) };
     await db.update(feedbackItems).set(patch).where(draftOf(sub.id, c.req.param("itemId")));
@@ -38,7 +38,7 @@ export const feedbackRoutes = new Hono<AppEnv>()
   .delete("/:id/feedback/:itemId", editorsOnly, async (c) => {
     const db = c.var.db;
     const { sub, gi } = await loadSub(c, c.req.param("id"));
-    await assertUnlocked(db, gi.id);
+    await assertUnlocked(db, sub);
     await db.delete(feedbackItems).where(draftOf(sub.id, c.req.param("itemId")));
     return c.json({ ok: true });
   })

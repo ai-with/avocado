@@ -1,10 +1,12 @@
 import { Badge, Button } from "../../../ui";
-import { fmtTimecode } from "../../../../shared/review";
+import { CONFLICT_LABEL, fmtTimecode } from "../../../../shared/review";
 import { SOURCE_LABELS } from "../labels";
 import type { FeedbackItem, SeekFn } from "../types";
 import { FrameMarkup } from "../FrameMarkup";
 
-export function FeedbackRow({ n, it, onSeek, onDelete }: { n: number; it: FeedbackItem; onSeek: SeekFn; onDelete?: () => void }) {
+type RowProps = { n: number; it: FeedbackItem; flagged?: boolean; onSeek: SeekFn; onDelete?: () => void };
+
+export function FeedbackRow({ n, it, flagged, onSeek, onDelete }: RowProps) {
   const time = fmtTimecode(it.tMs);
   return (
     <li className="fb-item">
@@ -18,6 +20,7 @@ export function FeedbackRow({ n, it, onSeek, onDelete }: { n: number; it: Feedba
         <div className="row row-tight row-wrap">
           <button type="button" className="seg-time" onClick={() => onSeek(it.tMs)}>{time}</button>
           <Badge>{SOURCE_LABELS[it.source]}</Badge>
+          {flagged && <Badge tone="warn">{CONFLICT_LABEL}</Badge>}
           {it.roundId && <Badge tone={it.influencerDone ? "success" : "neutral"}>{it.influencerDone ? "반영함" : "미반영"}</Badge>}
         </div>
         <p>{it.text}</p>
@@ -30,12 +33,12 @@ export function FeedbackRow({ n, it, onSeek, onDelete }: { n: number; it: Feedba
 }
 
 // 보낸 회차 하나의 피드백 목록 (이번 버전, 이전 버전 공통)
-export function RoundSection({ title, items, onSeek }: { title: string; items: FeedbackItem[]; onSeek: SeekFn }) {
+export function RoundSection({ title, items, flagged, onSeek }: { title: string; items: FeedbackItem[]; flagged?: Set<string>; onSeek: SeekFn }) {
   return (
     <section className="stack">
       <h4>{title}</h4>
       <ol className="fb-list">
-        {items.map((it) => <FeedbackRow key={it.id} n={it.n ?? 0} it={it} onSeek={onSeek} />)}
+        {items.map((it) => <FeedbackRow key={it.id} n={it.n ?? 0} it={it} flagged={flagged?.has(it.id)} onSeek={onSeek} />)}
       </ol>
     </section>
   );

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Badge, Button, CopyButton } from "../../../ui";
+import { Badge, Button } from "../../../ui";
+import { LangCopyButton } from "./LangCopyButton";
 import { fmtDateTime, type GuideInfluencerRow, type StageSummary } from "../types";
 import { handlesText, langLabel } from "../InfluencersPage";
 import { PostUrlCell } from "../../reviews/PostUrlCell";
@@ -38,7 +39,7 @@ function LinkCell({ row, canEdit, published, actions }: Pick<Props, "row" | "can
   return (
     <td>
       <div className="row row-tight nowrap">
-        {published ? <CopyButton text={row.links.guide} /> : <Button size="sm" variant="secondary" disabled>복사</Button>}
+        <LangCopyButton url={row.links.guide} defaultLang={row.influencer.lang} disabled={!published} />
         {canEdit && row.influencer.email && <Button size="sm" variant="ghost" onClick={() => void actions.email(row)} disabled={!published}>이메일</Button>}
       </div>
       {row.tokenExpiresAt < Date.now() && <span className="text-caption">만료됨</span>}

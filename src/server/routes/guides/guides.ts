@@ -103,7 +103,7 @@ export const guideCrudRoutes = new Hono<AppEnv>()
     const latency = now() - started;
     if (result.model) await db.update(guides).set({ generatedByModel: result.model }).where(eq(guides.id, g.id));
     await logEvent(db, workspace.id, "video_guide_generated", { latency_ms: latency, fallback: result.fallback });
-    return c.json({ videoGuide: result.guide, fallback: result.fallback, model: result.model, latencyMs: latency, lineWarnings: lineWarnings(result.guide, forbiddenTerms(rules)) });
+    return c.json({ videoGuide: result.guide, fallback: result.fallback, scriptWarning: result.scriptWarning, model: result.model, latencyMs: latency, lineWarnings: lineWarnings(result.guide, forbiddenTerms(rules)) });
   })
   .post("/:id/publish", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);

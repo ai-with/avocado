@@ -144,6 +144,9 @@ export function checkUpload(fileName: string, size: number, durationS: number): 
   return { ok: true };
 }
 
+// 드라이브 링크를 로그인 없이 열 수 있는지 (AIWITH-375). unknown 은 드라이브가 아니거나 확인 실패
+export type DriveAccess = "accessible" | "blocked" | "unknown";
+
 // F-58 동의 항목 (문구 초안, 법률 자문 전). 필수는 1, 2a, 2b, 3, 5, 6. 2c(2차 활용)는 선택이고 기록만 한다
 export const CONSENT_DOC_VERSION = "2026-10-22.v1";
 export const CONSENT_ITEMS = [

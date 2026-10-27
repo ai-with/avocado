@@ -58,7 +58,15 @@ async function saveConsent(db: Db, row: Row, body: z.infer<typeof consentBody>, 
   return agreedAt;
 }
 
+const PHOTO_CACHE_S = 86400;
+
 export const publicGuideViewRoutes = new Hono<AppEnv>()
+  // 브랜드가 올린 제품 사진 (AIWITH-368). 경로에 추측할 수 없는 id 가 들어 있어 공개로 둔다
+  .get("/guide-photo/:path{guide-photos/.+}", async (c) => {
+    const obj = await c.env.FILES.get(c.req.param("path"));
+    if (!obj) return c.notFound();
+    return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType ?? "application/octet-stream", "Cache-Control": `public, max-age=${PHOTO_CACHE_S}` } });
+  })
   // 인플루언서별 가이드 또는 가이드 공용 링크(slug)
   .get("/guide/:token", async (c) => {
     const db = c.var.db;
@@ -106,7 +114,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     if (await currentConsent(db, gi.id)) throw new ApiError(409, "already_consented", "이미 동의를 완료했어요.");
     const agreedAt = await saveConsent(db, row, body, c.req.header("cf-connecting-ip") ?? null);
     await logEvents(db, guide.workspaceId, [
-      ["participation_accepted", { guide_id: guide.id }],
+      ["participation_accepted", { guide_id: guide.id, gi_id: gi.id }],
       ["consent_submitted", { version: CONSENT_DOC_VERSION, country: body.country, optional_items: body.items.secondary_use === true ? ["secondary_use"] : [] }],
     ]);
     c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 참여에 동의했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 참여에 동의했어요. 이제 영상을 올릴 수 있어요.`));
@@ -119,7 +127,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     if (!consent) throw new ApiError(400, "no_consent", "철회할 동의가 없어요.");
     await db.update(consents).set({ withdrawnAt: now() }).where(eq(consents.id, consent.id));
     await db.update(guideInfluencers).set({ stage: "withdrawn" }).where(eq(guideInfluencers.id, gi.id));
-    await logEvent(db, guide.workspaceId, "consent_withdrawn", { guide_id: guide.id });
+    await logEvent(db, guide.workspaceId, "consent_withdrawn", { guide_id: guide.id, gi_id: gi.id });
     // TASK-020: 대기·진행 중인 처리 작업 취소. 원본·프레임·전사 삭제 예약은 보관 정책 작업(7-1) 때 붙인다
     await cancelProcessingFor(db, gi.id);
     c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 동의를 철회했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 동의를 철회했어요. 처리 중인 작업은 멈추고 원본·프레임·전사는 삭제 예정이에요. 이미 내려받은 파일은 브랜드가 관리해야 해요.`));

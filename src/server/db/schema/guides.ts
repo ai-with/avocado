@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
 import { workspaces } from "./workspaces";
-import type { GuideProduct, RuleSeverity, RuleTarget, RuleType, SecondaryUseScope, VideoGuide, GuideRule } from "../../../shared/guides";
+import type { DriveAccess, GuideProduct, RuleSeverity, RuleTarget, RuleType, SecondaryUseScope, VideoGuide, GuideRule } from "../../../shared/guides";
 
 // F-55 규정 세트. 규칙이 바뀌면 version 이 오르고 규칙 행에 그 시점 version 을 남긴다
 export const guidelineSets = sqliteTable(
@@ -144,6 +144,7 @@ export const submissions = sqliteTable(
     height: integer("height"),
     status: text("status").$type<SubmissionStatus>().notNull(),
     driveUrl: text("drive_url"),
+    driveAccess: text("drive_access").$type<DriveAccess>(),
     note: text("note"),
     uploadId: text("upload_id"),
     createdAt: integer("created_at").notNull(),

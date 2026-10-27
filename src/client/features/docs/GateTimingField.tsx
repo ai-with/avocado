@@ -27,7 +27,7 @@ export function GateTimingField({ gate, onChange }: { gate: DocumentGate; onChan
             onChange={(e) => onChange({ scrollPct: Number(e.target.value) })}
           />
           <div className="gate-timing-scale"><span>0% 열자마자</span><span>50%</span><span>100% 다 읽은 뒤</span></div>
-          <p className="text-caption">다이얼로그가 뜨면 남긴 정보를 받기 전까지 그 아래 내용은 볼 수 없어요. 한 번 남긴 사람에게는 다시 묻지 않아요.</p>
+          <p className="text-caption">다이얼로그가 뜨면 남긴 정보를 받기 전까지 그 아래 내용은 볼 수 없어요. 한 번 남긴 사람에게는 같은 브라우저에서 다시 묻지 않아요. PDF와 홈페이지 주소 자료는 나눠 보낼 수 없어서 100%가 아니면 열자마자 물어요.</p>
         </>
       )}
     </div>

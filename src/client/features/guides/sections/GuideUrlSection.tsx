@@ -1,4 +1,5 @@
-import { Badge, CopyButton, Input, SectionCard } from "../../../ui";
+import { Badge, Input, SectionCard } from "../../../ui";
+import { LangCopyButton } from "./LangCopyButton";
 import type { GuideResponse } from "../types";
 
 export function GuideUrlSection({ data }: { data: GuideResponse }) {
@@ -18,7 +19,7 @@ export function GuideUrlSection({ data }: { data: GuideResponse }) {
           <>
             <div className="row url-row">
               <Input aria-label="가이드 공용 URL" value={sharedUrl} readOnly onFocus={(e) => e.target.select()} />
-              <CopyButton text={sharedUrl} label="링크 복사" size="md" />
+              <LangCopyButton url={sharedUrl} defaultLang={guide.lang} label="링크 복사" size="md" />
             </div>
             <SendHow />
           </>

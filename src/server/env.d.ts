@@ -1,4 +1,5 @@
-// 시크릿은 wrangler types 결과에 없으므로 여기서 선택값으로 선언한다. 없으면 해당 기능을 끈다
+// 시크릿은 wrangler types 결과에 없으므로 여기서 선택값으로 선언한다. 없으면 해당 기능을 끈다.
+// wrangler.jsonc vars 에 있는 이름(APP_URL, APP_ENV 등)은 생성물에 들어가므로 여기에 다시 쓰지 않는다
 interface Env {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
@@ -12,14 +13,13 @@ interface Env {
   IG_FAKE?: string;
   IG_SYSTEM_TOKEN?: string;
   IG_SYSTEM_USER_ID?: string;
-  // TASK-024: 구글 로그인(둘 다 있어야 켜짐), SMS(SMS_PROVIDER=solapi), APP_ENV=production 이면 devCode 를 응답에 넣지 않는다
+  // TASK-024: 구글 로그인(둘 다 있어야 켜짐), SMS(SMS_PROVIDER=solapi), APP_ENV=production(vars) 이면 devCode 를 응답에 넣지 않는다
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   SMS_PROVIDER?: string;
   SOLAPI_API_KEY?: string;
   SOLAPI_API_SECRET?: string;
   SMS_FROM?: string;
-  APP_ENV?: string;
   // TASK-029: Analytics Engine SQL API 조회용 계정 토큰. 1단계 화면은 D1 만 쓰므로 아직 읽지 않는다
   CF_API_TOKEN_AE?: string;
   // TASK-054: 도움 받기 문의를 받을 운영 주소. 없으면 저장만 한다

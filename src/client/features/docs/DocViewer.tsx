@@ -8,14 +8,14 @@ import { useGateScroll } from "./useGateScroll";
 import { useViewerContent } from "./usePdfPages";
 import "./docs.css";
 
-export type ViewerGate = { position: "none" | "scroll"; scrollPct: number; fields: { name: boolean; company: boolean; phone: boolean }; questions: GateQuestion[]; companyEmailOnly: boolean };
+export type ViewerGate = { position: "none" | "scroll"; scrollPct: number; fields: { name: boolean; company: boolean; phone: boolean }; questions: GateQuestion[]; companyEmailOnly: boolean; requireVerify?: boolean };
 
 type Props = {
   title: string;
   brandName: string;
   sourceType: DocumentSourceType;
   pages: number;
-  // 원본 유형별 본문. 게이트가 0% 이고 통과 전이면 모두 비어 있다
+  // 원본 유형별 본문. 통과 전이면 서버가 게이트 앞부분만 주고(0% 는 비어 있음), 통과하면 전체를 준다
   html: string | null;
   fileUrl: string | null;
   snapshotUrl: string | null;
@@ -26,6 +26,8 @@ type Props = {
   onSubmit?: (v: VisitorValues) => Promise<void>;
   onProgress?: (p: { pct: number; page: number }) => void;
   barRight?: ReactNode;
+  // 있으면 다이얼로그에서 입력 폼 대신 보여 준다(인증 메일 대기 등)
+  gateNotice?: ReactNode;
 };
 
 type BodyProps = Pick<Props, "title" | "sourceType" | "html" | "snapshotUrl" | "sourceUrl"> & {
@@ -69,7 +71,7 @@ function ViewerBody({ title, sourceType, html, snapshotUrl, sourceUrl, error, bo
 }
 
 // 자료 뷰어. 본문이 바로 보이고, 보인 최하단이 게이트 비율에 닿으면 본문 위에 정보 입력 다이얼로그를 띄우고 그 아래로는 못 내려가게 막는다
-export function DocViewer({ title, brandName, sourceType, html, fileUrl, snapshotUrl, sourceUrl, gate, passed, onSubmit, onProgress, barRight }: Props) {
+export function DocViewer({ title, brandName, sourceType, html, fileUrl, snapshotUrl, sourceUrl, gate, passed, onSubmit, onProgress, barRight, gateNotice }: Props) {
   const preview = !onSubmit;
   const [previewPassed, setPreviewPassed] = useState(false);
   const needGate = gate.position === "scroll" && !passed && !previewPassed;
@@ -91,7 +93,9 @@ export function DocViewer({ title, brandName, sourceType, html, fileUrl, snapsho
       </div>
       <ViewerBody title={title} sourceType={sourceType} html={html} snapshotUrl={snapshotUrl} sourceUrl={sourceUrl} error={error} {...refs} onFrameLoad={() => setReady(true)} />
       {dialog && needGate && (
-        <GateDialog brandName={brandName} title={title} gate={gate} preview={preview} onSubmit={onSubmit} onPreviewPass={() => setPreviewPassed(true)} onClose={() => setDialog(false)} />
+        <GateDialog brandName={brandName} title={title} gate={gate} preview={preview} onSubmit={onSubmit} onPreviewPass={() => setPreviewPassed(true)} onClose={() => setDialog(false)}>
+          {gateNotice}
+        </GateDialog>
       )}
     </div>
   );

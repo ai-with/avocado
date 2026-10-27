@@ -7,9 +7,10 @@
 .sidebar.is-collapsed { width: var(--layout-sidebar-collapsed); }
 
 .sidebar-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-6); }
-.sidebar-head > .dropdown { flex: 1; }
+.sidebar-head > .dropdown:first-child { flex: 1; }
 .is-collapsed .sidebar-head { flex-direction: column-reverse; gap: var(--space-4); }
-.is-collapsed .sidebar-head > .dropdown { flex: none; }
+.is-collapsed .sidebar-head > .dropdown:first-child { flex: none; }
+.sidebar-head .notif-button { width: var(--sidebar-item-height); height: var(--sidebar-item-height); }
 
 .sidebar-toggle, .sidebar-item, .workspace-button, .account-button {
   position: relative; border: 0; background: none; cursor: pointer; color: var(--color-text-secondary);

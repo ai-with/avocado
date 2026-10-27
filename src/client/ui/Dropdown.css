@@ -20,4 +20,9 @@
 .dropdown-item:disabled { color: var(--color-text-muted); cursor: not-allowed; }
 .dropdown-item.is-danger, .dropdown-item.is-danger svg { color: var(--color-danger); }
 @media (pointer: coarse) { .dropdown-item { height: var(--touch-target); } }
+/* 설명 줄이 있는 항목(알림 등): 높이를 내용에 맞추고 label 은 두 줄까지 */
+.dropdown-item.has-description { height: auto; min-height: var(--control-height-sm); align-items: flex-start; padding-block: var(--space-3); }
+.dropdown-item-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.dropdown-item-label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dropdown-item-description { font-size: var(--text-caption-size); line-height: var(--text-caption-lh); font-weight: var(--weight-regular); color: var(--color-text-tertiary); }
 @keyframes dropdown-in { from { opacity: 0; transform: translateY(-2px); } }

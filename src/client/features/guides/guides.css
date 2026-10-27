@@ -33,3 +33,22 @@
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); }
 @media (max-width: 1023px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .metric-value { font-size: var(--text-h2-size); font-weight: var(--weight-semibold); }
+
+/* 편집 화면: 왼쪽 폼, 오른쪽 인플루언서용 미리보기 (AIWITH-367). 태블릿 이하는 토글로 폼 위에 펼친다 */
+.guide-edit-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: var(--space-8); align-items: start; }
+.guide-preview { position: sticky; top: var(--space-8); max-height: calc(100vh - var(--space-12)); overflow-y: auto; background: var(--color-surface-subtle); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.guide-preview-head { position: sticky; top: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.guide-preview-body { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6); }
+.btn.guide-preview-toggle { display: none; }
+@media (max-width: 1023px) {
+  .guide-edit-layout { grid-template-columns: minmax(0, 1fr); }
+  .guide-preview { display: none; position: static; max-height: none; order: -1; }
+  .guide-preview.is-open { display: block; }
+  .btn.guide-preview-toggle { display: inline-flex; }
+}
+
+/* 링크 언어 고르기 + 복사 (AIWITH-373) */
+.lang-copy { display: inline-flex; align-items: center; gap: var(--space-2); }
+.lang-copy .field { width: auto; }
+.lang-copy .control { width: auto; }
+.lang-copy-sm .control { height: var(--control-height-sm); padding: 0 var(--space-4); font-size: var(--text-label-size); }

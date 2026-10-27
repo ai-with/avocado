@@ -3,11 +3,14 @@ import { z } from "zod";
 import { and, desc, eq, max } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
-import { approvals, consents, guideInfluencers, guides, influencers, reviewRounds, submissions } from "../../db/schema";
+import { approvals, consents, guideInfluencers, guides, influencers, reviewRounds, submissions, supersededVersions } from "../../db/schema";
 import { ApiError } from "../../lib/errors";
 import { now } from "../../lib/ids";
 import { workspaceCtx } from "../../middleware/auth";
-import { PROCESSING_DELAY_MS, type ReviewState } from "../../../shared/review";
+import { PROCESSING_DELAY_MS } from "../../../shared/review";
+import { isLocked, type ApprovedRef } from "./policy";
+
+export { reviewState } from "./policy";
 
 // 검수 라우트 공용 (F-60~F-62)
 
@@ -16,13 +19,6 @@ export const BRAND_LANG = "ko";
 type Sub = typeof submissions.$inferSelect;
 type Inf = typeof influencers.$inferSelect;
 
-export function reviewState(s: Pick<Sub, "id" | "status">, approvedSubId: string | null, sent: boolean): ReviewState {
-  if (approvedSubId === s.id) return "approved";
-  if (s.status === "uploaded") return "waiting";
-  if (s.status === "processing") return "processing";
-  if (sent) return "feedback_sent";
-  return "needs_review";
-}
 export const isDelayed = (s: Pick<Sub, "status" | "uploadedAt">) => (s.status === "uploaded" || s.status === "processing") && !!s.uploadedAt && now() - s.uploadedAt > PROCESSING_DELAY_MS;
 
 export const fileUrl = (key: string) => `/api/files/${key}`;
@@ -46,9 +42,20 @@ export function approvalOf(db: Db, giId: string) {
   return db.select().from(approvals).where(eq(approvals.guideInfluencerId, giId)).get();
 }
 
-// 승인 후 코멘트 잠금 (F-62)
-export async function assertUnlocked(db: Db, giId: string) {
-  if (await approvalOf(db, giId)) throw new ApiError(409, "approved_locked", "최종 승인된 뒤에는 피드백을 바꿀 수 없어요.");
+// 승인된 버전 번호까지 붙인 승인 정보
+export async function approvedRefOf(db: Db, giId: string): Promise<ApprovedRef> {
+  const row = await db.select({ submissionId: approvals.submissionId, version: submissions.version }).from(approvals).innerJoin(submissions, eq(submissions.id, approvals.submissionId)).where(eq(approvals.guideInfluencerId, giId)).get();
+  return row ?? null;
+}
+
+export async function isSuperseded(db: Db, subId: string) {
+  return !!(await db.select({ id: supersededVersions.submissionId }).from(supersededVersions).where(eq(supersededVersions.submissionId, subId)).get());
+}
+
+// 승인 후 코멘트 잠금 (F-62). 승인 뒤 올라온 새 버전은 검수할 수 있다 (340)
+export async function assertUnlocked(db: Db, sub: Pick<Sub, "id" | "version" | "guideInfluencerId">) {
+  if (isLocked(sub, await approvedRefOf(db, sub.guideInfluencerId), await isSuperseded(db, sub.id)))
+    throw new ApiError(409, "approved_locked", "최종 승인된 버전은 피드백을 바꿀 수 없어요.");
 }
 
 export async function influencerEmail(db: Db, giId: string, inf: Inf) {

@@ -28,3 +28,42 @@ export function gateScrollTop(gatePct: number, viewportHeight: number, contentHe
 }
 
 export const COMPLETE_PCT = 95;
+
+// 글자가 없어도 화면 높이를 차지하는 블록(그림, 구분선)의 무게. 글자 수로 환산한 값
+const MEDIA_BLOCK_WEIGHT = 200;
+const MIN_BLOCK_WEIGHT = 20;
+const VOID_TAGS = new Set(["hr", "br", "img"]);
+
+// 정리된(sanitizeHtml) HTML 을 최상위 블록 단위로 나눈다. 속성값의 < > 는 이미 이스케이프돼 있다
+export function topLevelBlocks(html: string): string[] {
+  const blocks: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (const m of html.matchAll(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g)) {
+    const closing = m[1] === "/";
+    const isVoid = VOID_TAGS.has(m[2]!.toLowerCase());
+    if (!isVoid) depth += closing ? -1 : 1;
+    if (depth > 0) continue;
+    depth = 0;
+    blocks.push(html.slice(start, m.index + m[0].length));
+    start = m.index + m[0].length;
+  }
+  if (html.slice(start).trim()) blocks.push(html.slice(start));
+  return blocks;
+}
+
+const blockWeight = (block: string) => {
+  const text = block.replace(/<[^>]*>/g, "").trim().length;
+  return /<(img|hr)\b/i.test(block) ? Math.max(text, MEDIA_BLOCK_WEIGHT) : Math.max(text, MIN_BLOCK_WEIGHT);
+};
+
+// 게이트 비율(gatePct) 앞에서 시작하는 블록까지를 head, 나머지를 rest 로 나눈다. 높이는 글자 수로 어림한다
+export function splitAtGate(html: string, gatePct: number): { head: string; rest: string } {
+  const blocks = topLevelBlocks(html);
+  const weights = blocks.map(blockWeight);
+  const cut = (weights.reduce((a, b) => a + b, 0) * gatePct) / 100;
+  let acc = 0;
+  let n = 0;
+  while (n < blocks.length && acc < cut) acc += weights[n++]!;
+  return { head: blocks.slice(0, n).join(""), rest: blocks.slice(n).join("") };
+}

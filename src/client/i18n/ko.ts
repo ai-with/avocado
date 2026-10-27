@@ -11,6 +11,10 @@ export const ko = {
   seconds: "초",
   scenes: "장면 구성",
   line_example: "대사 예시",
+  scene_hook: "0~3초 훅",
+  scene_usage: "사용 장면",
+  scene_result: "결과",
+  scene_closing: "마무리",
   tips: "촬영 팁",
   rules_must: "꼭 지켜 주세요",
   rules_forbidden: "하지 말아 주세요",
@@ -81,6 +85,14 @@ export const ko = {
   upload_start: "올리기",
   uploading: "올리는 중",
   upload_resume_hint: "연결이 끊겼어요. 같은 파일을 다시 고르면 이어서 올라가요.",
+  upload_reconnecting: "연결이 끊겨 다시 시도하고 있어요. 창을 닫지 말아 주세요.",
+  drive_checking: "링크를 확인하고 있어요.",
+  drive_ok: "누구나 열 수 있는 링크예요.",
+  drive_blocked: "브랜드가 열 수 없는 링크예요",
+  drive_fix_1: "1. 드라이브에서 파일을 오른쪽 클릭하고 공유를 눌러요.",
+  drive_fix_2: "2. 일반 액세스를 '링크가 있는 모든 사용자'로 바꾸고 권한은 뷰어로 둬요.",
+  drive_fix_3: "3. 링크를 다시 복사해 넣으면 바로 확인해 드려요.",
+  submit_link_anyway: "그래도 제출하기",
   retry: "다시 시도",
   upload_done: "다 올라갔어요. 처리 중이고, 결과는 이메일로 알려 드려요.",
   analyzing: "분석 자료를 준비하는 중이에요",
@@ -100,6 +112,7 @@ export const ko = {
   status_uploading: "올리는 중",
   limits_hint: "mp4·mov·webm, 3분 이하, 2GB 이하",
   prev_feedback: "이전 피드백 보기",
+  upload_after_approval: "이미 승인된 버전이 있어요. 새 버전은 브랜드가 확인한 뒤 반영돼요.",
 } as const;
 
 export type Dict = Record<keyof typeof ko, string>;

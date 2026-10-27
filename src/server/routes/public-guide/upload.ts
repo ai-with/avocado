@@ -9,7 +9,8 @@ import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { guideLinks } from "../../lib/guides";
 import { UPLOAD_LIMITS, checkUpload } from "../../../shared/guides";
-import { sentRoundCount } from "../reviews";
+import { checkDriveAccess } from "../../lib/drive-access";
+import { approvalOf, sentRoundCount } from "../reviews";
 import { currentConsent, findSubmission, markAborted, nextVersion, partsOf, requireByToken, uploadCtx } from "./shared";
 
 // 업로드 (F-59). 멀티파트로 올리고, 3분·2GB 초과는 드라이브 링크
@@ -28,6 +29,7 @@ const initBody = z.object({
 type InitBody = z.infer<typeof initBody>;
 const externalBody = z.object({ kind: z.enum(["final", "clean"]), driveUrl: z.url({ protocol: /^https$/, error: "https 로 시작하는 링크를 넣어 주세요." }), note: z.string().max(500).default("") });
 const submissionRef = z.object({ submissionId: z.string() });
+const driveCheckBody = z.object({ url: z.string().trim().max(2000) });
 
 const UPLOAD_REASONS = {
   too_large: "파일이 2GB를 넘어요. 드라이브 링크로 제출해 주세요.",
@@ -35,7 +37,9 @@ const UPLOAD_REASONS = {
   bad_format: "mp4, mov, webm 파일만 올릴 수 있어요.",
 } as const;
 
-const notUploading = () => new ApiError(409, "not_uploading", "이미 끝났거나 취소된 업로드예요.");
+// 승인 뒤 새 버전이 올라와도 기존 승인 단계는 그대로 둔다 (340)
+const stillOpen = (giId: string) => and(eq(guideInfluencers.id, giId), ne(guideInfluencers.stage, "approved"));
+const notUploading =() => new ApiError(409, "not_uploading", "이미 끝났거나 취소된 업로드예요.");
 
 // 이어 올리기: 같은 종류·파일명·크기의 미완료 업로드
 function resumableUpload(db: Db, giId: string, body: InitBody) {
@@ -90,6 +94,7 @@ export const uploadRoutes = new Hono<AppEnv>()
       consented: !!consent,
       guideUrl: guideLinks(c.env, gi).guide,
       feedbackUrl: (await sentRoundCount(db, gi.id)) > 0 ? guideLinks(c.env, gi).feedback : null,
+      approved: !!(await approvalOf(db, gi.id)),
       deliverables: guide.deliverables,
       limits: UPLOAD_LIMITS,
       submissions: list,
@@ -146,9 +151,9 @@ export const uploadRoutes = new Hono<AppEnv>()
     await db.batch([
       db.update(submissions).set({ status: "uploaded", uploadedAt }).where(eq(submissions.id, s.id)),
       db.delete(uploadParts).where(eq(uploadParts.submissionId, s.id)),
-      db.update(guideInfluencers).set({ stage: "uploaded" }).where(eq(guideInfluencers.id, gi.id)),
+      db.update(guideInfluencers).set({ stage: "uploaded" }).where(stillOpen(gi.id)),
     ]);
-    await logEvent(db, guide.workspaceId, "upload_completed", { version: s.version, upload_s: Math.round((uploadedAt - s.createdAt) / 1000) });
+    await logEvent(db, guide.workspaceId, "upload_completed", { submission_id: s.id, gi_id: gi.id, version: s.version, upload_s: Math.round((uploadedAt - s.createdAt) / 1000) });
     await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: s.id } }).catch((e: unknown) => console.error("[queue:send]", e));
     return c.json({ ok: true, version: s.version });
   })
@@ -162,14 +167,22 @@ export const uploadRoutes = new Hono<AppEnv>()
     await markAborted(db, s.id);
     return c.json({ ok: true });
   })
-  // 드라이브 링크 제출. 자동 처리 없음, 브랜드가 수동 확인
+  // 입력 중 즉시 확인. 판정만 돌려주고 저장하지 않는다
+  .post("/upload/:token/drive-check", async (c) => {
+    const { url } = parse(driveCheckBody, await c.req.json());
+    await uploadCtx(c);
+    return c.json({ access: await checkDriveAccess(url) });
+  })
+  // 드라이브 링크 제출. 자동 처리 없음, 브랜드가 수동 확인. 막힌 링크도 받되 판정을 다시 해 남긴다
   .post("/upload/:token/external", async (c) => {
     const body = parse(externalBody, await c.req.json());
     const db = c.var.db;
     const { gi, guide } = await uploadCtx(c);
     const version = await nextVersion(db, gi.id, body.kind);
-    await db.insert(submissions).values({ id: newId(), guideInfluencerId: gi.id, version, kind: body.kind, status: "uploaded_external", driveUrl: body.driveUrl, note: body.note || null, createdAt: now(), uploadedAt: now() });
-    await db.update(guideInfluencers).set({ stage: "uploaded" }).where(eq(guideInfluencers.id, gi.id));
-    await logEvent(db, guide.workspaceId, "upload_completed", { version, external: true });
-    return c.json({ ok: true, version }, 201);
+    const driveAccess = await checkDriveAccess(body.driveUrl);
+    const submissionId = newId();
+    await db.insert(submissions).values({ id: submissionId, guideInfluencerId: gi.id, version, kind: body.kind, status: "uploaded_external", driveUrl: body.driveUrl, driveAccess, note: body.note || null, createdAt: now(), uploadedAt: now() });
+    await db.update(guideInfluencers).set({ stage: "uploaded" }).where(stillOpen(gi.id));
+    await logEvent(db, guide.workspaceId, "upload_completed", { submission_id: submissionId, gi_id: gi.id, version, external: true });
+    return c.json({ ok: true, version, driveAccess }, 201);
   });

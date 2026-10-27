@@ -19,7 +19,7 @@ export function ReviewDetailPage() {
   const [tab, setTab] = useState<Tab>("candidates");
   const { d, base, frame, seek, act, processing } = r;
   if (!d) return <LoadingState label="검수 화면을 불러오는 중" />;
-  const locked = !!d.approval;
+  const locked = d.locked;
   const canEdit = d.canEdit && !locked;
   const flagged = d.candidates.filter((c) => c.result === "candidate").length;
   const tabs: { value: Tab; label: string }[] = [
@@ -30,7 +30,7 @@ export function ReviewDetailPage() {
   ];
   return (
     <>
-      <ReviewHeader d={d} onApprove={r.approve} />
+      <ReviewHeader d={d} onApprove={r.approve} onKeep={r.keepApproval} />
       <div className="stack">
         <ReviewStatusRow d={d} />
         <div className="review-grid">

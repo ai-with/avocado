@@ -7,3 +7,5 @@ export const RESULT_ORDER: CandidateResult[] = ["candidate", "needs_check", "und
 export const JOB_TONE: Record<JobStatus, BadgeTone> = { queued: "neutral", running: "info", done: "success", failed: "danger", skipped: "neutral" };
 export const SOURCE_LABELS = { candidate: "위반 후보", manual: "직접 작성", missed: "놓친 위반" } as const;
 export const ruleLabel = (t: string) => RULE_TYPE_LABELS[t as RuleType] ?? t;
+// 드라이브 링크가 로그인 없이 열리지 않을 때 (AIWITH-376)
+export const DRIVE_BLOCKED_LABEL = "열 수 없는 링크";

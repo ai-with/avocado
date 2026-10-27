@@ -4,7 +4,7 @@ import { api, ApiError, errorMessage } from "../../lib/api";
 import type { GuideProduct } from "../../../shared/guides";
 import type { GuideForm, SetField } from "./useGuideForm";
 
-export type ProductImport = { product: GuideProduct; purposeSuggestion: string; sourceUrl: string; fallback: boolean };
+export type ProductImport = { product: GuideProduct; purposeSuggestion: string; sourceUrl: string; fallback: boolean; scriptWarning: boolean };
 
 const hasProductInput = (p: GuideProduct) => !!(p.name.trim() || p.benefits.some((b) => b.trim()) || p.usage.trim() || p.photos.length);
 
@@ -16,6 +16,12 @@ function mergeProduct(current: GuideProduct, imported: GuideProduct): GuideProdu
     usage: imported.usage || current.usage,
     photos: imported.photos.length ? imported.photos : current.photos,
   };
+}
+
+function importMessage(r: ProductImport): string {
+  if (r.fallback) return "AI 정리가 늦어 페이지 정보만 채웠어요. 확인 후 초안 만들기를 눌러 주세요.";
+  if (r.scriptWarning) return "상품 정보를 채웠어요. 외국 문자가 섞인 칸은 비웠으니 다시 확인해 주세요.";
+  return "상품 정보를 채웠어요. 확인 후 초안 만들기를 눌러 주세요.";
 }
 
 // 상품 URL 로 기본 정보 채우기. 이미 입력한 칸이 있으면 pending 에 두고 확인을 받는다
@@ -30,7 +36,7 @@ export function useProductImport(form: GuideForm, set: SetField) {
     set("product", mergeProduct(form.product, r.product));
     if (!form.purpose.trim() && r.purposeSuggestion) set("purpose", r.purposeSuggestion);
     setPending(null);
-    toast(r.fallback ? "AI 정리가 늦어 페이지 정보만 채웠어요. 확인 후 초안 만들기를 눌러 주세요." : "상품 정보를 채웠어요. 확인 후 초안 만들기를 눌러 주세요.", r.fallback ? "neutral" : "success");
+    toast(importMessage(r), r.fallback || r.scriptWarning ? "neutral" : "success");
   };
 
   const run = async () => {

@@ -47,7 +47,7 @@ export function GateFieldsEditor({ gate, g, blocked, setBlocked }: { gate: Docum
       <BaseFields gate={gate} g={g} />
       <QuestionsEditor gate={gate} g={g} />
       <Checkbox label="회사 이메일만 받기 (gmail, naver 같은 무료 메일 막기)" checked={gate.companyEmailOnly} onChange={(e) => g({ companyEmailOnly: e.target.checked })} />
-      <Checkbox label="이메일 인증 후 열람 (준비 중, 지금은 설정만 저장돼요)" checked={gate.requireVerify} onChange={(e) => g({ requireVerify: e.target.checked })} />
+      <Checkbox label="이메일 인증 후 열람 (남긴 이메일로 인증 링크를 보내고, 링크를 눌러야 나머지를 보여 줘요)" checked={gate.requireVerify} onChange={(e) => g({ requireVerify: e.target.checked })} />
       <Textarea label="차단할 이메일·도메인" hint="한 줄에 하나. 예: rival.com, someone@example.com" value={blocked} onChange={(e) => setBlocked(e.target.value)} />
     </>
   );

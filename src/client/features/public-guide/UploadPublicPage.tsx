@@ -9,7 +9,7 @@ import { Slot } from "./sections/Slot";
 import "./public.css";
 
 type Sub = { id: string; version: number; kind: "final" | "clean"; status: string; fileName: string | null; note: string | null; driveUrl: string | null; uploadedAt: number | null };
-type UploadData = { brandName: string; guideName: string; lang: Lang; displayName: string; consented: boolean; guideUrl: string; feedbackUrl: string | null; deliverables: { clean: boolean }; limits: { maxFrames: number }; submissions: Sub[] };
+type UploadData = { brandName: string; guideName: string; lang: Lang; displayName: string; consented: boolean; guideUrl: string; feedbackUrl: string | null; approved: boolean; deliverables: { clean: boolean }; limits: { maxFrames: number }; submissions: Sub[] };
 
 function PreviousSubmissions({ subs, t }: { subs: Sub[]; t: T }) {
   return (
@@ -40,6 +40,7 @@ function UploadBody({ data, token, t, lang, onDone }: { data: UploadData; token:
       <h1 className="pub-title">{t("upload_title")}</h1>
       <p className="text-secondary">{data.guideName} · {t("limits_hint")}</p>
       {data.feedbackUrl && <a href={data.feedbackUrl}>{t("prev_feedback")}</a>}
+      {data.approved && <p className="text-secondary">{t("upload_after_approval")}</p>}
       <Slot kind="final" title={t("slot_final")} {...slot} />
       <Slot kind="clean" title={t("slot_clean")} {...slot} />
       {data.submissions.length > 0 && <PreviousSubmissions subs={data.submissions} t={t} />}

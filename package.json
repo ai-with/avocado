@@ -9,7 +9,7 @@
     "deploy": "npm run build && wrangler deploy",
     "typecheck": "tsc -p tsconfig.client.json && tsc -p tsconfig.server.json && tsc -p tsconfig.node.json && tsc -p sdk/tsconfig.json",
     "test": "vitest run",
-    "cf-typegen": "wrangler types",
+    "cf-typegen": "node scripts/cf-typegen.mjs",
     "db:migrate:local": "wrangler d1 migrations apply avocado-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply avocado-db --remote",
     "seed:local": "node scripts/seed.ts",

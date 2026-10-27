@@ -24,8 +24,24 @@ export type FeedbackShape = { type: "box" | "arrow"; x: number; y: number; w: nu
 export type ContentFormat = "reel" | "feed" | "carousel" | "story" | "unknown";
 
 // 검수함 상태 (검수함 탭)
-export type ReviewState = "waiting" | "processing" | "needs_review" | "feedback_sent" | "approved";
-export const REVIEW_STATE_LABELS: Record<ReviewState, string> = { waiting: "대기", processing: "처리 중", needs_review: "검수 필요", feedback_sent: "피드백 보냄", approved: "승인" };
+// after_approval: 승인된 버전이 있는데 그 뒤에 올라온 버전, superseded: 그 버전을 '기존 승인 유지'로 닫음 (340)
+export type ReviewState = "waiting" | "processing" | "needs_review" | "feedback_sent" | "approved" | "after_approval" | "superseded";
+export const REVIEW_STATE_LABELS: Record<ReviewState, string> = {
+  waiting: "대기",
+  processing: "처리 중",
+  needs_review: "검수 필요",
+  feedback_sent: "피드백 보냄",
+  approved: "승인",
+  after_approval: "승인 뒤 새 버전",
+  superseded: "기존 승인 유지",
+};
+
+// 같은 장면에서 판단이 엇갈린 코멘트·후보 표시 (337)
+export const CONFLICT_LABEL = "확인 필요: 판단 엇갈림";
+// 이 시간 안의 판단끼리 같은 장면으로 본다
+export const CONFLICT_WINDOW_MS = 1000;
+// 시각 목록 중 하나와 가까운가 (프레임에 배지 붙일 때)
+export const nearAny = (tMs: number, times: number[]) => times.some((t) => Math.abs(t - tMs) <= CONFLICT_WINDOW_MS);
 
 // 15분 넘게 ready 가 아니면 '처리 지연' (F-60)
 export const PROCESSING_DELAY_MS = 15 * 60 * 1000;

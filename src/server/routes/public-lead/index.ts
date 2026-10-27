@@ -5,6 +5,7 @@ import { leads } from "../../db/schema";
 import { ApiError } from "../../lib/errors";
 import { now } from "../../lib/ids";
 import { publicDocRoutes } from "./docs";
+import { publicDocVerifyRoutes } from "./doc-verify";
 import { publicFormRoutes } from "./forms";
 
 export { shortLinkRedirect } from "./redirect";
@@ -28,5 +29,5 @@ const miscRoutes = new Hono<AppEnv>()
     return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType ?? "application/octet-stream", "Cache-Control": `public, max-age=${ASSET_CACHE_S}` } });
   });
 
-// 리드 공개 API (/api/public): 자료 열람·게이트, 폼, 수신 거부, 이미지
-export const publicLeadRoutes = new Hono<AppEnv>().route("/", publicDocRoutes).route("/", publicFormRoutes).route("/", miscRoutes);
+// 리드 공개 API (/api/public): 자료 열람·게이트·인증, 폼, 수신 거부, 이미지
+export const publicLeadRoutes = new Hono<AppEnv>().route("/", publicDocRoutes).route("/", publicDocVerifyRoutes).route("/", publicFormRoutes).route("/", miscRoutes);

@@ -438,7 +438,7 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 
 ### 4.17 Icon (`ui/icons.tsx`)
 
-- props: `{ name: IconName; size?: number }`. 기본 18. `aria-hidden` 처리돼 있다. Lucide 경로를 옮겨 둔 목록에서만 고른다(house, file-text, users, link, search, plus, check, x, chevron-left 등 34개).
+- props: `{ name: IconName; size?: number }`. 기본 18. `aria-hidden` 처리돼 있다. Lucide 경로를 옮겨 둔 목록에서만 고른다(house, file-text, users, link, search, plus, check, x, chevron-left, bell 등 35개).
 - 쓴다: 글자 옆 보조 그림, EmptyState·Table 머리글·Dropdown 항목 아이콘.
 - 안 쓴다: 아이콘만으로 누르는 버튼(그건 IconButton). 새 아이콘 라이브러리 설치 금지. 필요하면 lucide.dev SVG 경로를 `icons.tsx`에 추가.
 
@@ -448,9 +448,11 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 
 ### 4.18 Dropdown (`ui/Dropdown.tsx`)
 
-- props: `{ items: DropdownItem[]; label: string; children: ReactNode; align?: "start" | "end"; side?: "bottom" | "top"; header?: ReactNode; triggerClassName?: string; tip?: string }`.
-- `DropdownItem = { label: string; onSelect: () => void; icon?: IconName; leading?: ReactNode; danger?: boolean; disabled?: boolean; divider?: boolean }`.
-- 쓴다: 버튼 하나 뒤에 숨긴 동작 목록(계정 메뉴 `shell/AccountMenu.tsx`, 행의 더 보기).
+- props: `{ items: DropdownItem[]; label: string; children: ReactNode; align?: "start" | "end"; side?: "bottom" | "top"; header?: ReactNode; triggerClassName?: string; menuClassName?: string; tip?: string }`.
+- `menuClassName`: 메뉴 상자 한 곳만 폭을 바꿀 때(알림 `.notif-menu`: 360px, 좁은 화면은 화면 폭에서 좌우 여백을 뺀 만큼).
+- `DropdownItem = { label: string; onSelect: () => void; id?: string; description?: string; icon?: IconName; leading?: ReactNode; danger?: boolean; disabled?: boolean; divider?: boolean }`.
+- `id`: label 이 겹칠 수 있는 목록의 key. `description`: label 아래 작은 글씨 한 줄(시간 등). 있으면 label 이 두 줄까지 줄바꿈되고 항목 높이가 내용에 맞춰진다.
+- 쓴다: 버튼 하나 뒤에 숨긴 동작 목록(계정 메뉴 `shell/AccountMenu.tsx`, 행의 더 보기), 짧은 소식 목록(알림 `shell/NotificationBell.tsx`: 제목 + "안 읽음, 3분 전" 설명 줄).
 - 안 쓴다: 값 고르기(Select 또는 ChoiceChips).
 
 ```tsx

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { foreignChars } from "../../shared/script-check";
 
 // F-60·F-61 모델 호출 어댑터. 모델을 바꿀 때는 이 파일만 고친다.
 // AI_FAKE=1 이면 고정 응답을 돌려준다 (로컬에서 Workers AI 를 못 쓸 때 흐름 검증용)
@@ -129,4 +130,23 @@ export async function judgeFrame(env: Env, image: ArrayBuffer, questions: { id: 
     res = await run();
   }
   return parseFrameLines(typeof res === "string" ? res : JSON.stringify(res), questions.map((q) => q.id));
+}
+
+// 외국 문자가 섞이면 다시 묻는 횟수 상한. 1회 재시도로 대부분 사라지지만 샘플링 변동이 커서 2회까지 둔다
+export const MAX_SCRIPT_RETRIES = 2;
+export const SCRIPT_RETRY_HINT = "IMPORTANT: Your previous answer mixed in foreign scripts. 한글로만 쓰고 한자·일본어·태국 문자를 쓰지 마세요. Write Korean in Hangul only; never use Chinese characters, Japanese kana or Thai.";
+
+// ask 는 재시도 지시(첫 회는 빈 문자열)를 받아 결과를 낸다. null(시간 초과·형식 오류)이면 멈춘다.
+// 끝까지 깨끗하지 않으면 마지막 결과를 clean:false 로 돌려줘 호출한 쪽이 문장을 걸러내게 한다
+export async function askUntilClean<T>(ask: (retryHint: string) => Promise<T | null>, isClean: (out: T) => boolean): Promise<{ out: T; clean: boolean } | null> {
+  let last: T | null = null;
+  for (let attempt = 0; attempt <= MAX_SCRIPT_RETRIES; attempt++) {
+    const out = await ask(attempt === 0 ? "" : SCRIPT_RETRY_HINT);
+    if (out === null) break;
+    if (isClean(out)) return { out, clean: true };
+    // 섞임 빈도와 글자를 운영 로그로 본다
+    console.warn("[ai] 외국 문자 섞임", { attempt: attempt + 1, chars: foreignChars(JSON.stringify(out)).join("") });
+    last = out;
+  }
+  return last === null ? null : { out: last, clean: false };
 }

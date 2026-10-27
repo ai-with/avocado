@@ -1,6 +1,7 @@
 import { Badge, Button, Card, Input, type BadgeTone } from "../../../ui";
 import type { Lang } from "../../../i18n";
 import { useSlotUpload, type Phase, type SlotKind } from "../useSlotUpload";
+import type { DriveCheck } from "../useDriveCheck";
 import type { T } from "../guideTypes";
 
 type SlotStatus = "waiting" | "uploading" | "processing" | "done" | "error";
@@ -35,13 +36,27 @@ function ProgressBar({ progress, label }: { progress: number; label: string }) {
   );
 }
 
+// 입력 중 확인 결과. 막힌 링크면 공유 설정 바꾸는 법을 보여 주고, 제출은 막지 않는다
+function DriveAccessNote({ access, t }: { access: DriveCheck; t: T }) {
+  if (access === "checking") return <p className="text-caption" role="status">{t("drive_checking")}</p>;
+  if (access === "accessible") return <p className="text-caption pub-ok" role="status">{t("drive_ok")}</p>;
+  if (access !== "blocked") return null;
+  return (
+    <div className="stack-tight" role="status">
+      <span><Badge tone="warn">{t("drive_blocked")}</Badge></span>
+      <p className="text-secondary">{t("drive_fix_1")}<br />{t("drive_fix_2")}<br />{t("drive_fix_3")}</p>
+    </div>
+  );
+}
+
 function TooBigForm({ s, t }: { s: SlotState; t: T }) {
   return (
     <div className="stack">
       <p><strong>{t("limit_title")}</strong></p>
       <p className="text-secondary">{t("limit_desc")}</p>
       <Input label={t("drive_url")} type="url" value={s.driveUrl} onChange={(e) => s.setDriveUrl(e.target.value)} placeholder="https://drive.google.com/..." />
-      <Button onClick={() => void s.submitLink()} disabled={!s.driveUrl}>{t("submit_link")}</Button>
+      <DriveAccessNote access={s.driveAccess} t={t} />
+      <Button onClick={() => void s.submitLink()} disabled={!s.driveUrl}>{s.driveAccess === "blocked" ? t("submit_link_anyway") : t("submit_link")}</Button>
     </div>
   );
 }
@@ -52,7 +67,7 @@ function UploadForm({ s, t, title }: { s: SlotState; t: T; title: string }) {
     <>
       <Input label={t("version_note")} value={s.note} onChange={(e) => s.setNote(e.target.value)} maxLength={500} />
       {(busy || s.progress > 0) && <ProgressBar progress={s.progress} label={title} />}
-      {s.phase === "uploading" && <p className="text-caption">{t("uploading")} {Math.round(s.progress * PERCENT)}%</p>}
+      {s.phase === "uploading" && <p className="text-caption" role="status">{s.reconnecting ? t("upload_reconnecting") : `${t("uploading")} ${Math.round(s.progress * PERCENT)}%`}</p>}
       {s.phase === "analyzing" && <p className="text-caption">{t("analyzing")}</p>}
       <Button onClick={() => void s.upload()} disabled={!s.file || busy || s.phase === "bad_format"}>
         {s.phase === "paused" ? t("retry") : t("upload_start")}

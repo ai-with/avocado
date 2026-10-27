@@ -1,4 +1,4 @@
-import type { GuideRule } from "../../../shared/guides";
+import type { DriveAccess, GuideRule } from "../../../shared/guides";
 import type {
   CandidateConfidence,
   CandidateDecision,
@@ -19,9 +19,11 @@ export type ReviewRow = {
   delayed: boolean;
   uploadedAt: number | null;
   driveUrl: string | null;
+  driveAccess: DriveAccess | null;
   guide: { id: string; name: string };
   influencer: { id: string; displayName: string; igHandle: string | null; lang: "ko" | "en" };
   candidates: number;
+  conflicts: number;
 };
 
 export type Job = { stage: JobStage; status: JobStatus; attempts: number; startedAt: number | null; finishedAt: number | null; error: string | null };
@@ -41,6 +43,7 @@ export type Candidate = {
   modelVersion: string;
   decision: CandidateDecision | null;
   decisionReason: DecisionReason | null;
+  decisionNote: string | null;
 };
 export type FeedbackItem = {
   id: string;
@@ -61,7 +64,7 @@ export type FeedbackItem = {
 export type Round = { id: string; n: number; submissionId: string; version: number | null; submittedAt: number; items: FeedbackItem[] };
 
 export type ReviewDetail = {
-  submission: { id: string; version: number; kind: string; status: string; fileName: string | null; durationS: number | null; width: number | null; height: number | null; uploadedAt: number | null; driveUrl: string | null; note: string | null; videoUrl: string | null; delayed: boolean };
+  submission: { id: string; version: number; kind: string; status: string; fileName: string | null; durationS: number | null; width: number | null; height: number | null; uploadedAt: number | null; driveUrl: string | null; driveAccess: DriveAccess | null; note: string | null; videoUrl: string | null; delayed: boolean };
   cleanUrl: string | null;
   guide: { id: string; name: string };
   influencer: { id: string; displayName: string; igHandle: string | null; lang: "ko" | "en" };
@@ -76,6 +79,13 @@ export type ReviewDetail = {
   drafts: FeedbackItem[];
   rounds: Round[];
   approval: { approvedAt: number; submissionId: string } | null;
+  // 승인 뒤 새 버전 (340): afterApproval 이면 재승인하거나 기존 승인 유지로 닫을 수 있다
+  approvedVersion: number | null;
+  afterApproval: boolean;
+  superseded: boolean;
+  locked: boolean;
+  // 판단이 엇갈린 후보·코멘트 id 와 그 장면 시각 (337)
+  conflicts: { ids: string[]; times: number[] };
   content: { url: string; conflictUrl: string | null } | null;
   canApprove: boolean;
   canEdit: boolean;
@@ -83,4 +93,16 @@ export type ReviewDetail = {
 
 // 검수 화면 섹션이 공유하는 실행기: 요청 → (성공 토스트) → 새로 읽기, 실패는 토스트
 export type ActFn = (fn: () => Promise<unknown>, done?: string) => Promise<void>;
+export type RuleStat = {
+  ruleId: string;
+  ruleType: string;
+  ruleContent: string;
+  decided: number;
+  rejected: number;
+  reasons: Record<DecisionReason, number>;
+  notes: string[];
+  editUrl: string;
+  suggest: boolean;
+};
+
 export type SeekFn = (tMs: number) => void;

@@ -9,3 +9,4 @@ export * from "./performance";
 export * from "./auth";
 export * from "./sites";
 export * from "./support";
+export * from "./notifications";

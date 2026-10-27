@@ -148,7 +148,11 @@ export async function workspaceCounts(db: Db, workspaceId: string) {
   const reviewed = await one(
     sql`SELECT count(*) AS n FROM guide_influencers gi JOIN guides g ON g.id = gi.guide_id WHERE g.workspace_id = ${workspaceId} AND (EXISTS (SELECT 1 FROM review_rounds r WHERE r.guide_influencer_id = gi.id) OR EXISTS (SELECT 1 FROM approvals a WHERE a.guide_influencer_id = gi.id))`,
   );
-  return { guides: guidesN, linksIssued, viewed, uploads, leadLinks, leads, reviewed };
+  // 브랜드 본인 인스타 계정 연결 여부. 미연결이면 홈에 '댓글 키워드 DM 켜기(선택)'를 보여 준다 (AIWITH-374)
+  const igConnected = (await tableExists(db, "ig_connections"))
+    ? (await one(sql`SELECT count(*) AS n FROM ig_connections WHERE workspace_id = ${workspaceId} AND target = 'brand_sender' AND connected_at IS NOT NULL AND revoked_at IS NULL`)) > 0
+    : false;
+  return { guides: guidesN, linksIssued, viewed, uploads, leadLinks, leads, reviewed, igConnected };
 }
 
 // 철회되지 않은 동의 조건

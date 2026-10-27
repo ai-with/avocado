@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { Button, LoadingState } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { makeT, type Lang } from "../../i18n";
+import { langFromSearch } from "../../../shared/guide-public";
 import { PUBLIC_OPTS, type GuideData, type PersonalData, type T } from "./guideTypes";
 import { PublicShell } from "./sections/PublicShell";
 import { GuideBody } from "./sections/GuideBody";
@@ -10,19 +11,21 @@ import { JoinForm } from "./sections/JoinForm";
 import { ConsentForm } from "./sections/ConsentForm";
 import "./public.css";
 
+// 화면 언어: 링크의 ?lang= 이 먼저, 없으면 서버가 정한 인플루언서·가이드 기본 언어 (AIWITH-373)
 function useGuideData(token: string) {
+  const urlLang = langFromSearch(useLocation().search);
   const [data, setData] = useState<GuideData | null>(null);
   const [error, setError] = useState("");
-  const [lang, setLang] = useState<Lang>("ko");
+  const [lang, setLang] = useState<Lang>(urlLang ?? "ko");
   const load = useCallback(async () => {
     try {
-      const d = await api.get<GuideData>(`/public/guide/${token}`, PUBLIC_OPTS);
+      const d = await api.get<GuideData>(`/public/guide/${token}${urlLang ? `?lang=${urlLang}` : ""}`, PUBLIC_OPTS);
       setData(d);
-      setLang(d.lang);
+      setLang(urlLang ?? d.lang);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [token]);
+  }, [token, urlLang]);
   useEffect(() => void load(), [load]);
   return { data, error, lang, setLang, load };
 }
@@ -65,7 +68,7 @@ export function GuidePublicPage() {
   };
   return (
     <PublicShell {...shell} className="has-cta">
-      <GuideBody data={data} t={t} lang={lang} />
+      <GuideBody guide={data.guide} leadLinks={data.leadLinks} t={t} lang={lang} />
       <GuideCta data={data} t={t} onJoin={() => { setView("consent"); scrollTo(0, 0); }} onWithdraw={() => void withdraw()} />
     </PublicShell>
   );

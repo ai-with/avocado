@@ -37,8 +37,14 @@ async function formForSlug(db: Db, slug: string) {
   const form = await db.select().from(forms).where(and(eq(forms.id, link.destinationId ?? ""), isNull(forms.deletedAt))).get();
   if (!form) throw new ApiError(404, "form_not_found", "폼을 찾을 수 없어요.");
   const submitted = form.maxSubmissions ? ((await db.select({ n: count() }).from(formSubmissions).where(eq(formSubmissions.formId, form.id)).get())?.n ?? 0) : 0;
-  const closed: "deadline" | "full" | null = form.closesAt && form.closesAt < now() ? "deadline" : form.maxSubmissions && submitted >= form.maxSubmissions ? "full" : null;
-  return { link, form, closed, submitted };
+  return { link, form, closed: formClosedReason(form, submitted, now()), submitted };
+}
+
+// 마감 판정: 마감일이 지났으면 deadline, 정원이 찼으면 full. 둘 다 아니면 null
+export function formClosedReason(form: Pick<Form, "closesAt" | "maxSubmissions">, submitted: number, nowMs: number): "deadline" | "full" | null {
+  if (form.closesAt && form.closesAt < nowMs) return "deadline";
+  if (form.maxSubmissions && submitted >= form.maxSubmissions) return "full";
+  return null;
 }
 
 export function validateFormAnswers(f: FormFields, body: FormBody): Record<string, string> {

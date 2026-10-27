@@ -15,6 +15,7 @@ export function CandidatesTab({ d, base, canEdit, processing, selected, onSeek, 
   if (processing && d.candidates.length === 0) return <EmptyState title="처리 중이에요" description="음성 전사와 위반 후보 탐지가 끝나면 여기에 보여요. 보통 5분 안에 끝나요." />;
   const frameById = new Map(d.frames.map((f) => [f.id, f]));
   const segById = new Map(d.segments.map((s) => [s.id, s]));
+  const flagged = new Set(d.conflicts.ids);
   const sorted = [...d.candidates].sort((a, b) => RESULT_ORDER.indexOf(a.result) - RESULT_ORDER.indexOf(b.result));
   return (
     <div className="stack">
@@ -27,7 +28,7 @@ export function CandidatesTab({ d, base, canEdit, processing, selected, onSeek, 
       {missed && <MissedForm d={d} base={base} selected={selected} onDone={() => setMissed(false)} onAct={onAct} />}
       {sorted.length === 0 && <EmptyState title="검사한 규칙이 없어요" description="가이드에 켜진 규칙이 없으면 위반 후보를 만들지 않아요." />}
       {sorted.map((c) => (
-        <CandidateCard key={c.id} c={c} base={base} canEdit={canEdit} frameById={frameById} segById={segById} onSeek={onSeek} onAct={onAct} />
+        <CandidateCard key={c.id} c={c} base={base} canEdit={canEdit} flagged={flagged.has(c.id)} frameById={frameById} segById={segById} onSeek={onSeek} onAct={onAct} />
       ))}
     </div>
   );
