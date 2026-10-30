@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../ui";
 import { api, ApiError, errorMessage } from "../../lib/api";
 import { checklistFromRules, emptyVideoGuide, forbiddenTerms, lineWarnings, ruleConflicts, type GuideRule, type VideoGuide } from "../../../shared/guides";
-import type { Guide, GuideResponse, RuleSet, RuleSetDetail } from "./types";
+import type { Guide, GuideDictionary, GuideResponse, RuleSet, RuleSetDetail } from "./types";
 
 export type GuideForm = Omit<Guide, "id" | "slug" | "status" | "generatedByModel" | "publishedAt" | "createdAt">;
 export type SetField = <K extends keyof GuideForm>(k: K, v: GuideForm[K]) => void;
@@ -22,9 +22,9 @@ const EMPTY: GuideForm = {
   deliverables: { final: true, clean: false, note: "" },
   secondaryUseScope: { ads: false, media: [], regions: [], months: 0 },
   videoGuide: null,
+  brandTermExclusions: [],
 };
 export const lines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
-export const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 export const toDateInput = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0, 10) : "");
 
 const toPayload = (form: GuideForm, rules: GuideRule[]) => ({
@@ -40,7 +40,9 @@ export function useGuideForm() {
   // 새 가이드에서 초안을 만들면 저장 후 편집 주소로 옮기면서 초안을 state 로 넘긴다
   const draftFromNew = (location.state as { draft?: VideoGuide } | null)?.draft ?? null;
   const [form, setForm] = useState<GuideForm>(EMPTY);
-  const sets = useGuideLoad(id, draftFromNew, setForm);
+  // 미리보기 머리의 브랜드 이름 = 캠페인 브랜드 (TASK-070)
+  const [brandName, setBrandName] = useState("");
+  const { sets, dictionary } = useGuideLoad(id, draftFromNew, setForm, setBrandName);
   const setRules = useSetRules(form.guidelineSetId);
 
   const rules = useMemo(() => [...setRules, ...form.extraRules], [setRules, form.extraRules]);
@@ -51,22 +53,25 @@ export function useGuideForm() {
   const setVg = (patch: Partial<VideoGuide>) => setForm((f) => ({ ...f, videoGuide: { ...(f.videoGuide ?? emptyVideoGuide()), ...patch } }));
   const actions = useGuideSave(id, form, rules, set);
 
-  return { id, form, set, setVg, sets, setRules, rules, warnings, vgWarnings, ...actions };
+  return { id, form, set, setVg, sets, setRules, rules, warnings, vgWarnings, brandName, dictionary, ...actions };
 }
 
-function useGuideLoad(id: string | undefined, draftFromNew: VideoGuide | null, setForm: Dispatch<SetStateAction<GuideForm>>) {
+function useGuideLoad(id: string | undefined, draftFromNew: VideoGuide | null, setForm: Dispatch<SetStateAction<GuideForm>>, setBrandName: (name: string) => void) {
   const [sets, setSets] = useState<RuleSet[]>([]);
+  const [dictionary, setDictionary] = useState<GuideDictionary | null>(null);
   useEffect(() => {
     void api.get<{ sets: RuleSet[] }>("/guideline-sets").then((d) => {
       setSets(d.sets);
       if (!id && d.sets[0]) setForm((f) => ({ ...f, guidelineSetId: f.guidelineSetId ?? d.sets[0]!.id }));
     });
     if (id)
-      void api.get<GuideResponse>(`/guides/${id}`).then(({ guide: g }) =>
-        setForm({ ...g, videoGuide: draftFromNew ?? g.videoGuide, product: { ...g.product, benefits: [...g.product.benefits, "", "", ""].slice(0, Math.max(MIN_BENEFIT_INPUTS, g.product.benefits.length)) } }),
-      );
-  }, [id, draftFromNew, setForm]);
-  return sets;
+      void api.get<GuideResponse>(`/guides/${id}`).then(({ guide: g, campaign, dictionary: dict }) => {
+        setBrandName(campaign?.brandName ?? "");
+        setDictionary(dict);
+        setForm({ ...g, videoGuide: draftFromNew ?? g.videoGuide, product: { ...g.product, benefits: [...g.product.benefits, "", "", ""].slice(0, Math.max(MIN_BENEFIT_INPUTS, g.product.benefits.length)) } });
+      });
+  }, [id, draftFromNew, setForm, setBrandName]);
+  return { sets, dictionary };
 }
 
 function useSetRules(guidelineSetId: string | null) {
@@ -114,7 +119,7 @@ function useGuideSave(id: string | undefined, form: GuideForm, rules: GuideRule[
     void run("save", async () => {
       const gid = await persist();
       toast("저장했어요.", "success");
-      navigate(`/dashboard/guides/${gid}`);
+      navigate(`/dashboard/campaigns/${gid}`);
     }, (err) => err instanceof ApiError && setFields(err.fields));
   };
   const generate = () => {
@@ -123,12 +128,12 @@ function useGuideSave(id: string | undefined, form: GuideForm, rules: GuideRule[
       const gid = await persist();
       const r = await api.post<{ videoGuide: VideoGuide; fallback: boolean; scriptWarning: boolean }>(`/guides/${gid}/generate`);
       if (id) set("videoGuide", r.videoGuide);
-      else navigate(`/dashboard/guides/${gid}/edit`, { replace: true, state: { draft: r.videoGuide } });
+      else navigate(`/dashboard/campaigns/${gid}/edit`, { replace: true, state: { draft: r.videoGuide } });
       if (r.fallback) toast("초안 생성이 늦어져 빈 템플릿으로 시작해요.", "neutral");
       else if (r.scriptWarning) toast("초안을 만들었어요. 외국 문자가 섞인 문장을 뺐으니 일부 문장을 다시 확인해 주세요.", "neutral");
       else toast("초안을 만들었어요. 고친 뒤 저장해 주세요.", "success");
     });
   };
-  const cancel = () => navigate(id ? `/dashboard/guides/${id}` : "/dashboard/guides");
+  const cancel = () => navigate(id ? `/dashboard/campaigns/${id}` : "/dashboard/campaigns");
   return { fields, busy, save, generate, cancel };
 }

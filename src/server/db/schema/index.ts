@@ -10,3 +10,6 @@ export * from "./auth";
 export * from "./sites";
 export * from "./support";
 export * from "./notifications";
+export * from "./brands";
+export * from "./contact-logs";
+export * from "./message-templates";

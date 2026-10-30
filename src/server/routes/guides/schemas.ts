@@ -46,6 +46,8 @@ const guideFields = z.object({
   deliverables: z.object({ final: z.boolean(), clean: z.boolean(), note: z.string().max(300) }),
   secondaryUseScope: z.object({ ads: z.boolean(), media: z.array(z.string().max(60)).max(20), regions: z.array(z.string().max(60)).max(20), months: z.number().int().min(0).max(120) }),
   videoGuide: videoGuideSchema.nullable(),
+  // TASK-079: 이번 캠페인에서 끈 사전 규칙 id
+  brandTermExclusions: z.array(z.string().regex(/^(bt|legal):/).max(80)).max(500),
 });
 export const guideCreate = guideFields.partial().required({ name: true });
 export const guidePatch = guideFields.partial();
@@ -60,6 +62,7 @@ export const GUIDE_DEFAULTS: Omit<z.infer<typeof guideFields>, "name"> = {
   deliverables: { final: true, clean: false, note: "" },
   secondaryUseScope: { ads: false, media: [], regions: [], months: 0 },
   videoGuide: null,
+  brandTermExclusions: [],
 };
 
 export const withRuleIds = (rules: z.infer<typeof extraRule>[]): GuideRule[] => rules.map((r) => ({ ...r, id: r.id?.startsWith("rule_") ? r.id : `rule_${newId()}` }));

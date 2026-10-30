@@ -1,26 +1,39 @@
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3);
   border: 1px solid transparent; border-radius: var(--radius-button);
-  font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-lh); font-weight: var(--weight-medium);
+  font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-semibold);
   white-space: nowrap; text-decoration: none;
-  transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-in-out);
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn:active:not(:disabled) { transform: translateY(1px); }
+/* 눌림: TDS처럼 살짝 작아진다 */
+.btn:active:not(:disabled) { transform: scale(var(--scale-press)); }
+/* 크기 4단 (TDS small·medium·large·xlarge, findings 8절). 모서리는 높이에 따라 커진다 */
+.btn-sm { height: var(--control-height-sm); padding: 0 var(--space-5); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); }
 .btn-md { height: var(--control-height); padding: 0 var(--space-6); }
-.btn-sm { height: var(--control-height-sm); padding: 0 var(--space-5); font-size: var(--text-label-size); }
+.btn-lg { height: var(--control-height-lg); padding: 0 var(--space-7); border-radius: var(--radius-control-lg); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+.btn-xl { height: var(--control-height-xl); padding: 0 var(--space-8); border-radius: var(--radius-control-xl); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
 .btn svg { width: var(--icon-size-sm); height: var(--icon-size-sm); flex-shrink: 0; }
 .btn-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--shadow-button-primary), var(--shadow-control); }
-.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); }
+/* base.css의 a:hover 글자색이 ButtonLink를 덮지 않도록 hover에도 자기 글자색을 적는다 */
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); color: var(--color-on-accent); }
 .btn-secondary { background: var(--color-surface); border-color: var(--color-border-strong); color: var(--color-text-primary); box-shadow: var(--shadow-control); }
-.btn-secondary:hover:not(:disabled) { background: var(--color-surface-subtle); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-subtle); color: var(--color-text-primary); }
 .btn-ghost { background: transparent; color: var(--color-text-secondary); }
 .btn-ghost:hover:not(:disabled) { background: var(--color-surface-muted); color: var(--color-text-primary); }
 .btn-danger { background: var(--color-danger); color: var(--color-on-accent); }
-.btn-danger:hover:not(:disabled) { filter: brightness(0.92); }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.92); color: var(--color-on-accent); }
+/* 로딩: 글자는 자리만 지키고 스피너가 가운데. 반투명 대신 그대로 진하게 둬서 "기다리는 중"이 보이게 */
+.btn-loading { position: relative; }
+.btn-loading:disabled { opacity: 1; cursor: progress; }
+.btn-loading .btn-label { visibility: hidden; display: contents; }
+.btn-loading .spinner { position: absolute; inset: 0; margin: auto; }
 /* 아이콘만 있는 버튼은 정사각형 */
 .btn-icon.btn-md { width: var(--control-height); padding: 0; }
 .btn-icon.btn-sm { width: var(--control-height-sm); padding: 0; }
+.btn-icon.btn-lg { width: var(--control-height-lg); padding: 0; }
+.btn-icon.btn-xl { width: var(--control-height-xl); padding: 0; }
+.btn-lg svg, .btn-xl svg { width: var(--spinner-size-md); height: var(--spinner-size-md); }
 /* 손가락으로 누르는 기기에서는 보이는 크기와 상관없이 누르는 영역을 44px 이상으로 */
 @media (pointer: coarse) {
   .btn { position: relative; }

@@ -7,7 +7,7 @@ import { feedbackItems, frames, transcriptSegments, violationCandidates } from "
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent, logEvents } from "../../lib/events";
-import { guideRules } from "../../lib/guides";
+import { reviewRules } from "../../lib/guides";
 import { editorsOnly } from "../../middleware/auth";
 import { RULE_TYPE_LABELS, type RuleType } from "../../../shared/guides";
 import { assertUnlocked, feedbackBody, loadSub } from "./shared";
@@ -92,7 +92,7 @@ export const candidateRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const { sub, gi, guide, workspace, user } = await loadSub(c, c.req.param("id"));
     await assertUnlocked(db, sub);
-    const rule = (await guideRules(db, guide)).find((r) => r.id === body.ruleId);
+    const rule = (await reviewRules(db, guide)).find((r) => r.id === body.ruleId);
     if (!rule) throw new ApiError(400, "validation_error", "규칙을 찾을 수 없어요.", { ruleId: "규칙을 골라 주세요." });
     await db.insert(feedbackItems).values({ id: newId(), submissionId: sub.id, frameId: body.frameId, tMs: body.tMs, shape: body.shape, text: body.text, source: "missed", ruleId: rule.id, authorId: user.id, createdAt: now() });
     await logEvents(db, workspace.id, [

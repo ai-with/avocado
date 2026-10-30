@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, notInArray } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { approvals, contents, feedbackItems, frames, guideInfluencers, guides, influencers, processingJobs, reviewRounds, submissions, supersededVersions, transcriptSegments, violationCandidates } from "../../db/schema";
-import { guideLinks, guideRules } from "../../lib/guides";
+import { guideLinks, reviewRules } from "../../lib/guides";
 import { workspaceCtx } from "../../middleware/auth";
 import { approvalOf, approvedRefOf, fileUrl, isDelayed, isSuperseded, loadSub } from "./shared";
 import { approveCheck, isLocked, reviewState, type ApprovedRef } from "./policy";
@@ -108,7 +108,8 @@ export const reviewListRoutes = new Hono<AppEnv>()
     const { sub, gi, guide, influencer } = await loadSub(c, c.req.param("id"));
     const { role } = workspaceCtx(c);
     const versions = await versionsOf(db, gi.id);
-    const clean = versions.find((v) => v.kind === "clean" && v.version === sub.version && v.originalKey);
+    // 같은 버전에 클린본을 다시 올리면 가장 최근 것이 대체한다 (TASK-074)
+    const clean = versions.filter((v) => v.kind === "clean" && v.version === sub.version && v.originalKey).at(-1);
     const analysis = await analysisOf(db, sub.id);
     const rounds = await db.select().from(reviewRounds).where(eq(reviewRounds.guideInfluencerId, gi.id)).orderBy(asc(reviewRounds.n));
     const items = await feedbackOf(db, versions.map((v) => v.id));
@@ -122,7 +123,7 @@ export const reviewListRoutes = new Hono<AppEnv>()
       feedbackUrl: guideLinks(c.env, gi).feedback,
       versions: versions.filter((v) => v.kind === "final").map(({ originalKey: _k, ...v }) => v),
       ...analysis,
-      rules: (await guideRules(db, guide)).filter((r) => r.enabled),
+      rules: (await reviewRules(db, guide)).filter((r) => r.enabled),
       drafts: items.filter((i) => i.submissionId === sub.id && !i.roundId),
       rounds: rounds.map((r) => ({ ...r, version: versionOf.get(r.submissionId) ?? null, items: items.filter((i) => i.roundId === r.id) })),
       approval: await approvalOf(db, gi.id),

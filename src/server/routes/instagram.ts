@@ -10,6 +10,7 @@ import { logEvent } from "../lib/events";
 import { decryptToken, encryptToken, hmacHex, safeEqual } from "../lib/crypto";
 import { authorizeUrl, exchangeCode, igConfigured, isFake, recentMedia, tokenKey, verifySignature } from "../lib/instagram";
 import { handleComment, type IgComment } from "../lib/keyword-dm";
+import { brandNameOf } from "../lib/brands";
 import { editorsOnly, workspaceCtx } from "../middleware/auth";
 import { IG_SCOPES, type IgTarget } from "../../shared/performance";
 
@@ -30,11 +31,10 @@ async function readState(env: Env, raw: string): Promise<State | null> {
 // 공개 연결 토큰 → 대상. influencer 는 guide_influencers.connect_token, client_brand 는 ig_connections.connect_token
 async function resolveConnectToken(db: Db, token: string) {
   const gi = await db
-    .select({ influencerId: guideInfluencers.influencerId, ws: guides.workspaceId, name: influencers.displayName, lang: influencers.lang, wsName: workspaces.name })
+    .select({ influencerId: guideInfluencers.influencerId, guideId: guides.id, ws: guides.workspaceId, name: influencers.displayName, lang: influencers.lang })
     .from(guideInfluencers)
     .innerJoin(guides, eq(guides.id, guideInfluencers.guideId))
     .innerJoin(influencers, eq(influencers.id, guideInfluencers.influencerId))
-    .innerJoin(workspaces, eq(workspaces.id, guides.workspaceId))
     .where(eq(guideInfluencers.connectToken, token))
     .get();
   if (gi) {
@@ -43,7 +43,7 @@ async function resolveConnectToken(db: Db, token: string) {
       .from(igConnections)
       .where(and(eq(igConnections.workspaceId, gi.ws), eq(igConnections.influencerId, gi.influencerId), eq(igConnections.target, "influencer"), isNull(igConnections.revokedAt)))
       .get();
-    return { target: "influencer" as const, workspaceId: gi.ws, workspaceName: gi.wsName, influencerId: gi.influencerId, name: gi.name, lang: gi.lang, conn: conn ?? null };
+    return { target: "influencer" as const, workspaceId: gi.ws, workspaceName: await brandNameOf(db, gi.ws, gi.guideId), influencerId: gi.influencerId, name: gi.name, lang: gi.lang, conn: conn ?? null };
   }
   const cb = await db.select({ conn: igConnections, wsName: workspaces.name }).from(igConnections).innerJoin(workspaces, eq(workspaces.id, igConnections.workspaceId)).where(eq(igConnections.connectToken, token)).get();
   if (cb && !cb.conn.revokedAt) return { target: "client_brand" as const, workspaceId: cb.conn.workspaceId, workspaceName: cb.wsName, influencerId: null, name: cb.conn.label ?? "", lang: "ko" as const, conn: cb.conn };

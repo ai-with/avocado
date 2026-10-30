@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Card, Checkbox, EmptyState } from "../../../ui";
+import { Badge, Button, Card, EmptyState, Switch } from "../../../ui";
 import { api } from "../../../lib/api";
 import { fmtTimecode } from "../../../../shared/review";
 import type { ActFn, ReviewDetail, SeekFn } from "../types";
@@ -21,7 +21,7 @@ export function TranscriptTab({ d, base, canEdit, onSeek, onAct }: { d: ReviewDe
   return (
     <div className="stack">
       <div className="row">
-        <Checkbox label="번역 보기" checked={translated} onChange={(e) => setTranslated(e.target.checked)} />
+        <Switch label="번역 보기" checked={translated} onChange={setTranslated} />
         {translated && <Badge tone="info">자동 번역</Badge>}
         {tr?.status === "failed" && <span className="text-caption">번역 실패, 원문만 보여요</span>}
       </div>

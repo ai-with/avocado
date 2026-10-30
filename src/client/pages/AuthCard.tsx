@@ -52,5 +52,5 @@ export function AuthCard({ title, description, children }: Props) {
 // 폼 전체 오류. 필드별 오류는 Input 의 error 로 칸 바로 아래에 보인다
 export function FormError({ message }: { message: string }) {
   if (!message) return null;
-  return <p className="form-error" role="alert">{message}</p>;
+  return <p className="field-error" role="alert">{message}</p>;
 }

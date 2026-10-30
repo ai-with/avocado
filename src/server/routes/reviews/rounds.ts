@@ -9,6 +9,7 @@ import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { sendEmail } from "../../lib/email";
 import { guideLinks } from "../../lib/guides";
+import { brandNameOf } from "../../lib/brands";
 import { approvedMail, feedbackRoundMail } from "../../lib/influencer-mails";
 import { approversOnly, editorsOnly } from "../../middleware/auth";
 import { BRAND_LANG, approvedRefOf, assertUnlocked, influencerEmail, isSuperseded, lastRoundN, loadSub } from "./shared";
@@ -50,7 +51,8 @@ async function hoursFromFirstUpload(db: Db, giId: string, at: number) {
   return first?.t ? Math.round(((at - first.t) / HOUR_MS) * 10) / 10 : null;
 }
 
-const recipient = (env: Env, s: Loaded) => ({ brand: s.workspace.name, name: s.influencer.displayName, en: s.influencer.lang === "en", url: guideLinks(env, s.gi).feedback });
+// 메일 머리의 브랜드는 캠페인 브랜드 (TASK-070)
+const recipient = async (env: Env, db: Db, s: Loaded) => ({ brand: await brandNameOf(db, s.workspace.id, s.guide.id), name: s.influencer.displayName, en: s.influencer.lang === "en", url: guideLinks(env, s.gi).feedback });
 
 export const roundRoutes = new Hono<AppEnv>()
   // '피드백 보내기' = 라운드 +1. 브랜드가 확인한 번역문으로 보낸다 (4-2)
@@ -63,10 +65,10 @@ export const roundRoutes = new Hono<AppEnv>()
     if (drafts.length === 0) throw new ApiError(400, "no_feedback", "보낼 코멘트가 없어요.");
     const textOf = s.influencer.lang !== BRAND_LANG ? translationFor(drafts, body.translations, body.sendOriginal) : () => null;
     const round = await saveRound(db, s, drafts, textOf);
-    await logEvent(db, s.workspace.id, "review_round_submitted", { round: round.n, comment_count: drafts.length });
+    await logEvent(db, s.workspace.id, "review_round_submitted", { gi_id: s.gi.id, round: round.n, comment_count: drafts.length });
 
     const to = await influencerEmail(db, s.gi.id, s.influencer);
-    const email = to ? await sendEmail(c.env, { to, ...feedbackRoundMail(recipient(c.env, s), s.guide.name, drafts.length) }) : { delivered: false };
+    const email = to ? await sendEmail(c.env, { to, ...feedbackRoundMail(await recipient(c.env, db, s), s.guide.name, drafts.length) }) : { delivered: false };
     return c.json({ ok: true, round: round.n, email });
   })
   // 최종 승인 (owner, approver). 승인 뒤 새 버전을 승인하면 승인이 그 버전으로 옮겨가고 승인 메일을 다시 보낸다 (340)
@@ -84,9 +86,9 @@ export const roundRoutes = new Hono<AppEnv>()
       check === "first" ? db.insert(approvals).values({ id: newId(), guideInfluencerId: gi.id, ...row }) : db.update(approvals).set(row).where(eq(approvals.guideInfluencerId, gi.id)),
       db.update(guideInfluencers).set({ stage: "approved" }).where(eq(guideInfluencers.id, gi.id)),
     ]);
-    await logEvent(db, s.workspace.id, "final_approved", { rounds_used: await lastRoundN(db, gi.id), hours_from_first_upload: await hoursFromFirstUpload(db, gi.id, at), moved_from_version: approved?.version ?? null });
+    await logEvent(db, s.workspace.id, "final_approved", { gi_id: gi.id, rounds_used: await lastRoundN(db, gi.id), hours_from_first_upload: await hoursFromFirstUpload(db, gi.id, at), moved_from_version: approved?.version ?? null });
     const to = await influencerEmail(db, gi.id, s.influencer);
-    if (to) c.executionCtx.waitUntil(sendEmail(c.env, { to, ...approvedMail(recipient(c.env, s), s.guide.name) }).then(() => undefined));
+    if (to) c.executionCtx.waitUntil(sendEmail(c.env, { to, ...approvedMail(await recipient(c.env, db, s), s.guide.name) }).then(() => undefined));
     return c.json({ ok: true });
   })
   // 승인 뒤 새 버전을 '기존 승인 유지'로 닫는다. 인플루언서에게 알리지 않는다 (340)

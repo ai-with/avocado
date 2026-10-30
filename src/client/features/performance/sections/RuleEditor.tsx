@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, Modal, Select, Textarea } from "../../../ui";
+import { Button, Checkbox, Input, Modal, Textarea, SelectMenu } from "../../../ui";
 import { fmtDateTime, type GuideInfluencerRow } from "../../guides/types";
 import { renderDm } from "../../../../shared/performance";
 import type { Media, Rule } from "../kdmTypes";
@@ -33,14 +33,15 @@ function MediaPicker({ f, setF, fields, media }: FormProps & { media: Media[] | 
 function TargetFields({ f, setF, fields, guides, infs }: FormProps & { guides: { id: string; name: string }[]; infs: GuideInfluencerRow[] }) {
   return (
     <>
-      <Select label="가이드" value={f.guideId} error={fields.guideId} onChange={(e) => setF({ ...f, guideId: e.target.value, influencerId: "" })}>
-        <option value="">고르기</option>
-        {guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-      </Select>
-      <Select label="인플루언서 (이 게시물에 연결할 사람)" value={f.influencerId} error={fields.influencerId} onChange={(e) => setF({ ...f, influencerId: e.target.value })}>
-        <option value="">고르기</option>
-        {infs.map((r) => <option key={r.influencer.id} value={r.influencer.id}>{r.influencer.displayName}</option>)}
-      </Select>
+      <SelectMenu label="가이드" placeholder="고르기" options={guides.map((g) => ({ value: g.id, label: g.name }))} value={f.guideId || null} error={fields.guideId} onChange={(v) => setF({ ...f, guideId: v ?? "", influencerId: "" })} />
+      <SelectMenu
+        label="인플루언서 (이 게시물에 연결할 사람)"
+        placeholder="고르기"
+        options={infs.map((r) => ({ value: r.influencer.id, label: r.influencer.displayName }))}
+        value={f.influencerId || null}
+        error={fields.influencerId}
+        onChange={(v) => setF({ ...f, influencerId: v ?? "" })}
+      />
     </>
   );
 }
@@ -67,7 +68,7 @@ export function RuleEditor({ rule, defaults, brand, onClose, onSaved }: Props) {
         <TargetFields {...form} guides={guides} infs={infs} />
         <MediaPicker {...form} media={media} />
         <Input label="키워드 (쉼표로 구분)" hint="대소문자와 띄어쓰기는 무시해요." value={f.keywords} error={fields.keywords} onChange={(e) => setF({ ...f, keywords: e.target.value })} placeholder="자료, 신청" />
-        <Textarea label="DM 문구" hint="{link} 자리에 이 인플루언서의 '댓글 키워드 DM' 링크가 들어가요." value={f.message} error={fields.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+        <Textarea autoGrow label="DM 문구" hint="{link} 자리에 이 인플루언서의 '댓글 키워드 DM' 링크가 들어가요." value={f.message} error={fields.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
         <PublicReplies f={f} setF={setF} defaults={defaults} />
         <div className="stack-tight">
           <strong>미리보기</strong>

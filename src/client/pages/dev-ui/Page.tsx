@@ -1,8 +1,12 @@
 import { Actions } from "./sections/Actions";
+import { Controls } from "./sections/Controls";
 import { Display } from "./sections/Display";
+import { Feedback } from "./sections/Feedback";
 import { Forms } from "./sections/Forms";
+import { Inputs } from "./sections/Inputs";
 import { Navigation } from "./sections/Navigation";
 import { Overlays } from "./sections/Overlays";
+import { SelectMenus } from "./sections/SelectMenus";
 import { Tokens } from "./sections/Tokens";
 import "./dev-ui.css";
 
@@ -19,7 +23,11 @@ export function DevUiPage() {
       <h2 className="dev-part">공통 컴포넌트</h2>
       <Actions />
       <Forms />
+      <Inputs />
+      <SelectMenus />
+      <Controls />
       <Display />
+      <Feedback />
       <Navigation />
       <Overlays />
     </main>

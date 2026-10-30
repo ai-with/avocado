@@ -28,7 +28,13 @@ function useSlotFile() {
     const check = checkUpload(f.name, f.size, meta.durationS);
     setPhase(check.ok ? "idle" : check.reason === "bad_format" ? "bad_format" : "too_big");
   };
-  return { file, phase, setPhase, progress, setProgress, msg, setMsg, pick };
+  const reset = () => {
+    setFile(null);
+    setPhase("idle");
+    setProgress(0);
+    setMsg("");
+  };
+  return { file, phase, setPhase, progress, setProgress, msg, setMsg, pick, reset };
 }
 
 // 다시 시도를 다 쓰고 멈춘 뒤에도 연결이 돌아오면 저절로 이어 간다
@@ -61,7 +67,7 @@ function useDriveLink({ token, kind, note, onSubmitted, onError, onDone }: LinkA
 
 // 업로드 칸 하나의 상태와 동작 (파일 고르기, 나눠 올리기, 분석 자료 전송, 외부 링크 제출)
 export function useSlotUpload({ token, kind, t, maxFrames, onDone }: SlotArgs) {
-  const { file, phase, setPhase, progress, setProgress, msg, setMsg, pick } = useSlotFile();
+  const { file, phase, setPhase, progress, setProgress, msg, setMsg, pick, reset: resetFile } = useSlotFile();
   const [note, setNote] = useState("");
   const [reconnecting, setReconnecting] = useState(false);
   const link = useDriveLink({ token, kind, note, onSubmitted: () => setPhase("external_done"), onError: setMsg, onDone });
@@ -88,6 +94,13 @@ export function useSlotUpload({ token, kind, t, maxFrames, onDone }: SlotArgs) {
     await onDone();
   };
 
+  // 다 올린 뒤 다른 종류를 이어 올릴 수 있게 처음 상태로 돌린다
+  const reset = () => {
+    resetFile();
+    setNote("");
+    link.setDriveUrl("");
+  };
+
   useResumeOnline(phase === "paused" && !!file, upload);
-  return { file, note, setNote, phase, progress, msg, reconnecting, ...link, pick, upload };
+  return { file, note, setNote, phase, progress, msg, reconnecting, ...link, pick, upload, reset };
 }

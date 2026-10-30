@@ -1,4 +1,4 @@
-import { Button, Input, SectionCard, Select, ButtonLink } from "../../../ui";
+import { Button, Input, SectionCard, Select, ButtonLink, SelectMenu } from "../../../ui";
 import type { DestinationType } from "../../../../shared/leads";
 import { FilePickButton } from "../FilePickButton";
 import { hasUtm, type GuideLinksState } from "../useGuideLinks";
@@ -15,10 +15,14 @@ function DestinationPicker({ s }: { s: GuideLinksState }) {
       {d.destType === "url" ? (
         <Input label="주소" placeholder="https://" value={d.destUrl} onChange={(e) => d.setDestUrl(e.target.value)} hint={hasUtm(d.destUrl) ? "이미 UTM이 있어요. 발급하면 링크별 값으로 덮어써요." : undefined} />
       ) : (
-        <Select label={d.destType === "document" ? "자료" : "폼"} value={d.destId} onChange={(e) => d.setDestId(e.target.value)}>
-          {d.choices.length === 0 && <option value="">{d.destType === "document" ? "자료를 먼저 올려 주세요" : "폼을 먼저 만들어 주세요"}</option>}
-          {d.choices.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-        </Select>
+        <SelectMenu
+          label={d.destType === "document" ? "자료" : "폼"}
+          placeholder={d.choices.length === 0 ? (d.destType === "document" ? "자료를 먼저 올려 주세요" : "폼을 먼저 만들어 주세요") : undefined}
+          disabled={d.choices.length === 0}
+          options={d.choices.map((c) => ({ value: c.id, label: c.title }))}
+          value={d.destId || null}
+          onChange={(v) => d.setDestId(v ?? "")}
+        />
       )}
     </div>
   );
@@ -30,7 +34,7 @@ function CreateDestinationActions({ s, guideId }: { s: GuideLinksState; guideId:
     <div className="row row-wrap">
       {s.dest.destType === "document" ? (
         <>
-          <FilePickButton label={s.busy ? "올리는 중" : "PDF 올리기 (50MB까지)"} accept="application/pdf" disabled={s.busy} onFile={(f) => void s.upload(f)} />
+          <FilePickButton label="PDF 올리기 (50MB까지)" loading={s.busy} accept="application/pdf" disabled={s.busy} onFile={(f) => void s.upload(f)} />
           <ButtonLink variant="ghost" size="sm" to={`/dashboard/documents/new?guideId=${guideId}`}>직접 쓰기·홈페이지 주소로 만들기</ButtonLink>
         </>
       ) : (

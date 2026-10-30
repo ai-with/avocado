@@ -19,7 +19,7 @@ export function PhotoField({ photos, onChange, error }: Props) {
         error={up.error || error}
       />
       <div className="row">
-        <FilePickButton label={up.busy ? "올리는 중" : "사진 파일 올리기"} accept={GUIDE_PHOTO_ACCEPT} onFile={(f) => void up.upload(f)} disabled={up.busy} />
+        <FilePickButton label="사진 파일 올리기" loading={up.busy} accept={GUIDE_PHOTO_ACCEPT} onFile={(f) => void up.upload(f)} disabled={up.busy} />
       </div>
     </div>
   );

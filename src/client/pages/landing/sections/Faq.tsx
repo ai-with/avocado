@@ -1,3 +1,4 @@
+import { Disclosure } from "../../../ui";
 import { FAQ } from "../copy";
 import { LandingSection } from "./Features";
 
@@ -6,10 +7,9 @@ export function Faq() {
     <LandingSection id="faq" title={FAQ.title}>
       <div className="landing-faq">
         {FAQ.items.map((it) => (
-          <details key={it.q} className="landing-faq-item">
-            <summary>{it.q}</summary>
+          <Disclosure key={it.q} title={it.q}>
             <p className="text-secondary">{it.a}</p>
-          </details>
+          </Disclosure>
         ))}
       </div>
     </LandingSection>

@@ -1,10 +1,2 @@
-/* 도움 받기: 자주 묻는 질문 접기 목록 */
-.help-faq { display: flex; flex-direction: column; }
-.help-faq-item { border-top: 1px solid var(--color-border); padding: var(--space-5) 0; }
-.help-faq-item:last-child { padding-bottom: 0; }
-.help-faq-item summary { cursor: pointer; font-weight: var(--weight-medium); }
-.help-faq-item p { margin-top: var(--space-4); max-width: 72ch; }
-
-@media (pointer: coarse) {
-  .help-faq-item summary { min-height: var(--touch-target); display: flex; align-items: center; }
-}
+/* 도움 받기: 자주 묻는 질문 답은 읽기 좋은 폭으로 */
+.help-faq-answer { max-width: 72ch; }

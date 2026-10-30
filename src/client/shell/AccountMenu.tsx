@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Dropdown, Icon, type DropdownItem } from "../ui";
+import { Avatar, Dropdown, Icon, type DropdownItem } from "../ui";
 import { api } from "../lib/api";
 import { useMe, type Me } from "../lib/me";
 import { ACCOUNT_LINKS } from "./nav";
@@ -26,8 +26,6 @@ function useAccountActions(onClose: () => void) {
   return { logout, switchTo };
 }
 
-const Avatar = ({ name, size }: { name: string; size?: "sm" }) => <span className={`avatar ${size ? "avatar-sm" : ""}`} aria-hidden="true">{name.slice(0, 1)}</span>;
-
 // 사이드바 맨 위: 지금 워크스페이스 이름. 누르면 다른 워크스페이스로 전환하거나 설정으로 간다
 export function WorkspaceSwitcher({ me, collapsed, onNavigate }: Props) {
   const navigate = useNavigate();
@@ -45,8 +43,8 @@ export function WorkspaceSwitcher({ me, collapsed, onNavigate }: Props) {
   } });
 
   return (
-    <Dropdown items={items} label={`워크스페이스: ${name}`} header={plan ? `${plan} 요금제` : undefined} triggerClassName="workspace-button" tip={collapsed ? name : undefined}>
-      <Avatar name={name} />
+    <Dropdown items={items} label={`워크스페이스: ${name}`} header={plan ? `${plan} 요금제` : undefined} triggerClassName="workspace-button" menuClassName="workspace-menu" tip={collapsed ? name : undefined}>
+      <Avatar name={name} size="sm" />
       {!collapsed && (
         <>
           <span className="workspace-name">{name}</span>
@@ -74,7 +72,7 @@ export function AccountMenu({ me, collapsed, onNavigate }: Props) {
   return (
     <div className="account">
       <Dropdown items={items} label="계정 메뉴" side="top" header={me.user.phone ?? undefined} triggerClassName="account-button" tip={collapsed ? me.user.name : undefined}>
-        <Avatar name={me.user.name || me.user.email} />
+        <Avatar name={me.user.name || me.user.email} size="sm" />
         {!collapsed && (
           <span className="account-text">
             <span className="account-name">{me.user.name}</span>

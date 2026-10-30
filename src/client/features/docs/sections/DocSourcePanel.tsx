@@ -19,7 +19,7 @@ function UrlSourceCard({ doc, s }: { doc: DocumentDetail; s: DocumentEditState }
           ? `${dateTime(doc.fetchedAt)}에 떠 둔 화면을 보여 줘요. 원래 페이지를 고쳤다면 다시 불러오세요.`
           : "이 주소는 불러올 수 없어요. 읽는 사람에게는 열자마자 정보 입력을 받고 새 창으로 열기 링크만 보여 줘요."}
       </p>
-      <div><Button size="sm" variant="secondary" disabled={s.refetching} onClick={() => void s.refetch()}>{s.refetching ? "불러오는 중" : "페이지 다시 불러오기"}</Button></div>
+      <div><Button size="sm" variant="secondary" loading={s.refetching} onClick={() => void s.refetch()}>페이지 다시 불러오기</Button></div>
     </Card>
   );
 }

@@ -1,10 +1,12 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { Db } from "../db";
-import { guideInfluencers, guidelineRules, guides, influencers, workspaces } from "../db/schema";
+import { brands, campaigns, guideInfluencers, guidelineRules, guides, influencers, workspaces } from "../db/schema";
 import { ApiError } from "./errors";
 import { newId, newToken, now } from "./ids";
 import { logEvent } from "./events";
 import { findOwned } from "./owned";
+import { resolveBrandName } from "./brands";
+import { dictRules } from "./brand-terms";
 import { TOKEN_TTL_MS, isTokenExpired, type GuideRule } from "../../shared/guides";
 
 // 가이드·인플루언서 링크 공용 헬퍼. 브랜드 라우트, 공개 라우트, 처리 파이프라인이 같이 쓴다
@@ -25,6 +27,11 @@ export async function guideRules(db: Db, guide: { guidelineSetId: string | null;
     ? await db.select().from(guidelineRules).where(eq(guidelineRules.setId, guide.guidelineSetId)).orderBy(asc(guidelineRules.createdAt))
     : [];
   return [...fromSet.map((r) => ({ id: r.id, type: r.type, content: r.content, severity: r.severity, targets: r.targets, enabled: r.enabled, version: r.version })), ...guide.extraRules];
+}
+
+// 검수에 쓰는 규칙 = 위 규칙 + 브랜드 검수 사전 규칙 (TASK-079). 사전 규칙 id 는 bt:, legal: 로 시작한다
+export async function reviewRules(db: Db, guide: { guidelineSetId: string | null; extraRules: GuideRule[]; campaignId: string | null; brandTermExclusions: string[] }): Promise<GuideRule[]> {
+  return [...(await guideRules(db, guide)), ...(await dictRules(db, guide))];
 }
 
 export const issueTokens = () => ({
@@ -57,16 +64,20 @@ export type TokenColumn = "guideToken" | "uploadToken" | "feedbackToken";
 // 인플루언서 공개 링크(/g, /u, /f) 토큰으로 찾는다. 없으면 null, 만료면 410
 export async function findByToken(db: Db, column: TokenColumn, token: string) {
   const row = await db
-    .select({ gi: guideInfluencers, guide: guides, influencer: influencers, workspaceName: workspaces.name })
+    .select({ gi: guideInfluencers, guide: guides, influencer: influencers, workspaceName: workspaces.name, campaignBrand: brands.name })
     .from(guideInfluencers)
     .innerJoin(guides, eq(guides.id, guideInfluencers.guideId))
     .innerJoin(influencers, eq(influencers.id, guideInfluencers.influencerId))
     .innerJoin(workspaces, eq(workspaces.id, guides.workspaceId))
+    .leftJoin(campaigns, eq(campaigns.id, guides.campaignId))
+    .leftJoin(brands, and(eq(brands.id, campaigns.brandId), isNull(brands.deletedAt)))
     .where(eq(guideInfluencers[column], token))
     .get();
   if (!row) return null;
   if (isTokenExpired(row.gi.tokenExpiresAt, now())) throw new ApiError(410, "link_expired", "링크가 만료되었어요. 브랜드에 새 링크를 요청해 주세요.");
-  return row;
+  // 공개 화면·메일에 보이는 이름은 캠페인 브랜드 이름 (TASK-070)
+  const { campaignBrand, ...rest } = row;
+  return { ...rest, brandName: resolveBrandName(campaignBrand, row.workspaceName) };
 }
 
 export const linkNotFound = () => new ApiError(404, "link_not_found", "링크를 찾을 수 없어요. 주소를 다시 확인해 주세요.");

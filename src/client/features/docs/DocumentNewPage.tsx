@@ -61,9 +61,7 @@ function NewDocFields({ type, busy, title, setTitle, url, setUrl, onCreate }: Fi
       <Input label="제목" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === "url" ? "예: 제품 소개 페이지" : "예: 우리 팀이 이 도구를 만든 이유"} />
       {type === "url" && <Input label="홈페이지 주소" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" hint="자바스크립트로만 그려지는 페이지는 비어 보일 수 있어요." />}
       <div>
-        <Button disabled={busy || !title.trim() || (type === "url" && !url.trim())} onClick={onCreate}>
-          {busy ? (type === "url" ? "페이지를 불러오는 중" : "만드는 중") : "자료 만들기"}
-        </Button>
+        <Button disabled={!title.trim() || (type === "url" && !url.trim())} loading={busy} onClick={onCreate}>자료 만들기</Button>
       </div>
     </>
   );
@@ -83,7 +81,7 @@ export function DocumentNewPage() {
         <SourceCards type={type} onChange={setType} />
         <Card className="stack">
           {type === "pdf" ? (
-            <div><FilePickButton variant="primary" size="md" label={busy ? "올리는 중" : "PDF 파일 고르기"} accept="application/pdf" disabled={busy} onFile={upload} /></div>
+            <div><FilePickButton variant="primary" size="md" label="PDF 파일 고르기" accept="application/pdf" loading={busy} onFile={upload} /></div>
           ) : (
             <NewDocFields type={type} busy={busy} title={title} setTitle={setTitle} url={url} setUrl={setUrl} onCreate={() => void create(type, title, url)} />
           )}

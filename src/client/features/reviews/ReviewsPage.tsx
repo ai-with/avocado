@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge, EmptyState, FilterBar, LoadingState, PageHeader, Select, Table, Tabs, type BadgeTone } from "../../ui";
+import { Badge, EmptyState, FilterBar, LoadingState, PageHeader, Table, Tabs, type BadgeTone, SelectMenu } from "../../ui";
 import { api } from "../../lib/api";
 import { fmtDateTime } from "../guides/types";
 import { CONFLICT_LABEL, REVIEW_STATE_LABELS, type ReviewState } from "../../../shared/review";
@@ -61,15 +61,9 @@ export function ReviewList({ guideId }: { guideId?: string }) {
       <Tabs tabs={FILTERS.map((f) => ({ ...f, label: `${f.label} ${count(f.value)}` }))} value={filter} onChange={setFilter} />
       <FilterBar label="검수 목록 필터">
         {!guideId && (
-          <Select aria-label="가이드" value={guide} onChange={(e) => setGuide(e.target.value)}>
-            <option value="">모든 가이드</option>
-            {guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </Select>
+          <SelectMenu aria-label="가이드" options={[{ value: "", label: "모든 가이드" }, ...guides.map((g) => ({ value: g.id, label: g.name }))]} value={guide} onChange={(v) => setGuide(v ?? "")} />
         )}
-        <Select aria-label="인플루언서" value={influencer} onChange={(e) => setInfluencer(e.target.value)}>
-          <option value="">모든 인플루언서</option>
-          {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </Select>
+        <SelectMenu aria-label="인플루언서" options={[{ value: "", label: "모든 인플루언서" }, ...people.map((p) => ({ value: p.id, label: p.name }))]} value={influencer} onChange={(v) => setInfluencer(v ?? "")} />
       </FilterBar>
       {shown.length === 0 ? (
         <EmptyState title="검수할 영상이 없어요" description="인플루언서가 업로드 링크로 영상을 올리면 처리 후 여기에 쌓여요. 필터를 걸었다면 조건을 바꿔 보세요." />

@@ -6,11 +6,11 @@ import { lines, type Busy, type SetField } from "../useGuideForm";
 type Props = { vg: VideoGuide | null; setVg: (patch: Partial<VideoGuide>) => void; set: SetField; rules: GuideRule[]; vgWarnings: string[]; busy: Busy; onGenerate: () => void };
 
 export function VideoGuideSection({ vg, setVg, set, rules, vgWarnings, busy, onGenerate }: Props) {
-  const generateLabel = busy === "generate" ? "만드는 중 (최대 30초)" : vg ? "초안 다시 만들기" : "초안 만들기";
+  const generateLabel = vg ? "초안 다시 만들기" : "초안 만들기";
   const actions = (
     <>
       {!vg && <Button variant="ghost" onClick={() => set("videoGuide", { ...emptyVideoGuide(), draft: false })}>직접 쓰기</Button>}
-      <Button variant="secondary" onClick={onGenerate} disabled={busy !== ""}>{generateLabel}</Button>
+      <Button variant="secondary" onClick={onGenerate} disabled={busy !== ""} loading={busy === "generate"}>{generateLabel}</Button>
     </>
   );
   const title = <span className="row">영상 가이드{vg?.draft && <Badge tone="warn">초안</Badge>}</span>;

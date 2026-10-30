@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, EmptyState, Select, Textarea } from "../../../ui";
+import { Button, Card, EmptyState, Textarea, SelectMenu } from "../../../ui";
 import { api } from "../../../lib/api";
 import { fmtTimecode } from "../../../../shared/review";
 import { RESULT_ORDER, ruleLabel } from "../labels";
@@ -54,9 +54,7 @@ function MissedForm({ d, base, selected, onDone, onAct }: { d: ReviewDetail; bas
     }, "놓친 위반을 피드백에 넣었어요.");
   return (
     <Card className="stack">
-      <Select label="규칙" value={ruleId} onChange={(e) => setRuleId(e.target.value)}>
-        {d.rules.map((r) => <option key={r.id} value={r.id}>{ruleLabel(r.type)}: {r.content}</option>)}
-      </Select>
+      <SelectMenu label="규칙" options={d.rules.map((r) => ({ value: r.id, label: r.content, description: ruleLabel(r.type) }))} value={ruleId || null} onChange={(v) => v && setRuleId(v)} />
       <p className="text-caption">{selected ? `선택한 프레임 ${fmtTimecode(selected.tMs)}` : "왼쪽 프레임 목록에서 장면을 먼저 골라 주세요."}</p>
       <Textarea label="코멘트" value={text} onChange={(e) => setText(e.target.value)} placeholder="무엇을 고쳐야 하는지 적어 주세요" />
       <div className="row">

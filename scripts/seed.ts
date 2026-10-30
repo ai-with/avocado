@@ -43,11 +43,15 @@ async function signupDemo() {
   await call("POST", "/api/auth/phone/verify", { phone: DEMO_PHONE, code: sent.devCode });
 }
 
+// 가입하면 워크스페이스 이름으로 기본 브랜드가 생긴다. 그 브랜드에 캠페인을 만들면 빈 브랜드 가이드가 함께 생긴다 (TASK-070)
 async function createGuide(): Promise<string> {
   const { set } = await call<{ set: { id: string } }>("POST", "/api/guideline-sets", { name: "기본 규정" });
   await call("POST", `/api/guideline-sets/${set.id}/rules`, { type: "forbidden_phrase", content: "무조건, 100% 보장", severity: "must", targets: ["speech", "caption"] });
-  const { guide } = await call<{ guide: { id: string } }>("POST", "/api/guides", {
-    name: "업무 자동화 툴 소개 인스타툰",
+  const { brands } = await call<{ brands: { id: string }[] }>("GET", "/api/brands");
+  const brandId = brands[0]?.id;
+  if (!brandId) throw new Error("기본 브랜드가 없어요. 마이그레이션(0017)을 적용했는지 확인해 주세요.");
+  const campaign = await call<{ id: string }>("POST", "/api/campaigns", { brandId, name: "업무 자동화 툴 소개 인스타툰" });
+  const { guide } = await call<{ guide: { id: string } }>("PATCH", `/api/guides/${campaign.id}`, {
     guidelineSetId: set.id,
     product: { name: "데모 워크플로", benefits: ["반복 업무 줄이기"], usage: "팀 업무 보드에 연결", photos: [] },
     purpose: "직장인 독자에게 제품을 자연스럽게 알리는 인스타툰",
@@ -84,6 +88,35 @@ async function createLeads(guideId: string) {
   await call("POST", "/api/leads/groups", { name: "마케팅 동의자", rules: { all: [{ field: "marketing_opt_in", op: "eq", value: true }] } });
 }
 
+// 메시지 템플릿 (TASK-073): 컨택 템플릿 1개(한국어·영어)와 사용자 변수 1개
+async function createMessageTemplates() {
+  await call("POST", "/api/message-variables", { key: "shipping_note", label: "제품 발송 안내", defaultValue: "제품은 동의 후 3일 안에 보내 드려요." });
+  await call("POST", "/api/message-templates", {
+    name: "첫 컨택 DM",
+    purpose: "contact",
+    bodies: {
+      ko: "안녕하세요 {{influencer_name}}님, {{brand_name}}이에요.\n{{campaign_name}} 캠페인에 함께하고 싶어 연락드려요.\n조건: {{fee}}, {{deliverables}}\n마감: {{deadline}}\n{{shipping_note}}\n가이드: {{guide_link}}",
+      en: "Hi {{influencer_name}}, this is {{brand_name}}.\nWe would love to work with you on {{campaign_name}}.\nTerms: {{fee}}, {{deliverables}}\nDeadline: {{deadline}}\n{{shipping_note}}\nGuide: {{guide_link}}",
+    },
+  });
+}
+
+// 브랜드 검수 사전 (TASK-079): 필수 멘트 1, 금지어 2(변형어 포함), 해시태그 1, 제품명 1(오표기 2)
+const BRAND_TERMS: Json[] = [
+  { kind: "required_ment", term: "반복 업무를 줄여 줘요", match: "similar" },
+  { kind: "forbidden", term: "업계 1위", variants: ["업계 일등", "넘버원"], suggestion: "많은 팀이 쓰는" },
+  { kind: "forbidden", term: "무조건", variants: ["100% 보장", "반드시 성공"], suggestion: "대부분의 경우" },
+  { kind: "hashtag", term: "#광고", targets: ["caption", "screen_text"] },
+  { kind: "product_name", term: "데모 워크플로", variants: ["데모워크플로우", "데모 플로"] },
+];
+
+async function createBrandTerms() {
+  const { brands } = await call<{ brands: { id: string }[] }>("GET", "/api/brands");
+  const brandId = brands[0]?.id;
+  if (!brandId) return;
+  for (const t of BRAND_TERMS) await call("POST", `/api/brands/${brandId}/terms`, t);
+}
+
 async function main() {
   try {
     await call("POST", "/api/auth/login", { email: DEMO_EMAIL, password: DEMO_PASSWORD });
@@ -95,6 +128,8 @@ async function main() {
   await signupDemo();
   const guideId = await createGuide();
   await createLeads(guideId);
+  await createMessageTemplates();
+  await createBrandTerms();
   console.log(`데모 워크스페이스를 만들었어요. ${BASE} 에서 ${DEMO_EMAIL} / ${DEMO_PASSWORD} 로 로그인하세요.`);
 }
 

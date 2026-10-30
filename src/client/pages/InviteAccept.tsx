@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Input, LoadingState, Tabs } from "../ui";
+import { Button, Input, LoadingState, Tabs, TextField } from "../ui";
 import { api, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { ROLE_LABELS, type Role } from "../../shared/roles";
@@ -31,7 +31,7 @@ function AcceptSection({ token }: { token: string }) {
   return (
     <div className="stack mt-section">
       <FormError message={error} />
-      <Button onClick={() => void accept()} disabled={busy}>초대 수락하기</Button>
+      <Button size="lg" onClick={() => void accept()} loading={busy}>초대 수락하기</Button>
     </div>
   );
 }
@@ -70,11 +70,11 @@ function JoinForm({ token, invite }: { token: string; invite: InviteInfo }) {
   return (
     <form className="stack" onSubmit={submit}>
       <Tabs tabs={[{ value: "signup", label: "새로 가입" }, { value: "login", label: "기존 계정으로 로그인" }]} value={mode} onChange={setMode} />
-      <Input label="이메일" type="email" autoComplete="email" value={invite.email} readOnly />
+      <TextField label="이메일" type="email" autoComplete="email" value={invite.email} readOnly />
       {signup && <Input label="이름" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required />}
       <Input label="비밀번호" type="password" autoComplete={signup ? "new-password" : "current-password"} hint={signup ? "8자 이상" : undefined} value={password} onChange={(e) => setPassword(e.target.value)} error={fields.password} required />
       <FormError message={error} />
-      <Button type="submit" disabled={busy}>{signup ? "가입하고 참여하기" : "로그인하고 참여하기"}</Button>
+      <Button type="submit" size="lg" loading={busy}>{signup ? "가입하고 참여하기" : "로그인하고 참여하기"}</Button>
     </form>
   );
 }

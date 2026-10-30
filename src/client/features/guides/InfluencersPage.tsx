@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Button, EmptyState, Input, LoadingState, Modal, PageHeader, Select, Table, useToast } from "../../ui";
+import { Link } from "react-router-dom";
+import { Button, EmptyState, Input, LoadingState, Modal, PageHeader, Select, Table, useToast, SelectMenu } from "../../ui";
 import { api, ApiError, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import { countryOptions } from "../../lib/countries";
@@ -26,9 +27,7 @@ export function InfluencerFields({ draft, onChange, fields }: { draft: Influence
           <option value="ko">한국어</option>
           <option value="en">영어</option>
         </Select>
-        <Select label="국가" value={draft.country} onChange={(e) => set("country", e.target.value)}>
-          {countryOptions("ko").map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-        </Select>
+        <SelectMenu label="국가" options={countryOptions("ko").map((c) => ({ value: c.code, label: c.label }))} value={draft.country} onChange={(v) => v && set("country", v)} />
       </div>
     </>
   );
@@ -60,14 +59,14 @@ function useInfluencers() {
       toast(errorMessage(err), "danger");
     }
   };
-  const remove = (r: Influencer) => confirm(`${r.displayName}님을 지울까요? 연결된 가이드 링크도 함께 지워져요.`) && void api.del(`/influencers/${r.id}`).then(load);
+  const remove = (r: Influencer) => confirm(`${r.displayName}님을 지울까요? 연결된 캠페인 링크도 함께 지워져요.`) && void api.del(`/influencers/${r.id}`).then(load);
   return { rows, editing, setEditing, fields, save, remove };
 }
 
 function InfluencerRow({ r, canEdit, onEdit, onRemove }: { r: Influencer; canEdit: boolean; onEdit: () => void; onRemove: () => void }) {
   return (
     <tr>
-      <td className="nowrap">{r.displayName}</td>
+      <td className="nowrap"><Link to={`/dashboard/influencers/${r.id}`}>{r.displayName}</Link></td>
       <td>{handlesText(r)}</td>
       <td>{r.email}</td>
       <td className="nowrap">{langLabel(r.lang)}</td>
@@ -89,7 +88,7 @@ function InfluencerTable({ rows, canEdit, onEdit, onRemove }: { rows: Influencer
   return (
     <Table>
       <thead>
-        <tr><th>이름</th><th>인스타·스레드</th><th>이메일</th><th>언어</th><th>국가</th><th className="num">참여 가이드</th>{canEdit && <th><span className="sr-only">관리</span></th>}</tr>
+        <tr><th>이름</th><th>인스타·스레드</th><th>이메일</th><th>언어</th><th>국가</th><th className="num">참여 캠페인</th>{canEdit && <th><span className="sr-only">관리</span></th>}</tr>
       </thead>
       <tbody>
         {rows.map((r) => <InfluencerRow key={r.id} r={r} canEdit={canEdit} onEdit={() => onEdit(r)} onRemove={() => onRemove(r)} />)}
@@ -98,7 +97,7 @@ function InfluencerTable({ rows, canEdit, onEdit, onRemove }: { rows: Influencer
   );
 }
 
-// /influencers: 워크스페이스 인플루언서 (가이드마다 다시 쓴다)
+// /influencers: 워크스페이스 인플루언서 (캠페인마다 다시 쓴다. 행에 참여 캠페인 수)
 export function InfluencersPage() {
   const { me } = useMe();
   const canEdit = me?.role === "owner" || me?.role === "editor";
@@ -107,9 +106,9 @@ export function InfluencersPage() {
 
   return (
     <>
-      <PageHeader title="인플루언서" description="한 번 등록하면 여러 가이드에서 다시 쓸 수 있어요." actions={canEdit && add} />
+      <PageHeader title="인플루언서" description="한 번 등록하면 여러 캠페인에서 다시 쓸 수 있어요." actions={canEdit && add} />
       {rows === null ? <LoadingState /> : rows.length === 0 ? (
-        <EmptyState title="등록한 인플루언서가 없어요" description="가이드 상세에서 바로 추가해도 여기에 쌓여요." action={canEdit && add} />
+        <EmptyState title="등록한 인플루언서가 없어요" description="캠페인 상세에서 바로 추가해도 여기에 쌓여요." action={canEdit && add} />
       ) : (
         <InfluencerTable rows={rows} canEdit={canEdit} onEdit={(r) => setEditing({ id: r.id, draft: toDraft(r) })} onRemove={remove} />
       )}

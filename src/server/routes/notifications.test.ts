@@ -12,8 +12,8 @@ const who = { name: "하루", guide: "가을 캠페인" };
 
 describe("이벤트 → 알림 매핑", () => {
   it("수락·철회는 가이드 상세로, 업로드·피드백 반영은 검수 상세로 보낸다", () => {
-    expect(draftNotification("participation_accepted", { guide_id: "g1", gi_id: "gi1" }, who)).toEqual({ kind: "participation_accepted", title: '하루님이 "가을 캠페인" 참여를 수락했어요', linkPath: "/dashboard/guides/g1" });
-    expect(draftNotification("consent_withdrawn", { guide_id: "g1" }, who)?.linkPath).toBe("/dashboard/guides/g1");
+    expect(draftNotification("participation_accepted", { guide_id: "g1", gi_id: "gi1" }, who)).toEqual({ kind: "participation_accepted", title: '하루님이 "가을 캠페인" 참여를 수락했어요', linkPath: "/dashboard/campaigns/g1" });
+    expect(draftNotification("consent_withdrawn", { guide_id: "g1" }, who)?.linkPath).toBe("/dashboard/campaigns/g1");
     expect(draftNotification("upload_completed", { submission_id: "s1" }, who)).toMatchObject({ kind: "upload_completed", linkPath: "/dashboard/reviews/s1", title: '하루님이 "가을 캠페인" 영상을 올렸어요' });
     expect(draftNotification("upload_completed", { submission_id: "s1", external: true }, who)?.title).toContain("영상 링크를 보냈어요");
     expect(draftNotification("feedback_item_done", { submission_id: "s2" }, who)).toMatchObject({ kind: "feedback_done", linkPath: "/dashboard/reviews/s2" });

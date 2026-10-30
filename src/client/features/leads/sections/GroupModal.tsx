@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Modal, Select, useToast } from "../../../ui";
+import { Button, Input, Modal, Select, TextField, useToast, SelectMenu } from "../../../ui";
 import { api, errorMessage } from "../../../lib/api";
 import type { GroupCondition, GroupField } from "../../../../shared/leads";
 import { FIELD_LABELS, valueOptions } from "../groupRules";
@@ -58,12 +58,9 @@ function RuleRow({ rule, lk, onChange, onRemove }: RuleRowProps) {
         <option value="neq">아니다</option>
       </Select>
       {opts ? (
-        <Select aria-label="값" value={String(rule.value)} onChange={(e) => onChange({ value: e.target.value })}>
-          <option value="">고르기</option>
-          {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </Select>
+        <SelectMenu aria-label="값" placeholder="고르기" options={opts} value={String(rule.value) || null} onChange={(v) => onChange({ value: v ?? "" })} />
       ) : (
-        <Input aria-label="날짜" type="date" value={new Date(Number(rule.value)).toISOString().slice(0, 10)} onChange={(e) => onChange({ value: new Date(`${e.target.value}T00:00:00+09:00`).getTime() })} />
+        <TextField aria-label="날짜" type="date" value={new Date(Number(rule.value)).toISOString().slice(0, 10)} onChange={(e) => onChange({ value: new Date(`${e.target.value}T00:00:00+09:00`).getTime() })} />
       )}
       <Button size="sm" variant="ghost" onClick={onRemove}>조건 빼기</Button>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Textarea } from "../../../ui";
+import { Button, Card, SegmentedControl, Textarea } from "../../../ui";
 import { api } from "../../../lib/api";
 import { fmtDateTime } from "../../guides/types";
 import { fmtTimecode, type FeedbackShape } from "../../../../shared/review";
@@ -7,6 +7,8 @@ import { FrameMarkup } from "../FrameMarkup";
 import type { ActFn, Frame, ReviewDetail, SeekFn } from "../types";
 import { FeedbackRow, RoundSection } from "./FeedbackRow";
 import { SendModal } from "./SendModal";
+
+const TOOL_OPTIONS: { value: FeedbackShape["type"]; label: string }[] = [{ value: "box", label: "박스" }, { value: "arrow", label: "화살표" }];
 
 type Props = { d: ReviewDetail; base: string; canEdit: boolean; locked: boolean; selected: Frame | null; pickCurrent: () => void; onSeek: SeekFn; onAct: ActFn; reload: () => Promise<void> };
 
@@ -56,8 +58,7 @@ function NewComment({ d, base, selected, pickCurrent, onAct }: NewCommentProps) 
         <>
           <div className="row row-wrap">
             <span className="text-caption">{fmtTimecode(selected.tMs)} 장면에 표시</span>
-            <Button size="sm" variant={tool === "box" ? "primary" : "secondary"} onClick={() => setTool("box")} aria-pressed={tool === "box"}>박스</Button>
-            <Button size="sm" variant={tool === "arrow" ? "primary" : "secondary"} onClick={() => setTool("arrow")} aria-pressed={tool === "arrow"}>화살표</Button>
+            <SegmentedControl label="표시 도구" size="sm" options={TOOL_OPTIONS} value={tool} onChange={setTool} />
             {shape && <Button size="sm" variant="ghost" onClick={() => setShape(null)}>표시 지우기</Button>}
           </div>
           <FrameMarkup src={selected.url} alt={`${fmtTimecode(selected.tMs)} 프레임`} shapes={shape ? [shape] : []} tool={tool} onDraw={setShape} />

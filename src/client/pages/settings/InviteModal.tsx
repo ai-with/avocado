@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Button, CopyButton, Input, Modal, Select } from "../../ui";
+import { Button, CopyButton, Input, Modal, SelectMenu } from "../../ui";
 import { api } from "../../lib/api";
-import { ROLE_LABELS, type Role } from "../../../shared/roles";
+import type { Role } from "../../../shared/roles";
 import { FormError } from "../AuthCard";
 import { useSubmit } from "../useSubmit";
-import { ASSIGNABLE, INVITE_COPIED, type InviteResult } from "./workspaceTypes";
+import { INVITE_COPIED, ROLE_OPTIONS, type InviteResult } from "./workspaceTypes";
 
 function InviteCreated({ result, onClose }: { result: InviteResult; onClose: () => void }) {
   return (
@@ -50,9 +50,7 @@ export function InviteModal({ open, onClose, onCreated }: { open: boolean; onClo
       ) : (
         <form className="stack" onSubmit={submit}>
           <Input label="이메일" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} error={fields.email} required />
-          <Select label="역할" value={role} onChange={(e) => setRole(e.target.value as Role)} hint="편집자: 가이드·검수·발송 / 승인자: 최종 승인 / 열람자: 성과·리드 보기">
-            {ASSIGNABLE.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-          </Select>
+          <SelectMenu label="역할" options={ROLE_OPTIONS} value={role} onChange={(v) => v && setRole(v as Role)} />
           <FormError message={error} />
           <div className="row row-end">
             <Button variant="ghost" onClick={close}>취소</Button>

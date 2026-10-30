@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingState, Table } from "../../ui";
 import { api } from "../../lib/api";
 import { pct, ZERO_HINT } from "../links/common";
+import { HelpHeader } from "../links/HelpHeader";
 import { LeadDrawer, LeadsTable } from "./common";
 import { EMPTY_LOOKUPS, type LeadRow, type Lookups } from "./types";
 import "./leads.css";
@@ -72,7 +73,7 @@ function CountRate({ n, of }: { n: number; of: number }) {
 function FunnelTable({ rows }: { rows: FunnelRow[] }) {
   return (
     <Table>
-      <thead><tr><th>인플루언서</th><th className="num">댓글 DM</th><th className="num">클릭</th><th className="num">자료 열람</th><th className="num">클릭 → 열람</th><th className="num">리드</th><th className="num">클릭 → 리드</th><th className="num" title="클릭 대비 사이트 방문이 생긴 클릭 수">사이트 방문</th><th className="num">스크롤 50%</th><th className="num">전환</th></tr></thead>
+      <thead><tr><th>인플루언서</th><th className="num">댓글 DM</th><th className="num">클릭</th><th className="num">자료 열람</th><th className="num">클릭 → 열람</th><th className="num">리드</th><th className="num">클릭 → 리드</th><th className="num"><HelpHeader label="사이트 방문" help="클릭 대비 사이트 방문이 생긴 클릭 수예요." /></th><th className="num">스크롤 50%</th><th className="num">전환</th></tr></thead>
       <tbody>
         {rows.map((r) => (
           <tr key={r.influencerId ?? "shared"}>

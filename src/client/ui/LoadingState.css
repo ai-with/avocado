@@ -6,3 +6,13 @@
 .loading-line:first-of-type { width: 40%; height: 24px; }
 .loading-line:nth-of-type(3n) { width: 72%; }
 @keyframes loading-pulse { 50% { opacity: 0.5; } }
+/* list·card 패턴(토스 Skeleton 패턴 참고). 색·깜빡임은 lines 와 같다 */
+.loading-pattern-list { gap: var(--space-6); }
+.loading-row { display: flex; align-items: center; gap: var(--space-5); }
+.loading-row-lines { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
+.loading-dot, .loading-bar, .loading-card { display: block; background: var(--color-surface-muted); animation: loading-pulse var(--duration-loop) ease-in-out infinite; }
+.loading-dot { flex: none; width: var(--avatar-size-lg); height: var(--avatar-size-lg); border-radius: var(--radius-full); }
+.loading-bar { height: var(--space-6); width: 60%; border-radius: var(--radius-xs); }
+.loading-bar-short { height: var(--space-5); width: 36%; }
+.loading-card { height: var(--space-14); border-radius: var(--radius-card); }
+.loading-card { width: 100%; }

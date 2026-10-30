@@ -13,16 +13,29 @@ const MENU_ITEMS: DropdownItem[] = [
 
 function ButtonSpecimens() {
   return (
-    <Group title="Button" note="변형 4종 x 크기 2종, 비활성">
+    <Group title="Button" note="변형 4종, 비활성, 로딩(폭 유지). 누르면 0.96으로 작아짐">
       {VARIANTS.map((v) => (
         <Specimen key={v} label={v}>
           <div className="row row-wrap">
             <Button variant={v}>기본</Button>
             <Button variant={v} size="sm">작게</Button>
             <Button variant={v} disabled>비활성</Button>
+            <Button variant={v} loading>저장</Button>
           </div>
         </Specimen>
       ))}
+    </Group>
+  );
+}
+
+function ButtonSizes() {
+  return (
+    <Group title="Button 크기 sm · md · lg · xl" note="TDS small·medium·large·xlarge 비율. md 40은 PC 정렬 때문에 유지, lg·xl은 공개 화면 휴대폰 주 동작">
+      <Specimen label="sm 32 / r8 / 13px"><div className="row"><Button size="sm">작게</Button></div></Specimen>
+      <Specimen label="md 40 / r10 / 15px"><div className="row"><Button>기본</Button></div></Specimen>
+      <Specimen label="lg 48 / r14 / 17px"><div className="row"><Button size="lg">크게</Button></div></Specimen>
+      <Specimen label="xl 56 / r16 / 17px"><div className="row"><Button size="xl">가장 크게</Button></div></Specimen>
+      <Specimen label="xl 폭 전체, 보조" wide><Button size="xl" variant="secondary" className="dev-full">공개 화면 아래 버튼</Button></Specimen>
     </Group>
   );
 }
@@ -57,6 +70,7 @@ export function Actions() {
   return (
     <>
       <ButtonSpecimens />
+      <ButtonSizes />
       <LinkSpecimens />
       <Group title="Dropdown" note="열림 상태는 직접 눌러 확인. 항목: 기본, 비활성, 위험 + 구분선">
         <Specimen label="align start">

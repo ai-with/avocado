@@ -1,0 +1,44 @@
+/* 메시지 템플릿 미리보기 (TASK-073) */
+.msg-preview {
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-var {
+  padding: 0;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-subtle);
+  color: inherit;
+}
+
+.msg-var-empty {
+  background: var(--color-warn-subtle);
+  color: var(--color-warn);
+}
+
+.msg-var-unknown {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+}
+
+.msg-insert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.msg-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 599px) {
+  .msg-grid {
+    grid-template-columns: 1fr;
+  }
+}

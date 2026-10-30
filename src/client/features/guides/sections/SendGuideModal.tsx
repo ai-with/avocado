@@ -10,7 +10,7 @@ export function SendGuideModal({ data, onEmail, onClose }: Props) {
     <Modal
       open
       title="인플루언서에게 어떻게 보낼까요?"
-      description="가이드를 공개했어요. 보낼 방법을 하나 골라 주세요."
+      description="브랜드 가이드를 공개했어요. 보낼 방법을 하나 골라 주세요."
       onClose={onClose}
       footer={<Button variant="ghost" onClick={onClose} data-autofocus>나중에</Button>}
     >

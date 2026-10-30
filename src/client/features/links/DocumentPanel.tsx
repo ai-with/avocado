@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Checkbox, EmptyState, Input, LoadingState, Modal, Stat, StatGrid, useToast } from "../../ui";
+import { Button, Card, Checkbox, EmptyState, Input, LoadingState, Modal, Stat, StatGrid, TextField, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { channelLabel, type DocumentGate } from "../../../shared/leads";
 import { Bars } from "./LinkAnalytics";
@@ -46,7 +46,7 @@ export function DocumentSettingsModal({ doc, onClose, onSaved }: { doc: Omit<Doc
         <h4>리드 게이트</h4>
         <GateTimingField gate={s.gate} onChange={s.g} />
         {s.gate.position !== "none" && <GateFieldsEditor gate={s.gate} g={s.g} blocked={s.blocked} setBlocked={s.setBlocked} />}
-        <Input label="열람 만료일 (비우면 계속 열림)" type="date" value={toDateInput(s.gate.expiresAt)} onChange={(e) => s.g({ expiresAt: fromDateInput(e.target.value) })} />
+        <TextField label="열람 만료일" hint="비우면 계속 열려요." type="date" value={toDateInput(s.gate.expiresAt)} onChange={(e) => s.g({ expiresAt: fromDateInput(e.target.value) })} />
       </div>
     </Modal>
   );

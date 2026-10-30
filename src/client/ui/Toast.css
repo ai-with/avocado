@@ -3,10 +3,11 @@
   display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-4); z-index: var(--z-toast);
   width: max-content; max-width: calc(100vw - 2 * var(--space-6)); pointer-events: none;
 }
+/* TDS Toast: 알약 모양, 12·20, 15px 굵게 */
 .toast {
-  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-6) var(--space-4) var(--space-5); border-radius: var(--radius-md);
+  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-7) var(--space-5) var(--space-6); border-radius: var(--radius-full);
   background: var(--color-surface-inverted); color: var(--color-text-inverted);
-  font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-medium); box-shadow: var(--shadow-popover); animation: rise-in var(--duration-base) var(--ease-out);
+  font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-semibold); box-shadow: var(--shadow-popover); animation: rise-in var(--duration-base) var(--ease-out);
 }
 .toast-success { background: var(--color-success); }
 .toast-danger { background: var(--color-danger); }

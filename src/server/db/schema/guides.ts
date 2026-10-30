@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
 import { workspaces } from "./workspaces";
 import type { DriveAccess, GuideProduct, RuleSeverity, RuleTarget, RuleType, SecondaryUseScope, VideoGuide, GuideRule } from "../../../shared/guides";
+import type { ParticipationStatus, ParticipationTerms } from "../../../shared/participation";
 
 // F-55 규정 세트. 규칙이 바뀌면 version 이 오르고 규칙 행에 그 시점 version 을 남긴다
 export const guidelineSets = sqliteTable(
@@ -45,6 +46,10 @@ export const guides = sqliteTable(
     // 가이드 전용 규칙. id 는 rule_ 로 시작하는 newId
     extraRules: text("extra_rules", { mode: "json" }).$type<GuideRule[]>().notNull(),
     status: text("status").$type<GuideStatus>().notNull().default("draft"),
+    // TASK-070 (0017): 캠페인 1:1. 컬럼은 null 허용(FK 없음), 앱에서는 필수로 다룬다
+    campaignId: text("campaign_id"),
+    // TASK-079 (0021): 이번 캠페인에서 끈 사전 규칙 id (bt:<termId>, legal:<id>)
+    brandTermExclusions: text("brand_term_exclusions", { mode: "json" }).$type<string[]>().notNull().default([]),
     product: text("product", { mode: "json" }).$type<GuideProduct>().notNull(),
     purpose: text("purpose").notNull().default(""),
     lengthS: integer("length_s"),
@@ -58,7 +63,7 @@ export const guides = sqliteTable(
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (t) => [index("guides_workspace_idx").on(t.workspaceId, t.createdAt)],
+  (t) => [index("guides_workspace_idx").on(t.workspaceId, t.createdAt), uniqueIndex("guides_campaign_unique").on(t.campaignId)],
 );
 
 export const influencers = sqliteTable(
@@ -89,6 +94,12 @@ export const guideInfluencers = sqliteTable(
     feedbackToken: text("feedback_token").notNull().unique(),
     connectToken: text("connect_token").notNull().unique(),
     stage: text("stage").notNull().default("invited"),
+    // TASK-072 (0018): 브랜드가 보는 진행 상태와 조건
+    status: text("status").$type<ParticipationStatus>().notNull().default("contact"),
+    terms: text("terms", { mode: "json" }).$type<ParticipationTerms | null>(),
+    // TASK-074 (0020): 계약 기간(ms). 종료일까지 최종 영상이 올라와야 한다
+    contractStartAt: integer("contract_start_at"),
+    contractEndAt: integer("contract_end_at"),
     tokenExpiresAt: integer("token_expires_at").notNull(),
     createdAt: integer("created_at").notNull(),
   },

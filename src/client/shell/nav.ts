@@ -8,7 +8,7 @@ export const NAV: { title?: string; items: NavItem[] }[] = [
   {
     title: "콘텐츠",
     items: [
-      { to: "/dashboard/guides", label: "가이드", icon: "file-text" },
+      { to: "/dashboard/campaigns", label: "캠페인", icon: "megaphone" },
       { to: "/dashboard/influencers", label: "인플루언서", icon: "users" },
       { to: "/dashboard/reviews", label: "초안검수", icon: "clipboard-check" },
     ],
@@ -40,6 +40,8 @@ export const NAV: { title?: string; items: NavItem[] }[] = [
 
 export const ACCOUNT_LINKS: NavItem[] = [
   { to: "/dashboard/settings/workspace", label: "워크스페이스 · 팀", icon: "building-2" },
+  { to: "/dashboard/settings/brands", label: "브랜드", icon: "tag" },
+  { to: "/dashboard/settings/messages", label: "메시지 템플릿", icon: "message-circle" },
   { to: "/dashboard/settings/plan", label: "요금제 · 크레딧", icon: "credit-card" },
   { to: "/dashboard/settings/integrations", label: "연동", icon: "plug" },
   { to: "/dashboard/help", label: "도움 받기", icon: "circle-help" },

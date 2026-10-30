@@ -1,6 +1,7 @@
 .badge {
-  display: inline-flex; align-items: center; gap: var(--space-2); height: 20px; padding: 0 var(--space-4);
-  border-radius: var(--radius-full); font-size: var(--text-caption-size); line-height: var(--text-caption-lh); font-weight: var(--weight-medium); white-space: nowrap;
+  /* TDS Badge small: 높이 24, 12px, 굵게 */
+  display: inline-flex; align-items: center; gap: var(--space-2); height: var(--badge-height); padding: 0 var(--space-4);
+  border-radius: var(--radius-full); font-size: var(--text-caption-size); line-height: var(--text-caption-lh); font-weight: var(--weight-semibold); white-space: nowrap;
 }
 .badge-dot::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; }
 .badge-neutral { background: var(--color-surface-muted); color: var(--color-text-secondary); }

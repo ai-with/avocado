@@ -35,6 +35,7 @@ export function GoogleSection({ next = "/dashboard" }: { next?: string }) {
     <div className="stack auth-google">
       <Button
         variant="secondary"
+        size="lg"
         className="auth-google-btn"
         disabled={!enabled}
         onClick={() => location.assign(`/api/auth/google/start?next=${encodeURIComponent(next)}`)}

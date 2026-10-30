@@ -2,11 +2,13 @@ import { Hono, type Context } from "hono";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
-import { guidelineSets, guides } from "../../db/schema";
+import { campaigns, guidelineSets, guides } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, newToken, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { findGuide, guideRules } from "../../lib/guides";
+import { campaignInsert, campaignOf, defaultBrandId } from "../../lib/brands";
+import { dictRulesForEdit } from "../../lib/brand-terms";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { forbiddenTerms, lineWarnings, makeSlug, ruleConflicts, type GuideRule, type VideoGuide } from "../../../shared/guides";
 import { GUIDE_DEFAULTS, guideCreate, guidePatch, withRuleIds } from "./schemas";
@@ -32,9 +34,23 @@ async function guideWarnings(db: Db, guide: { guidelineSetId: string | null; ext
   return { rules, warnings: ruleConflicts(rules), lineWarnings: guide.videoGuide ? lineWarnings(guide.videoGuide, forbiddenTerms(rules)) : [] };
 }
 
-// 상세·생성·수정 응답 공통: 가이드 + 규칙 경고 + 공용 링크
+// 상세·생성·수정 응답 공통: 가이드 + 캠페인·브랜드 + 규칙 경고 + 공용 링크
 async function guideDetail(c: Context<AppEnv>, g: typeof guides.$inferSelect) {
-  return { guide: g, ...(await guideWarnings(c.var.db, g)), sharedUrl: `${c.env.APP_URL}/g/${g.slug}` };
+  const campaign = await campaignOf(c.var.db, g.campaignId);
+  return { guide: g, campaign, ...(await guideWarnings(c.var.db, g)), dictionary: await dictRulesForEdit(c.var.db, g), sharedUrl: `${c.env.APP_URL}/g/${g.slug}` };
+}
+
+type GuideCreate = typeof GUIDE_DEFAULTS & { name: string };
+
+// 캠페인과 브랜드 가이드를 같은 id 로 함께 만든다 (/api/guides, /api/campaigns 공용)
+export async function createCampaignGuide(db: Db, workspaceId: string, brandId: string, body: GuideCreate) {
+  await checkSet(db, workspaceId, body.guidelineSetId);
+  const id = newId();
+  const videoGuide = body.videoGuide ? { ...body.videoGuide, draft: false } : null;
+  const row = { id, workspaceId, campaignId: id, slug: await uniqueSlug(db, body.name), ...body, extraRules: withRuleIds(body.extraRules), videoGuide, createdAt: now(), updatedAt: now() };
+  await db.batch([campaignInsert(db, { id, workspaceId, brandId, name: body.name }), db.insert(guides).values(row)]);
+  if (videoGuide) await logEvent(db, workspaceId, "video_guide_saved", { guide_id: id });
+  return id;
 }
 
 function ownGuide(c: Context<AppEnv>) {
@@ -64,11 +80,8 @@ export const guideCrudRoutes = new Hono<AppEnv>()
     const body = { ...GUIDE_DEFAULTS, ...parse(guideCreate, await c.req.json()) };
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
-    await checkSet(db, workspace.id, body.guidelineSetId);
-    const id = newId();
-    const videoGuide = body.videoGuide ? { ...body.videoGuide, draft: false } : null;
-    await db.insert(guides).values({ id, workspaceId: workspace.id, slug: await uniqueSlug(db, body.name), ...body, extraRules: withRuleIds(body.extraRules), videoGuide, createdAt: now(), updatedAt: now() });
-    if (videoGuide) await logEvent(db, workspace.id, "video_guide_saved", { guide_id: id });
+    // 예전 방식(가이드만 만들기)도 기본 브랜드 아래 캠페인으로 만든다
+    const id = await createCampaignGuide(db, workspace.id, await defaultBrandId(db, workspace.id), body);
     return c.json(await guideDetail(c, await findGuide(db, workspace.id, id)), 201);
   })
   .get("/:id", async (c) => c.json(await guideDetail(c, await ownGuide(c))))
@@ -89,7 +102,8 @@ export const guideCrudRoutes = new Hono<AppEnv>()
   })
   .delete("/:id", editorsOnly, async (c) => {
     const g = await ownGuide(c);
-    await c.var.db.delete(guides).where(eq(guides.id, g.id));
+    const db = c.var.db;
+    await db.batch([db.delete(guides).where(eq(guides.id, g.id)), db.delete(campaigns).where(eq(campaigns.id, g.campaignId ?? g.id))]);
     return c.json({ ok: true });
   })
   .post("/:id/generate", editorsOnly, async (c) => {

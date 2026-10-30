@@ -22,6 +22,7 @@ function loadSaved(key: string): Saved | null {
     return null;
   }
 }
+export const hasSavedUpload = (token: string, kind: SlotKind) => loadSaved(savedKey(token, kind)) !== null;
 function writeSaved(key: string, v: Saved | null) {
   try {
     if (v) localStorage.setItem(key, JSON.stringify(v));

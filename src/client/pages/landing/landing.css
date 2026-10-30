@@ -2,7 +2,6 @@
 .landing {
   --landing-sub-size: 20px; --landing-sub-lh: 30px;
   --landing-header-height: 56px;
-  --landing-cta-height: 44px;
   background: var(--color-surface); color: var(--color-text-primary); min-height: 100%;
 }
 /* 헤더 앵커가 부드럽게 내려간다. 움직임 줄이기는 base.css가 끈다 */
@@ -29,9 +28,8 @@ html:has(.landing) { scroll-behavior: smooth; }
 .landing-checks li { display: inline-flex; align-items: center; gap: var(--space-3); }
 .landing-checks svg { color: var(--color-accent); }
 
-/* CTA: 알약 44px, 16px */
+/* CTA: 공통 Button xl(56px) 그대로 */
 .landing-cta-row { display: flex; flex-wrap: wrap; gap: var(--space-5); }
-.btn.landing-cta { height: var(--landing-cta-height); padding: 0 var(--space-8); border-radius: var(--radius-full); font-size: var(--text-body-lg-size); }
 
 /* 검수 화면 목업 */
 /* 카드 열은 320px 아래로 줄지 않는다. 자리가 모자라면 릴스 열(최대 280px, 높이 약 500px)이 먼저 줄어든다 */
@@ -118,9 +116,9 @@ html:has(.landing) { scroll-behavior: smooth; }
 
 /* FAQ */
 .landing-faq { display: flex; flex-direction: column; border-top: 1px solid var(--color-border); }
-.landing-faq-item { border-bottom: 1px solid var(--color-border); padding: var(--space-6) 0; }
-.landing-faq-item summary { cursor: pointer; font-size: var(--text-body-lg-size); font-weight: var(--weight-medium); }
-.landing-faq-item p { margin-top: var(--space-5); max-width: 72ch; }
+/* 자주 묻는 질문은 공통 Disclosure. 랜딩에서는 질문을 한 단계 크게 */
+.landing-faq .disclosure-summary { padding: var(--space-6) 0; font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); }
+.landing-faq .disclosure-body p { max-width: 72ch; }
 
 /* 최종 CTA, 푸터 */
 .landing-final { padding-top: var(--layout-section-gap); padding-bottom: var(--layout-section-gap); }

@@ -1,4 +1,4 @@
-import { Button, Card, Input, Select } from "../../../ui";
+import { Button, Card, Input, Select, SelectMenu } from "../../../ui";
 import { DELAY_LABELS, DELAYS, TRIGGER_LABELS, type DelayMinutes, type Trigger } from "../../../../shared/messaging";
 import { targetFromKey, targetKey, TRIGGERS, type Draft, type TargetOption } from "../automation-model";
 import { channelPatch, ChannelChoice, KindChoice, AlimtalkNotice, TemplateEditor } from "../common";
@@ -24,10 +24,14 @@ export function WhenStep({ d, set, targets, onNext }: StepProps & { targets: Tar
       <Select label="트리거" value={d.trigger} onChange={(e) => set({ trigger: e.target.value as Trigger, target: {} })}>
         {TRIGGERS.map((t) => <option key={t} value={t}>{TRIGGER_LABELS[t]}</option>)}
       </Select>
-      <Select label="대상" value={targetKey(d.target)} onChange={(e) => set({ target: targetFromKey(e.target.value) })} hint={targets.length === 0 ? "먼저 폼이나 자료를 만들어 주세요." : undefined}>
-        <option value="">대상을 고르세요</option>
-        {targets.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-      </Select>
+      <SelectMenu
+        label="대상"
+        placeholder="대상을 고르세요"
+        options={targets.map((t) => ({ value: t.key, label: t.label }))}
+        value={targetKey(d.target) || null}
+        onChange={(v) => set({ target: targetFromKey(v ?? "") })}
+        hint={targets.length === 0 ? "먼저 폼이나 자료를 만들어 주세요." : undefined}
+      />
       <Select label="시점" value={d.delayMinutes} onChange={(e) => set({ delayMinutes: Number(e.target.value) as DelayMinutes })}>
         {DELAYS.map((m) => <option key={m} value={m}>{DELAY_LABELS[m]}</option>)}
       </Select>

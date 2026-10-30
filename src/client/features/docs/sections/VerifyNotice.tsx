@@ -15,9 +15,7 @@ export function VerifyNotice({ brandName, email, onResend, resending, message }:
         </p>
       </div>
       <div>
-        <Button variant="secondary" onClick={onResend} disabled={resending}>
-          {resending ? "보내는 중" : "메일 다시 보내기"}
-        </Button>
+        <Button variant="secondary" onClick={onResend} loading={resending}>메일 다시 보내기</Button>
       </div>
       {message && <p className="text-caption" role="status">{message}</p>}
     </div>

@@ -1,5 +1,5 @@
-import { Checkbox, Input, SectionCard } from "../../../ui";
-import { csv, type GuideForm, type SetField } from "../useGuideForm";
+import { Checkbox, Input, NumberField, SectionCard, TagInput } from "../../../ui";
+import { type GuideForm, type SetField } from "../useGuideForm";
 
 export function DeliverablesSection({ form, set }: { form: GuideForm; set: SetField }) {
   const setDeliverables = (patch: Partial<GuideForm["deliverables"]>) => set("deliverables", { ...form.deliverables, ...patch });
@@ -15,9 +15,9 @@ export function DeliverablesSection({ form, set }: { form: GuideForm; set: SetFi
         <Input label="산출물 메모" value={form.deliverables.note} onChange={(e) => setDeliverables({ note: e.target.value })} placeholder="예: 썸네일용 정지 컷 1장" />
         <Checkbox label="광고 집행에 쓸 수 있음" checked={scope.ads} onChange={(e) => setScope({ ads: e.target.checked })} />
         <div className="grid-3">
-          <Input label="매체 (쉼표로 구분)" value={scope.media.join(", ")} onChange={(e) => setScope({ media: csv(e.target.value) })} placeholder="예: Meta, 유튜브" />
-          <Input label="지역 (쉼표로 구분)" value={scope.regions.join(", ")} onChange={(e) => setScope({ regions: csv(e.target.value) })} placeholder="예: 한국, 미국" />
-          <Input label="기간(개월)" type="number" min={0} max={120} value={scope.months} onChange={(e) => setScope({ months: Number(e.target.value) || 0 })} />
+          <TagInput label="매체" hint="Enter나 쉼표로 하나씩 넣어 주세요." value={scope.media} onChange={(media) => setScope({ media })} placeholder="예: Meta, 유튜브" />
+          <TagInput label="지역" hint="Enter나 쉼표로 하나씩 넣어 주세요." value={scope.regions} onChange={(regions) => setScope({ regions })} placeholder="예: 한국, 미국" />
+          <NumberField label="기간" suffix="개월" value={scope.months} onChange={(v) => setScope({ months: v ?? 0 })} />
         </div>
       </div>
     </SectionCard>

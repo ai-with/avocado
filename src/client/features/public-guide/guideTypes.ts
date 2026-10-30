@@ -1,4 +1,6 @@
 import type { Lang, TKey } from "../../i18n";
+import type { PublicDictionary } from "../../../shared/brand-terms";
+import type { InfluencerTabs } from "../../../shared/influencer-tabs";
 import type { GuideProduct, RuleSeverity, RuleType, SecondaryUseScope, VideoGuide } from "../../../shared/guides";
 
 export type PublicGuide = {
@@ -13,6 +15,8 @@ export type PublicGuide = {
   videoGuide: VideoGuide | null;
   rules: { type: RuleType; content: string; severity: RuleSeverity }[];
   checklist: string[];
+  // TASK-079 브랜드 검수 사전. 편집 화면 미리보기에는 없다
+  dictionary?: PublicDictionary;
 };
 export type PersonalData = {
   mode: "personal";
@@ -20,7 +24,7 @@ export type PersonalData = {
   influencer: { displayName: string; email: string | null; country: string | null };
   guide: PublicGuide;
   consent: { agreedAt: number; docVersion: string } | null;
-  uploadUrl: string | null;
+  tabs: InfluencerTabs;
   leadLinks: { channel: string; name: string; url: string }[];
 };
 export type GuideData = { mode: "shared"; lang: Lang; guide: PublicGuide } | PersonalData;

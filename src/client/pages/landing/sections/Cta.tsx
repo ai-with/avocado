@@ -5,7 +5,7 @@ import { HERO } from "../copy";
 export function LandingCta() {
   return (
     <div className="landing-cta-row">
-      <ButtonLink variant="primary" to="/signup" className="landing-cta">{HERO.primary}</ButtonLink>
+      <ButtonLink variant="primary" size="xl" to="/signup">{HERO.primary}</ButtonLink>
     </div>
   );
 }

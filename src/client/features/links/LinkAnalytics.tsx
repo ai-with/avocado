@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Card, EmptyState, LoadingState, Select, Stat, StatGrid } from "../../ui";
+import { Card, EmptyState, LoadingState, SegmentedControl, Stat, StatGrid } from "../../ui";
 import { api } from "../../lib/api";
 import { channelLabel } from "../../../shared/leads";
 import { ZERO_HINT, type Channel } from "./common";
@@ -18,7 +18,7 @@ type Analytics = {
 };
 
 const DEVICE: Record<string, string> = { mobile: "모바일", desktop: "PC", other: "기타" };
-const PERIOD_OPTIONS = [7, 30, 90];
+const PERIOD_OPTIONS = [7, 30, 90].map((d) => ({ value: String(d), label: `${d}일` }));
 const DEFAULT_DAYS = 30;
 
 export function Bars({ rows }: { rows: { label: string; value: number }[] }) {
@@ -87,13 +87,9 @@ export function LinkAnalytics({ guideId, channels }: { guideId?: string; channel
 
   return (
     <section className="stack">
-      <div className="row row-between">
+      <div className="row row-between row-wrap">
         <h4>클릭 분석</h4>
-        <div className="lt-period-select">
-          <Select aria-label="분석 기간" value={days} onChange={(e) => setDays(Number(e.target.value))}>
-            {PERIOD_OPTIONS.map((d) => <option key={d} value={d}>최근 {d}일</option>)}
-          </Select>
-        </div>
+        <SegmentedControl label="분석 기간" size="sm" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => setDays(Number(v))} />
       </div>
       {!data ? (
         <LoadingState />

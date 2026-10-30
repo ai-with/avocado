@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, EmptyState, LoadingState, Select } from "../../../ui";
+import { Button, Card, EmptyState, LoadingState, SelectMenu } from "../../../ui";
 import { api } from "../../../lib/api";
 import { ZERO_HINT } from "../../links/common";
 import { LeadsTable } from "../common";
@@ -46,10 +46,7 @@ function BulkTagBar({ lk, selected, onSelect, act }: Pick<Props, "lk" | "selecte
     <Card className="row row-wrap">
       <span>{selected.size}명 선택</span>
       <div className="lead-bulk-select">
-        <Select aria-label="붙일 태그" value={tagPick} onChange={(e) => setTagPick(e.target.value)}>
-          <option value="">태그 고르기</option>
-          {lk.tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </Select>
+        <SelectMenu aria-label="붙일 태그" placeholder="태그 고르기" options={lk.tags.map((t) => ({ value: t.id, label: t.name }))} value={tagPick || null} onChange={(v) => setTagPick(v ?? "")} />
       </div>
       <Button size="sm" disabled={!tagPick} onClick={attach}>태그 붙이기</Button>
     </Card>

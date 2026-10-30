@@ -20,6 +20,9 @@ import { collectRoutes } from "./collect";
 import { siteRoutes } from "./sites";
 import { supportRoutes } from "./support";
 import { notificationRoutes } from "./notifications";
+import { brandRoutes, brandTermRoutes, campaignRoutes, reviewPresetRoutes } from "./campaigns";
+import { campaignInfluencerRoutes } from "./campaign-influencers";
+import { messageTemplateRoutes, messageVariableRoutes } from "./messages";
 
 // 라우트는 한 줄씩 추가한다. 공개 경로(/l/*, /webhooks/*)도 여기서 등록한다
 export function registerRoutes(app: Hono<AppEnv>) {
@@ -29,6 +32,13 @@ export function registerRoutes(app: Hono<AppEnv>) {
   app.route("/api/invites", inviteRoutes);
   app.route("/api/guideline-sets", guidelineRoutes);
   app.route("/api/guides", guideRoutes);
+  app.route("/api/campaigns", campaignRoutes);
+  app.route("/api/brands", brandRoutes);
+  app.route("/api/brands", brandTermRoutes);
+  app.route("/api/review-presets", reviewPresetRoutes);
+  app.route("/api/campaign-influencers", campaignInfluencerRoutes);
+  app.route("/api/message-templates", messageTemplateRoutes);
+  app.route("/api/message-variables", messageVariableRoutes);
   app.route("/api/influencers", influencerRoutes);
   app.route("/api/home", homeRoutes);
   app.route("/api/public", publicGuideRoutes);

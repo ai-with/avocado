@@ -16,3 +16,8 @@
 @media (max-width: 1023px) {
   .dev-type-sample { min-width: 0; flex: 1; }
 }
+/* 카탈로그 전용: 포커스 모양을 고정해서 보여 준다 */
+.dev-force-focus .control-group { background-color: var(--color-surface); border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+.dev-full { width: 100%; }
+.dev-bottom-probe { min-height: var(--space-14); display: flex; align-items: flex-end; }
+.dev-bottom-probe > * { flex: 1; }

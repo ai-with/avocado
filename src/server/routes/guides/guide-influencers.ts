@@ -10,7 +10,9 @@ import { sendEmail } from "../../lib/email";
 import { findOwned } from "../../lib/owned";
 import { findGuide, findGuideInfluencer, guideLinks, issueTokens, linkInfluencer } from "../../lib/guides";
 import { guideInviteMail } from "../../lib/influencer-mails";
+import { brandNameOf } from "../../lib/brands";
 import { stageSummaries } from "../../lib/guide-status";
+import { contractOf, roundsFor } from "../../lib/participation";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { influencerBody, influencerValues } from "./schemas";
 
@@ -35,8 +37,21 @@ export const guideInfluencerRoutes = new Hono<AppEnv>()
       .where(eq(guideInfluencers.guideId, g.id))
       .orderBy(asc(guideInfluencers.createdAt));
     const summaries = await stageSummaries(db, g.id);
+    const rounds = await roundsFor(db, g.workspaceId, rows.map((r) => r.influencer.id));
     return c.json({
-      rows: rows.map((r) => ({ id: r.gi.id, influencer: r.influencer, stage: r.gi.stage, tokenExpiresAt: r.gi.tokenExpiresAt, links: guideLinks(c.env, r.gi), status: summaries.get(r.gi.id) })),
+      rows: rows.map((r) => ({
+        id: r.gi.id,
+        influencer: r.influencer,
+        stage: r.gi.stage,
+        tokenExpiresAt: r.gi.tokenExpiresAt,
+        links: guideLinks(c.env, r.gi),
+        status: summaries.get(r.gi.id),
+        // TASK-072: 진행 상태·조건·브랜드 안 참여 회차, 계약 기간(컬럼은 TASK-074)
+        participationStatus: r.gi.status,
+        terms: r.gi.terms,
+        round: rounds.get(r.gi.id) ?? 1,
+        ...contractOf(r.gi),
+      })),
     });
   })
   // 기존 인플루언서를 고르거나 새로 만들어 연결한다
@@ -97,7 +112,8 @@ export const guideInfluencerRoutes = new Hono<AppEnv>()
       .get();
     if (!row) throw linkNotFound();
     if (!row.influencer.email) throw new ApiError(400, "no_email", "인플루언서 이메일이 없어요. 링크를 복사해 DM으로 보내 주세요.");
-    const who = { brand: workspace.name, name: row.influencer.displayName, en: row.influencer.lang === "en", url: guideLinks(c.env, row.gi).guide };
+    const who = { brand: await brandNameOf(db, workspace.id, g.id), name: row.influencer.displayName, en: row.influencer.lang === "en", url: guideLinks(c.env, row.gi).guide };
     const email = await sendEmail(c.env, { to: row.influencer.email, ...guideInviteMail(who) });
+    if (email.delivered) await logEvent(db, workspace.id, "guide_email_sent", { guide_id: g.id, gi_id: row.gi.id });
     return c.json({ email });
   });

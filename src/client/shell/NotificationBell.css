@@ -1,6 +1,7 @@
 .notif-button { position: relative; flex-shrink: 0; }
-.notif-count { position: absolute; top: calc(-1 * var(--space-2)); right: calc(-1 * var(--space-2)); pointer-events: none; }
-.notif-count .badge { padding: 0 var(--space-3); }
+.notif-count { position: absolute; top: calc(-1 * var(--space-1)); right: calc(-1 * var(--space-2)); display: flex; pointer-events: none; }
+/* 종 아이콘(20px)을 가리지 않게 공통 Badge 를 숫자 배지 크기로 줄인다 */
+.notif-count .badge { height: var(--count-badge-size); min-width: var(--count-badge-size); justify-content: center; padding: 0 var(--space-2); font-size: var(--text-overline-size); line-height: var(--count-badge-size); }
 /* 안 읽음 점. 읽은 항목도 같은 자리를 비워 제목 줄을 맞춘다. 글자 "안 읽음"이 같이 붙어 색만으로 구분하지 않는다 */
 .notif-dot { flex-shrink: 0; width: var(--space-4); height: var(--space-4); margin-top: var(--space-3); border-radius: var(--radius-full); }
 .notif-dot.is-unread { background: var(--color-accent); }

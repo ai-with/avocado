@@ -8,6 +8,7 @@ import { ApiError, parse } from "../../lib/errors";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
+import { defaultBrandInsert } from "../../lib/brands";
 import { maskPhone } from "../../lib/phone";
 import { createSession, destroySession, sessionCtx } from "../../middleware/auth";
 import { acceptInvite, checkInvite } from "../invites";
@@ -40,6 +41,7 @@ async function createAccount(db: Db, body: z.infer<typeof signupSchema>, user: U
   await db.batch([
     userInsert,
     db.insert(workspaces).values({ id: workspaceId, name: body.workspaceName!, createdAt: now() }),
+    defaultBrandInsert(db, workspaceId, body.workspaceName!),
     db.insert(members).values({ workspaceId, userId: user.id, role: "owner", createdAt: now() }),
   ]);
   await logEvent(db, workspaceId, "workspace_created", {});
@@ -100,6 +102,7 @@ export const accountRoutes = new Hono<AppEnv>()
     const workspaceId = newId();
     await db.batch([
       db.insert(workspaces).values({ id: workspaceId, name: workspaceName, createdAt: now() }),
+      defaultBrandInsert(db, workspaceId, workspaceName),
       db.insert(members).values({ workspaceId, userId: auth.user.id, role: "owner", createdAt: now() }),
       db.update(sessions).set({ currentWorkspaceId: workspaceId }).where(eq(sessions.id, auth.sessionId)),
     ]);

@@ -1,20 +1,24 @@
-import { Badge, Button, CopyButton, EmptyState, Select, Table } from "../../ui";
+import { Avatar, Badge, Button, CopyButton, EmptyState, Table, SelectMenu } from "../../ui";
 import { api } from "../../lib/api";
 import { ROLE_LABELS } from "../../../shared/roles";
-import { ASSIGNABLE, INVITE_COPIED, type Act, type Invite, type Member } from "./workspaceTypes";
+import { INVITE_COPIED, ROLE_OPTIONS, type Act, type Invite, type Member } from "./workspaceTypes";
 
 function MemberRow({ m, isOwner, act }: { m: Member; isOwner: boolean; act: Act }) {
   const editable = isOwner && m.role !== "owner";
   const remove = () => confirm(`${m.name}님을 팀에서 제거할까요?`) && void act(() => api.del(`/workspace/members/${m.userId}`), "팀에서 제거했어요.");
   return (
     <tr>
-      <td>{m.name}</td>
+      <td><span className="row"><Avatar name={m.name || m.email} size="sm" />{m.name}</span></td>
       <td>{m.email}</td>
       <td>
         {editable ? (
-          <Select aria-label={`${m.name} 역할`} value={m.role} onChange={(e) => void act(() => api.patch(`/workspace/members/${m.userId}`, { role: e.target.value }), "역할을 바꿨어요.")}>
-            {ASSIGNABLE.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-          </Select>
+          <SelectMenu
+            size="sm"
+            aria-label={`${m.name} 역할`}
+            options={ROLE_OPTIONS}
+            value={m.role}
+            onChange={(v) => v && v !== m.role && void act(() => api.patch(`/workspace/members/${m.userId}`, { role: v }), "역할을 바꿨어요.")}
+          />
         ) : (
           <Badge tone={m.role === "owner" ? "accent" : "neutral"}>{ROLE_LABELS[m.role]}</Badge>
         )}

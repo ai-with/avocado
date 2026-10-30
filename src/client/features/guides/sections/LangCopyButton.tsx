@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { CopyButton, Select } from "../../../ui";
+import { CopyButton, SelectMenu } from "../../../ui";
 import { withLangParam, type GuideLang } from "../../../../shared/guide-public";
+
+const LANG_OPTIONS = [{ value: "ko", label: "한국어" }, { value: "en", label: "영어" }];
 
 type Props = { url: string; defaultLang: GuideLang; label?: string; size?: "sm" | "md"; disabled?: boolean };
 
@@ -9,10 +11,7 @@ export function LangCopyButton({ url, defaultLang, label = "복사", size = "sm"
   const [lang, setLang] = useState<GuideLang>(defaultLang);
   return (
     <span className={`lang-copy lang-copy-${size}`}>
-      <Select aria-label="링크 언어" value={lang} onChange={(e) => setLang(e.target.value as GuideLang)} disabled={disabled}>
-        <option value="ko">한국어</option>
-        <option value="en">영어</option>
-      </Select>
+      <SelectMenu size={size} aria-label="링크 언어" options={LANG_OPTIONS} value={lang} onChange={(v) => v && setLang(v as GuideLang)} disabled={disabled} />
       <CopyButton text={withLangParam(url, lang)} label={label} size={size} disabled={disabled} doneMessage={lang === "en" ? "영어 링크를 복사했어요." : "한국어 링크를 복사했어요."} />
     </span>
   );

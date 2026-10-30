@@ -26,7 +26,7 @@ export function AddContentModal({ base, cellName, onClose, onSubmit }: Props) {
       onClose={onClose}
       footer={<>
         <Button variant="ghost" onClick={onClose}>취소</Button>
-        <Button type="submit" form="add-content-link" disabled={busy}>{busy ? "만드는 중" : "링크 만들기"}</Button>
+        <Button type="submit" form="add-content-link" loading={busy}>링크 만들기</Button>
       </>}
     >
       <form id="add-content-link" className="stack" noValidate onSubmit={(e) => void submit(e)}>

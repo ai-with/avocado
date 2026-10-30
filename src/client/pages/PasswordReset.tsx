@@ -27,7 +27,7 @@ export function ForgotPasswordPage() {
         <form className="stack" onSubmit={submit}>
           <Input label="이메일" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <FormError message={error} />
-          <Button type="submit" disabled={busy}>재설정 링크 받기</Button>
+          <Button type="submit" size="lg" loading={busy}>재설정 링크 받기</Button>
         </form>
       )}
       <p className="auth-foot"><Link to="/login">로그인으로 돌아가기</Link></p>
@@ -56,7 +56,7 @@ export function ResetPasswordPage() {
         <form className="stack" onSubmit={submit}>
           <Input label="새 비밀번호" type="password" autoComplete="new-password" hint="8자 이상" value={password} onChange={(e) => setPassword(e.target.value)} error={fields.password} required />
           <FormError message={error} />
-          <Button type="submit" disabled={busy}>비밀번호 바꾸기</Button>
+          <Button type="submit" size="lg" loading={busy}>비밀번호 바꾸기</Button>
         </form>
       )}
       <p className="auth-foot"><Link to="/login">로그인으로 이동</Link></p>

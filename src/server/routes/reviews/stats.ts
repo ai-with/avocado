@@ -27,7 +27,7 @@ function decisionsOf(db: Db, workspaceId: string, guideId: string | undefined) {
 // 공통 규정 묶음의 규칙이면 규정 화면, 가이드에만 있는 규칙이면 그 가이드 편집 화면
 async function editUrls(db: Db, ruleIds: string[]) {
   const fromSet = new Set(ruleIds.length ? (await db.select({ id: guidelineRules.id }).from(guidelineRules).where(inArray(guidelineRules.id, ruleIds))).map((r) => r.id) : []);
-  return (ruleId: string, guideId: string) => (fromSet.has(ruleId) ? "/dashboard/settings/guidelines" : `/dashboard/guides/${guideId}/edit`);
+  return (ruleId: string, guideId: string) => (fromSet.has(ruleId) ? "/dashboard/settings/guidelines" : `/dashboard/campaigns/${guideId}/edit`);
 }
 
 export const reviewStatsRoutes = new Hono<AppEnv>().get("/rule-stats", async (c) => {

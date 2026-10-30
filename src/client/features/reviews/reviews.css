@@ -43,3 +43,5 @@
 .pub-fb-item .markup img { max-height: 60vh; }
 .pub-fb-head { display: flex; align-items: center; gap: var(--space-3); }
 .rule-suggest-list { list-style: none; margin: 0; padding: 0; }
+/* 피드백 탭 버전 카드 (TASK-074) */
+.pub-version-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }

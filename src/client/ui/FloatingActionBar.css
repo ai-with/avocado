@@ -1,0 +1,8 @@
+/* 자리(sticky)는 본문 폭을 따르고, 내용이 짧으면 화면 맨 아래로 밀려난다. 비면 접힌다 */
+.fab-slot { position: sticky; bottom: 0; z-index: var(--z-sticky); margin: auto calc(-1 * var(--layout-gutter)) 0; }
+.fab-slot:empty { display: none; }
+.fab { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--layout-gutter) calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); background: var(--color-surface); border-top: 1px solid var(--color-border); box-shadow: var(--shadow-bar); }
+.fab .btn { width: 100%; min-height: var(--touch-target); }
+@media (min-width: 600px) { .fab { border-radius: var(--radius-card) var(--radius-card) 0 0; } }
+/* 키보드·앵커 이동으로 포커스된 요소가 줄 아래로 숨지 않게 한다 */
+html:has(.fab) { scroll-padding-bottom: var(--floating-bar-height, 0px); }

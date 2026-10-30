@@ -7,11 +7,10 @@ import { guideInfluencers, submissions, uploadParts } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
-import { guideLinks } from "../../lib/guides";
 import { UPLOAD_LIMITS, checkUpload } from "../../../shared/guides";
 import { checkDriveAccess } from "../../lib/drive-access";
-import { approvalOf, sentRoundCount } from "../reviews";
-import { currentConsent, findSubmission, markAborted, nextVersion, partsOf, requireByToken, uploadCtx } from "./shared";
+import { currentConsent, findSubmission, influencerTabs, markAborted, nextVersion, partsOf, requireByToken, uploadCtx } from "./shared";
+import { versionHistory } from "./versions";
 
 // 업로드 (F-59). 멀티파트로 올리고, 3분·2GB 초과는 드라이브 링크
 
@@ -79,25 +78,21 @@ async function startUpload(env: Env, db: Db, ids: { guideId: string; giId: strin
 export const uploadRoutes = new Hono<AppEnv>()
   .get("/upload/:token", async (c) => {
     const db = c.var.db;
-    const { gi, guide, influencer, workspaceName } = await requireByToken(db, "uploadToken", c.req.param("token"));
+    const { gi, guide, influencer, brandName } = await requireByToken(db, "uploadToken", c.req.param("token"));
     const consent = await currentConsent(db, gi.id);
-    const list = await db
-      .select({ id: submissions.id, version: submissions.version, kind: submissions.kind, status: submissions.status, fileName: submissions.fileName, note: submissions.note, driveUrl: submissions.driveUrl, uploadedAt: submissions.uploadedAt })
-      .from(submissions)
-      .where(and(eq(submissions.guideInfluencerId, gi.id), ne(submissions.status, "aborted")))
-      .orderBy(desc(submissions.createdAt));
+    const { groups, approval } = await versionHistory(db, gi.id);
     return c.json({
-      brandName: workspaceName,
+      brandName,
       guideName: guide.name,
       lang: influencer.lang,
       displayName: influencer.displayName,
       consented: !!consent,
-      guideUrl: guideLinks(c.env, gi).guide,
-      feedbackUrl: (await sentRoundCount(db, gi.id)) > 0 ? guideLinks(c.env, gi).feedback : null,
-      approved: !!(await approvalOf(db, gi.id)),
+      tabs: await influencerTabs(db, gi, guide),
+      approved: !!approval,
       deliverables: guide.deliverables,
       limits: UPLOAD_LIMITS,
-      submissions: list,
+      // 버전별 한 줄, 최신순 (TASK-074)
+      versions: groups,
     });
   })
   .post("/upload/:token/init", async (c) => {
@@ -148,14 +143,16 @@ export const uploadRoutes = new Hono<AppEnv>()
     if (parts.reduce((a, p) => a + p.size, 0) !== s.sizeBytes) throw new ApiError(400, "incomplete", "아직 올라가지 않은 부분이 있어요. 다시 시도해 주세요.");
     await c.env.FILES.resumeMultipartUpload(s.originalKey, s.uploadId).complete(parts.map((p) => ({ partNumber: p.partNumber, etag: p.etag })));
     const uploadedAt = now();
+    // 버전은 완료 시점에 다시 정한다: 동시에 올린 완성본이 같은 번호를 받거나 클린본이 지난 완성본에 붙지 않게
+    const version = await nextVersion(db, gi.id, s.kind);
     await db.batch([
-      db.update(submissions).set({ status: "uploaded", uploadedAt }).where(eq(submissions.id, s.id)),
+      db.update(submissions).set({ status: "uploaded", uploadedAt, version }).where(eq(submissions.id, s.id)),
       db.delete(uploadParts).where(eq(uploadParts.submissionId, s.id)),
       db.update(guideInfluencers).set({ stage: "uploaded" }).where(stillOpen(gi.id)),
     ]);
-    await logEvent(db, guide.workspaceId, "upload_completed", { submission_id: s.id, gi_id: gi.id, version: s.version, upload_s: Math.round((uploadedAt - s.createdAt) / 1000) });
+    await logEvent(db, guide.workspaceId, "upload_completed", { submission_id: s.id, gi_id: gi.id, version, upload_s: Math.round((uploadedAt - s.createdAt) / 1000) });
     await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: s.id } }).catch((e: unknown) => console.error("[queue:send]", e));
-    return c.json({ ok: true, version: s.version });
+    return c.json({ ok: true, version });
   })
   .post("/upload/:token/abort", async (c) => {
     const { submissionId } = parse(submissionRef, await c.req.json());

@@ -5,11 +5,12 @@ import { useGuideForm } from "./useGuideForm";
 import { BasicInfoSection } from "./sections/BasicInfoSection";
 import { DeliverablesSection } from "./sections/DeliverablesSection";
 import { RulesSection } from "./sections/RulesSection";
+import { BrandDictSection } from "./sections/BrandDictSection";
 import { VideoGuideSection } from "./sections/VideoGuideSection";
 import { GuidePreviewPanel } from "./sections/GuidePreviewPanel";
 import "./guides.css";
 
-// /guides/new, /guides/:id/edit (F-55 가이드 전용 규칙, F-56 초안 생성, AIWITH-367 미리보기)
+// /campaigns/:id/edit 브랜드 가이드 편집 (F-55 가이드 전용 규칙, F-56 초안 생성, AIWITH-367 미리보기)
 export function GuideEditPage() {
   const g = useGuideForm();
   const { me } = useMe();
@@ -23,9 +24,9 @@ export function GuideEditPage() {
   return (
     <form onSubmit={g.save}>
       <PageHeader
-        title={g.id ? "가이드 편집" : "새 가이드"}
-        description="제품과 목적, 규정을 넣고 저장하면 바로 공유할 수 있는 가이드 URL이 나와요."
-        back={g.id ? { to: `/dashboard/guides/${g.id}`, label: "가이드 상세" } : { to: "/dashboard/guides", label: "가이드" }}
+        title={g.id ? "브랜드 가이드 편집" : "새 브랜드 가이드"}
+        description="제품과 목적, 규정을 넣고 저장하면 바로 공유할 수 있는 브랜드 가이드 URL이 나와요."
+        back={g.id ? { to: `/dashboard/campaigns/${g.id}`, label: "캠페인 상세" } : { to: "/dashboard/campaigns", label: "캠페인" }}
         actions={toggle}
       />
       <div className="guide-edit-layout">
@@ -33,13 +34,14 @@ export function GuideEditPage() {
           <BasicInfoSection form={g.form} set={g.set} fields={g.fields} />
           <DeliverablesSection form={g.form} set={g.set} />
           <RulesSection form={g.form} set={g.set} sets={g.sets} setRules={g.setRules} warnings={g.warnings} fields={g.fields} />
+          {g.dictionary && <BrandDictSection dictionary={g.dictionary} excluded={g.form.brandTermExclusions} onChange={(v) => g.set("brandTermExclusions", v)} />}
           <VideoGuideSection vg={g.form.videoGuide} setVg={g.setVg} set={g.set} rules={g.rules} vgWarnings={g.vgWarnings} busy={g.busy} onGenerate={g.generate} />
         </div>
-        <GuidePreviewPanel form={g.form} rules={g.rules} brandName={me?.workspace?.name ?? ""} open={previewOpen} />
+        <GuidePreviewPanel form={g.form} rules={g.rules} brandName={g.brandName || me?.workspace?.name || ""} open={previewOpen} />
       </div>
-      <ActionBar status="저장하면 가이드 상세 화면으로 이동해요.">
+      <ActionBar status="저장하면 캠페인 상세 화면으로 이동해요.">
         <Button variant="ghost" onClick={g.cancel}>취소</Button>
-        <Button type="submit" disabled={g.busy !== ""}>{g.busy === "save" ? "저장 중" : "저장"}</Button>
+        <Button type="submit" disabled={g.busy !== ""} loading={g.busy === "save"}>저장</Button>
       </ActionBar>
     </form>
   );

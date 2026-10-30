@@ -1,0 +1,73 @@
+/* SelectMenu: 칸은 TextField 와 같은 .control-group 모양, 목록은 body 에 fixed 로 뜬다 */
+.select-menu { position: relative; padding-right: var(--space-5); cursor: pointer; }
+.select-menu.is-open { background-color: var(--color-surface); border-color: var(--color-border-focus); }
+.select-menu.is-disabled { cursor: not-allowed; }
+.select-menu-trigger {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: inherit; outline: none;
+}
+.select-menu-placeholder { color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-menu-chevron { flex: none; display: inline-flex; color: var(--color-text-tertiary); transition: transform var(--duration-fast) var(--ease-out); pointer-events: none; }
+.select-menu.is-open .select-menu-chevron { transform: rotate(180deg); }
+.select-menu-chips { display: flex; align-items: center; gap: var(--space-2); min-width: 0; overflow: hidden; }
+.select-menu-chip {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); background: var(--color-surface-muted);
+  font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh);
+}
+.select-menu-more { flex: none; font-size: var(--text-control-sm-size); color: var(--color-text-secondary); }
+/* 작은 크기(표 안): 폭은 내용만큼, 최소 폭은 네이티브 Select sm 과 같게 */
+.field-fit .select-menu.control-sm { width: auto; min-width: var(--space-14); padding-right: var(--space-4); }
+
+.select-menu-pop {
+  z-index: var(--z-select-menu); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--color-surface); border-radius: var(--radius-popover); box-shadow: var(--shadow-popover);
+  animation: dropdown-in var(--duration-fast) var(--ease-out);
+}
+.select-menu-search {
+  flex: none; display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) var(--space-3) 0; padding: 0 var(--space-5);
+  height: var(--control-height-sm); border-radius: var(--radius-control-sm); background: var(--color-surface-muted); color: var(--color-text-tertiary);
+  font-size: var(--text-control-sm-size);
+}
+.select-menu-search input { color: var(--color-text-primary); }
+.select-menu-search input::-webkit-search-cancel-button { appearance: none; }
+.select-menu-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-3); outline: none; }
+.select-menu-list:empty { display: none; }
+.select-menu-list:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius-control-sm); }
+.select-menu-group + .select-menu-group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.select-menu-group-label { padding: var(--space-2) var(--space-4); font-size: var(--text-caption-size); line-height: var(--text-caption-lh); font-weight: var(--weight-medium); color: var(--color-text-tertiary); }
+.select-menu-option {
+  display: flex; align-items: flex-start; gap: var(--space-4); min-height: var(--control-height); padding: var(--space-4);
+  border-radius: var(--radius-control-sm); color: var(--color-text-primary); cursor: pointer;
+  font-size: var(--text-control-size); line-height: var(--text-control-lh);
+}
+.select-menu-option.is-active { background: var(--color-surface-muted); }
+.select-menu-option.is-selected { font-weight: var(--weight-semibold); }
+.select-menu-option.is-disabled { color: var(--color-text-muted); cursor: not-allowed; }
+.select-menu-option.is-disabled.is-active { background: transparent; }
+.select-menu-check {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--icon-size-sm); height: var(--text-control-lh); color: var(--color-accent);
+}
+/* 다중 선택: 네모 칸, 고르면 강조색으로 채운다 */
+.select-menu-check.is-box { position: relative; }
+.select-menu-check.is-box::before {
+  content: ""; position: absolute; top: 50%; left: 0; width: var(--icon-size-sm); height: var(--icon-size-sm); transform: translateY(-50%);
+  border: var(--border-control); border-radius: var(--radius-xs); background: var(--color-surface);
+}
+.is-selected .select-menu-check.is-box::before { border-color: var(--color-accent); background: var(--color-accent); }
+.select-menu-check.is-box svg { position: relative; color: var(--color-on-accent); }
+.select-menu-option-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.select-menu-option-label { overflow-wrap: anywhere; }
+.select-menu-option-desc { font-size: var(--text-help-size); line-height: var(--text-help-lh); font-weight: var(--weight-regular); color: var(--color-text-tertiary); }
+.select-menu-empty { padding: var(--space-6) var(--space-5); text-align: center; font-size: var(--text-control-sm-size); color: var(--color-text-tertiary); }
+
+/* 바텀시트 안: 목록이 시트 본문을 채운다 */
+.select-menu-sheet { display: flex; flex-direction: column; gap: var(--space-4); margin: 0 calc(var(--space-3) * -1); }
+.select-menu-sheet .select-menu-search { margin: 0 var(--space-3); height: var(--control-height); font-size: var(--text-input-min-size); }
+.select-menu-sheet .select-menu-list { padding: 0; }
+.select-menu-sheet .select-menu-option { min-height: var(--touch-target); padding-block: var(--space-5); }
+@media (pointer: coarse) { .select-menu-option { min-height: var(--touch-target); } }
+@keyframes dropdown-in { from { opacity: 0; transform: translateY(-2px); } }
+/* 다중 선택 바텀시트: 목록이 길어도 완료 단추는 아래에 붙어 있다 */
+.select-menu-sheet-done { position: sticky; bottom: calc(var(--space-8) * -1); margin-bottom: calc(var(--space-8) * -1); padding: var(--space-4) 0 var(--space-8); background: var(--color-surface); }
+.select-menu-done-button { width: 100%; }

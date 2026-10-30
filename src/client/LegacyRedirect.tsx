@@ -11,6 +11,17 @@ function LegacyRedirect() {
   return <Navigate to={`/dashboard${pathname}${search}${hash}`} replace />;
 }
 
+// TASK-070: 가이드 목록·상세는 캠페인으로 옮겼다. 알림 link_path·북마크의 /dashboard/guides/* 를 같은 뒷주소로 보낸다
+function GuidesToCampaigns() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={`${pathname.replace(/^\/dashboard\/guides/, "/dashboard/campaigns")}${search}${hash}`} replace />;
+}
+
+export const guidesToCampaigns: RouteObject[] = [
+  { path: "guides", element: <GuidesToCampaigns /> },
+  { path: "guides/*", element: <GuidesToCampaigns /> },
+];
+
 export const legacyRoutes: RouteObject[] = LEGACY_PREFIXES.flatMap((p) => [
   { path: `/${p}`, element: <LegacyRedirect /> },
   { path: `/${p}/*`, element: <LegacyRedirect /> },

@@ -4,6 +4,8 @@ import type { Sub } from "../context";
 import type { VisualJudge } from "./detect-visual";
 import { splitNames, type GuideRule } from "../../../shared/guides";
 import { josa } from "../../../shared/josa";
+import { isDictRule } from "../../../shared/brand-terms";
+import { judgeDict } from "./detect-dict";
 
 // 규칙 종류별 판정. 규칙 하나에 판정 하나
 
@@ -105,6 +107,8 @@ function format(rule: GuideRule, d: DetectInput): Judged {
 const SPEECH_RULES = new Set<GuideRule["type"]>(["forbidden_phrase", "required_phrase", "language"]);
 
 export async function judgeRule(rule: GuideRule, d: DetectInput): Promise<Judged | null> {
+  const dict = isDictRule(rule) ? judgeDict(rule, d) : null;
+  if (dict) return dict;
   if (SPEECH_RULES.has(rule.type) && d.noSpeech) return { verdict: d.noSpeech, model: "rule" };
   switch (rule.type) {
     case "forbidden_phrase":

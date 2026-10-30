@@ -5,6 +5,7 @@ import { DEFAULT_CHANNELS } from "../../../../shared/leads";
 import { defaultSceneKey } from "../../../../shared/guide-public";
 import type { PersonalData, PublicGuide, T } from "../guideTypes";
 import { PublicSection, TextList } from "./PublicShell";
+import { DictionarySections } from "./DictionarySections";
 
 type GuideProps = { g: PublicGuide; t: T };
 
@@ -103,6 +104,7 @@ export function GuideBody({ guide: g, leadLinks = [], t, lang }: BodyProps) {
       <ProductSection g={g} t={t} />
       {vg && <ScenesSection vg={vg} t={t} lang={lang} />}
       <RulesSections g={g} t={t} />
+      {g.dictionary && <DictionarySections d={g.dictionary} t={t} />}
       <ScheduleSections g={g} t={t} lang={lang} />
       {leadLinks.length > 0 && (
         <PublicSection title={t("my_links")}>

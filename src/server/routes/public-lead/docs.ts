@@ -14,7 +14,8 @@ import { snapshotResponse } from "../../lib/snapshot";
 import { isBlockedEmail, isFreeEmail, type DocumentGate } from "../../../shared/leads";
 import { splitAtGate } from "../../../shared/doc-gate";
 import { sanitizeHtml } from "../../../shared/sanitize";
-import { NOINDEX, brandName, consentFields, contactFields, isMember, visitorId } from "./shared";
+import { brandNameOf } from "../../lib/brands";
+import { NOINDEX, consentFields, contactFields, isMember, visitorId } from "./shared";
 import { docForSlug, gatePassed, gateRequired, openedDoc, passGate, viewFor, type Doc, type DocAccess, type View } from "./doc-access";
 import { sendVerifyMail } from "./doc-verify";
 
@@ -101,7 +102,7 @@ async function publicDocBody(c: Context<AppEnv>, s: DocAccess, view: View) {
     sourceType: doc.sourceType,
     pages: doc.pages,
     allowDownload: doc.allowDownload,
-    brandName: await brandName(c.var.db, doc.workspaceId),
+    brandName: await brandNameOf(c.var.db, doc.workspaceId, doc.guideId),
     gate: { position: viaForm ? "none" : g.position, scrollPct: editor.scrollPct, fields: g.fields, questions: g.questions, companyEmailOnly: g.companyEmailOnly, requireVerify: g.requireVerify },
     gatePassed: passed,
     html: editor.html,

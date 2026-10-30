@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, Checkbox, Input, Textarea } from "../../ui";
+import { Button, Checkbox, Input, RadioGroup, Textarea } from "../../ui";
 import { BASE_FIELD_LABELS, type BaseField, type FormQuestion } from "../../../shared/leads";
 import { useVisitorForm } from "./useVisitorForm";
 import "../links/lead-tools.css";
@@ -60,7 +60,7 @@ export function VisitorForm({ brandName, title, description, headerImageUrl, bas
       {questions.map((q) => <QuestionInput key={q.id} q={q} value={v.answers[q.id]} onChange={(a) => answer(q.id, a)} error={errors[`answers.${q.id}`]} />)}
       <ConsentBlock brandName={brandName} base={base} v={v} set={set} error={errors.privacyAgreed} />
       {errors._ && <p className="field-error" role="alert">{errors._}</p>}
-      <Button type="submit" disabled={busy || preview}>{busy ? "보내는 중" : submitLabel}</Button>
+      <Button type="submit" loading={busy} disabled={preview}>{submitLabel}</Button>
     </form>
   );
 }
@@ -72,12 +72,17 @@ function ConsentBlock({ brandName, base, v, set, error }: ConsentProps) {
   const hasPhone = base.some((b) => b.key === "phone");
   return (
     <div className="visitor-consent">
-      <Checkbox label="[필수] 개인정보 수집·이용에 동의해요" checked={v.privacyAgreed} onChange={(e) => set({ privacyAgreed: e.target.checked })} />
-      <p className="text-caption">
-        수집 항목: {collected}. 목적: 문의 응대와 자료 제공. 보유 기간: 수집일로부터 1년 또는 삭제 요청 시까지. 동의하지 않으면 제출할 수 없어요.{" "}
-        {/* TODO: 브랜드별 개인정보 처리방침 URL 연결 */}
-        <a href="#privacy" onClick={(e) => e.preventDefault()}>처리방침 보기</a>
-      </p>
+      <Checkbox
+        label="[필수] 개인정보 수집·이용에 동의해요"
+        checked={v.privacyAgreed}
+        onChange={(e) => set({ privacyAgreed: e.target.checked })}
+        aria-invalid={!!error}
+        description={<>
+          수집 항목: {collected}. 목적: 문의 응대와 자료 제공. 보유 기간: 수집일로부터 1년 또는 삭제 요청 시까지. 동의하지 않으면 제출할 수 없어요.{" "}
+          {/* TODO: 브랜드별 개인정보 처리방침 URL 연결 */}
+          <a href="#privacy" onClick={(e) => e.preventDefault()}>처리방침 보기</a>
+        </>}
+      />
       {error && <p className="field-error" role="alert">{error}</p>}
       <Checkbox label={`[선택] ${brandName || "브랜드"}의 이메일 광고·소식 받기`} checked={v.marketingOptIn} onChange={(e) => set({ marketingOptIn: e.target.checked })} />
       {hasPhone && <Checkbox label="[선택] 카카오 알림톡으로 광고·소식 받기" checked={v.alimtalkOptIn} onChange={(e) => set({ alimtalkOptIn: e.target.checked })} />}
@@ -97,16 +102,17 @@ function QuestionInput({ q, value, onChange, error }: QuestionProps) {
 
 function ChoiceQuestion({ q, label, value, onChange, error }: QuestionProps & { label: string }) {
   const list = Array.isArray(value) ? value : value ? [value] : [];
-  const single = q.type === "single";
+  if (q.type === "single") {
+    return <RadioGroup label={label} name={q.id} options={q.options.map((o) => ({ value: o, label: o }))} value={list[0] ?? null} onChange={onChange} error={error} />;
+  }
   return (
-    <fieldset className="stack-tight fieldset-plain">
-      <legend className="field-label form-legend">{label}</legend>
-      {q.options.map((o) => (
-        <label key={o} className="checkbox">
-          <input type={single ? "radio" : "checkbox"} name={q.id} checked={list.includes(o)} onChange={(e) => onChange(single ? o : e.target.checked ? [...list, o] : list.filter((x) => x !== o))} />
-          <span>{o}</span>
-        </label>
-      ))}
+    <fieldset className="field fieldset-plain">
+      <legend className="field-label">{label}</legend>
+      <div className="radio-list">
+        {q.options.map((o) => (
+          <Checkbox key={o} name={q.id} label={o} checked={list.includes(o)} onChange={(e) => onChange(e.target.checked ? [...list, o] : list.filter((x) => x !== o))} />
+        ))}
+      </div>
       {error && <p className="field-error" role="alert">{error}</p>}
     </fieldset>
   );

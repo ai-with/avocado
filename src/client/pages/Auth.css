@@ -10,8 +10,8 @@
 .auth-title { font-size: var(--auth-title-size); line-height: var(--auth-title-lh); font-weight: var(--weight-semibold); margin-bottom: var(--space-4); }
 .auth-desc { font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
 .auth-form form { margin-top: var(--space-8); }
-/* 인증 화면의 주 버튼·구글 버튼은 폭을 꽉 채운 알약 */
-.auth-form .btn-primary, .btn.auth-google-btn { width: 100%; border-radius: var(--radius-full); }
+/* 인증 화면의 주 버튼·구글 버튼은 폭만 꽉 채운다. 크기·모서리는 Button size="lg" 그대로 */
+.auth-form .btn-primary, .btn.auth-google-btn { width: 100%; }
 .auth-foot { margin-top: var(--space-7); text-align: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
 .auth-legal { font-size: var(--text-caption-size); color: var(--color-text-tertiary); }
 .auth-legal a { color: inherit; }
@@ -27,7 +27,6 @@
   .auth { grid-template-columns: 1fr; padding: var(--space-6) var(--layout-gutter); }
   .auth-aside { display: none; }
 }
-.form-error { color: var(--color-danger); font-size: var(--text-body-sm-size); }
 .public-page { max-width: var(--layout-content-max); margin: 0 auto; padding: var(--space-9) var(--layout-gutter); }
 /* TASK-024: 구글 로그인, 휴대폰 인증 */
 .auth-google { margin-top: var(--space-8); }
@@ -37,4 +36,3 @@
 .auth-google + form { margin-top: var(--space-4); }
 .auth-forgot { align-self: center; font-size: var(--text-body-sm-size); color: var(--color-text-secondary); }
 .auth-dev-code { padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); background: var(--color-surface-subtle); font-size: var(--text-body-sm-size); }
-.auth-loading { margin-top: var(--space-6); }

@@ -1,24 +1,25 @@
-import { Badge, Input, SectionCard } from "../../../ui";
+import { Badge, ButtonLink, Input, SectionCard } from "../../../ui";
 import { LangCopyButton } from "./LangCopyButton";
 import type { GuideResponse } from "../types";
 
-export function GuideUrlSection({ data }: { data: GuideResponse }) {
+// 캠페인 상세의 브랜드 가이드 덩어리. editTo 가 있으면 편집으로 들어가는 버튼을 단다 (TASK-070)
+export function GuideUrlSection({ data, editTo }: { data: GuideResponse; editTo?: string }) {
   const { guide, sharedUrl, warnings } = data;
   const published = guide.status === "published";
   const title = (
     <span className="row">
-      가이드 URL
+      브랜드 가이드
       <Badge tone={published ? "success" : "neutral"}>{published ? "공개" : "작성 중"}</Badge>
       {guide.videoGuide?.draft && <Badge tone="warn">초안</Badge>}
     </span>
   );
   return (
-    <SectionCard title={title}>
+    <SectionCard title={title} description={guide.name} actions={editTo && <ButtonLink size="sm" to={editTo}>브랜드 가이드 편집</ButtonLink>}>
       <div className="stack">
         {published ? (
           <>
             <div className="row url-row">
-              <Input aria-label="가이드 공용 URL" value={sharedUrl} readOnly onFocus={(e) => e.target.select()} />
+              <Input aria-label="브랜드 가이드 공용 URL" value={sharedUrl} readOnly onFocus={(e) => e.target.select()} />
               <LangCopyButton url={sharedUrl} defaultLang={guide.lang} label="링크 복사" size="md" />
             </div>
             <SendHow />

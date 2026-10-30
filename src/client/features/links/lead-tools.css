@@ -37,6 +37,6 @@
 .viewer-gate { position: fixed; inset: 0; background: var(--color-overlay-strong); overflow-y: auto; padding: var(--space-8) var(--space-6); z-index: 10; }
 .lt-nowrap td { white-space: nowrap; }
 
-.lt-period-select { width: 140px; }
 .lt-og-thumb { width: 120px; aspect-ratio: 1200 / 630; object-fit: cover; border-radius: var(--radius-md); }
 .lt-dest-cell { max-width: 200px; }
+.help-header { display: inline-flex; align-items: center; gap: var(--space-1); }

@@ -22,7 +22,7 @@ export function usePhotoUpload(onUploaded: (url: string) => void) {
     setBusy(true);
     try {
       onUploaded(await postPhoto(file));
-      toast("사진을 올렸어요. 저장하면 가이드에 들어가요.", "success");
+      toast("사진을 올렸어요. 저장하면 브랜드 가이드에 들어가요.", "success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "사진을 올리지 못했어요.");
     } finally {

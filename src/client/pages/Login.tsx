@@ -33,7 +33,7 @@ export function LoginPage() {
         <Input label="이메일" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fields.email} required />
         <Input label="비밀번호" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={fields.password} required />
         <FormError message={error} />
-        <Button type="submit" disabled={busy}>로그인</Button>
+        <Button type="submit" size="lg" loading={busy}>로그인</Button>
         <Link to="/forgot-password" className="auth-forgot">비밀번호를 잊으셨나요?</Link>
       </form>
       <p className="auth-foot">

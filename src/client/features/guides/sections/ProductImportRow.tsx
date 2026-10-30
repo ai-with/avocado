@@ -30,7 +30,7 @@ export function ProductImportRow({ form, set }: Props) {
           hint="공개된 상품 상세 페이지 주소를 넣으면 제품 이름, 효능, 사용법, 사진을 채워요."
           maxLength={2000}
         />
-        <Button variant="secondary" onClick={() => void p.run()} disabled={p.busy}>{p.busy ? "가져오는 중 (최대 30초)" : "가져오기"}</Button>
+        <Button variant="secondary" onClick={() => void p.run()} loading={p.busy}>가져오기</Button>
       </div>
       {p.pending && (
         <Modal

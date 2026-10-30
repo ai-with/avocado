@@ -1,4 +1,4 @@
-import { Button, Checkbox, Modal, Textarea } from "../../../ui";
+import { Button, Checkbox, Modal, Spinner, Textarea } from "../../../ui";
 import { fmtTimecode } from "../../../../shared/review";
 import type { ReviewDetail } from "../types";
 import { useSendPreview } from "./useSendPreview";
@@ -18,7 +18,7 @@ export function SendModal({ open, d, base, onClose, onSent }: Props) {
   return (
     <Modal open={open} title="피드백 보내기 전 확인" onClose={onClose} size="lg" footer={footer}>
       {!s.items ? (
-        <p className="text-secondary" role="status">{needs ? "번역하는 중이에요" : "불러오는 중이에요"}</p>
+        <p className="row text-secondary" role="status"><Spinner size="sm" />{needs ? "번역하는 중이에요" : "불러오는 중이에요"}</p>
       ) : (
         <div className="stack">
           <p className="text-caption">{needs ? `${d.influencer.displayName}님에게 영어로 보내요. 번역문을 고칠 수 있어요.` : `${d.influencer.displayName}님에게 한국어 원문으로 보내요.`}</p>

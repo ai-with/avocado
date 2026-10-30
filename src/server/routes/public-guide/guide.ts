@@ -3,15 +3,16 @@ import { z } from "zod";
 import { and, count, eq } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
-import { consents, guideInfluencers, guideViews, guides, influencers, workspaces } from "../../db/schema";
+import { consents, guideInfluencers, guideViews, guides, influencers } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent, logEvents } from "../../lib/events";
 import { influencerLeadLinks } from "../../lib/guide-status";
-import { guideLinks, linkInfluencer, linkNotFound } from "../../lib/guides";
+import { linkInfluencer, linkNotFound } from "../../lib/guides";
 import { cancelProcessingFor } from "../../pipeline";
 import { CONSENT_DOC_VERSION, missingConsent } from "../../../shared/guides";
-import { byToken, currentConsent, notifyOwners, publicGuideBody, requireByToken } from "./shared";
+import { brandNameOf } from "../../lib/brands";
+import { byToken, currentConsent, influencerTabs, notifyOwners, publicGuideBody, requireByToken } from "./shared";
 
 // 가이드 열람, 공용 링크 참여, 동의와 철회 (F-57, F-58)
 
@@ -75,10 +76,9 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     if (!row) {
       const guide = await publishedBySlug(db, token);
       if (!guide) throw linkNotFound();
-      const ws = await db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, guide.workspaceId)).get();
-      return c.json({ mode: "shared", lang: guide.lang, guide: await publicGuideBody(db, guide, ws?.name ?? "") });
+      return c.json({ mode: "shared", lang: guide.lang, guide: await publicGuideBody(db, guide, await brandNameOf(db, guide.workspaceId, guide.id)) });
     }
-    const { gi, guide, influencer, workspaceName } = row;
+    const { gi, guide, influencer, brandName } = row;
     const q = c.req.query("lang");
     await recordView(db, row, q === "ko" || q === "en" ? q : influencer.lang);
     const consent = await currentConsent(db, gi.id);
@@ -86,9 +86,9 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
       mode: "personal",
       lang: influencer.lang,
       influencer: { displayName: influencer.displayName, email: influencer.email, country: influencer.country },
-      guide: await publicGuideBody(db, guide, workspaceName),
+      guide: await publicGuideBody(db, guide, brandName),
       consent: consent ? { agreedAt: consent.agreedAt, docVersion: consent.docVersion } : null,
-      uploadUrl: consent ? guideLinks(c.env, gi).upload : null,
+      tabs: await influencerTabs(db, gi, guide),
       leadLinks: await influencerLeadLinks(db, c.env.PUBLIC_SHORT_BASE, guide.id, influencer.id),
       consentDocVersion: CONSENT_DOC_VERSION,
     });
@@ -118,7 +118,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
       ["consent_submitted", { version: CONSENT_DOC_VERSION, country: body.country, optional_items: body.items.secondary_use === true ? ["secondary_use"] : [] }],
     ]);
     c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 참여에 동의했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 참여에 동의했어요. 이제 영상을 올릴 수 있어요.`));
-    return c.json({ uploadUrl: guideLinks(c.env, gi).upload, agreedAt }, 201);
+    return c.json({ tabs: await influencerTabs(db, gi, guide), agreedAt }, 201);
   })
   .post("/guide/:token/withdraw", async (c) => {
     const db = c.var.db;

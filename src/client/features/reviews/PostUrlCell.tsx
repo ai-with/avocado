@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, useToast } from "../../ui";
+import { Button, TextField, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import type { GuideInfluencerRow } from "../guides/types";
 import "./reviews.css";
@@ -22,8 +22,8 @@ export function PostUrlCell({ base, row, canEdit, onSaved }: { base: string; row
   const conflict = row.status.postConflictUrl;
   return (
     <div className="stack-tight post-url-cell">
-      <input
-        className="control"
+      <TextField
+        size="sm"
         type="url"
         placeholder="https://www.instagram.com/reel/..."
         aria-label="게시물 URL"

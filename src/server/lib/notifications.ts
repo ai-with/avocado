@@ -11,7 +11,7 @@ type Props = Record<string, unknown>;
 type Rule = { kind: NotificationKind; title: (who: Who, props: Props) => string; link: (props: Props) => string | null };
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : null);
-const guidePath = (p: Props) => (str(p.guide_id) ? `/dashboard/guides/${str(p.guide_id)}` : null);
+const guidePath = (p: Props) => (str(p.guide_id) ? `/dashboard/campaigns/${str(p.guide_id)}` : null);
 const reviewPath = (p: Props) => (str(p.submission_id) ? `/dashboard/reviews/${str(p.submission_id)}` : null);
 
 export const NOTIFY_RULES: Record<string, Rule> = {

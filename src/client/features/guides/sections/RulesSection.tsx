@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { SectionCard, Select } from "../../../ui";
+import { SectionCard, SelectMenu } from "../../../ui";
 import type { GuideRule } from "../../../../shared/guides";
 import { RuleEditor } from "../RuleEditor";
 import { Warnings } from "../GuidelinesPage";
@@ -15,13 +15,16 @@ export function RulesSection({ form, set, sets, setRules, warnings, fields }: Pr
   return (
     <SectionCard title="규정" actions={<Link to={manageTo}>규정 세트 관리</Link>}>
       <div className="stack">
-        <Select label="규정 세트" value={form.guidelineSetId ?? ""} onChange={(e) => set("guidelineSetId", e.target.value || null)} error={fields.guidelineSetId}>
-          <option value="">선택 안 함</option>
-          {sets.map((s) => <option key={s.id} value={s.id}>{s.name} (규칙 {s.ruleCount}개)</option>)}
-        </Select>
+        <SelectMenu
+          label="규정 세트"
+          options={[{ value: "", label: "선택 안 함" }, ...sets.map((s) => ({ value: s.id, label: s.name, description: `규칙 ${s.ruleCount}개` }))]}
+          value={form.guidelineSetId ?? ""}
+          onChange={(v) => set("guidelineSetId", v || null)}
+          error={fields.guidelineSetId}
+        />
         <Warnings items={warnings} />
         {setRules.length > 0 && <RuleEditor readOnly rules={setRules} onAdd={noop} onUpdate={noop} onDelete={noop} />}
-        <h5 className="guide-subhead">이 가이드에만 쓰는 규칙</h5>
+        <h5 className="guide-subhead">이 브랜드 가이드에만 쓰는 규칙</h5>
         <RuleEditor
           rules={extra}
           onAdd={(r) => set("extraRules", [...extra, { ...r, id: `tmp_${crypto.randomUUID()}` }])}

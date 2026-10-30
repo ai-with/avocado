@@ -3,8 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import type { AppEnv } from "../../types";
-import type { Db } from "../../db";
-import { members, workspaces } from "../../db/schema";
+import { members } from "../../db/schema";
 import { newToken } from "../../lib/ids";
 import { escapeHtml } from "../../lib/html";
 
@@ -31,8 +30,6 @@ export async function isMember(c: Context<AppEnv>, workspaceId: string): Promise
   return !!m;
 }
 
-export const brandName = async (db: Db, workspaceId: string) =>
-  (await db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, workspaceId)).get())?.name ?? "";
 
 export function htmlPage(title: string, body: string, head = "") {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title>${head}<style>body{font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;padding:16px;color:#1e1d1c;background:#fefdfb;text-align:center}p{color:#5f5b55}</style></head><body><div>${body}</div></body></html>`;

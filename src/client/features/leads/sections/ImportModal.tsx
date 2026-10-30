@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Button, Checkbox, Modal, Select, useToast } from "../../../ui";
+import { Button, Checkbox, Modal, useToast, SelectMenu } from "../../../ui";
 import { api, errorMessage } from "../../../lib/api";
 import { parseCsv } from "../../../../shared/csv";
+import { FilePickButton } from "../../links/FilePickButton";
 
 const IMPORT_COLUMNS = [
   { key: "email", label: "이메일 (필수)", guess: /e-?mail|이메일|메일/i },
@@ -57,11 +58,11 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
       setBusy(false);
     }
   };
-  const footer = <Button disabled={busy || !consent || map.email < 0 || rows.length < 2} onClick={() => void run()}>{busy ? "가져오는 중" : `${Math.max(0, rows.length - 1)}행 가져오기`}</Button>;
+  const footer = <Button disabled={!consent || map.email < 0 || rows.length < 2} loading={busy} onClick={() => void run()}>{`${Math.max(0, rows.length - 1)}행 가져오기`}</Button>;
   return (
     <Modal open title="CSV 가져오기" onClose={onClose} footer={footer}>
       <div className="stack">
-        <input type="file" accept=".csv,text/csv" aria-label="CSV 파일 고르기" onChange={(e) => void pick(e.target.files?.[0])} />
+        <div><FilePickButton label="CSV 파일 고르기" accept=".csv,text/csv" onFile={(f) => void pick(f)} /></div>
         {header.length > 0 && <ColumnMapping header={header} map={map} onChange={setMap} />}
         <p className="text-caption">마케팅 동의 열이 없거나 값이 Y, 동의, true가 아니면 '동의 없음'으로 넣어요. 같은 이메일은 기존 리드에 합쳐요.</p>
         <Checkbox label="수신 동의를 받은 연락처만 올려요" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
@@ -70,11 +71,11 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
   );
 }
 
+const SKIP_COLUMN = -1;
+
 function ColumnMapping({ header, map, onChange }: { header: string[]; map: ColumnMap; onChange: (m: ColumnMap) => void }) {
+  const options = [{ value: String(SKIP_COLUMN), label: "가져오지 않기" }, ...header.map((h, i) => ({ value: String(i), label: h || `${i + 1}번째 열` }))];
   return IMPORT_COLUMNS.map((c) => (
-    <Select key={c.key} label={c.label} value={map[c.key]} onChange={(e) => onChange({ ...map, [c.key]: Number(e.target.value) })}>
-      <option value={-1}>가져오지 않기</option>
-      {header.map((h, i) => <option key={i} value={i}>{h || `${i + 1}번째 열`}</option>)}
-    </Select>
+    <SelectMenu key={c.key} label={c.label} options={options} value={String(map[c.key])} onChange={(v) => onChange({ ...map, [c.key]: Number(v ?? SKIP_COLUMN) })} />
   ));
 }

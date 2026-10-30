@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, SectionCard, Select, Textarea } from "../../../ui";
+import { Button, Checkbox, Input, NumberField, SectionCard, Select, Textarea, TextField, SelectMenu } from "../../../ui";
 import { BASE_FIELD_LABELS, MAX_QUESTIONS, QUESTION_TYPE_LABELS, type AfterSubmit, type FormQuestion, type FormQuestionType } from "../../../../shared/leads";
 import { randomId, type DocumentRow } from "../../links/common";
 import type { Draft, Named, SetDraft } from "../form-model";
@@ -18,10 +18,7 @@ export function ContentSection({ d, set, guides, onPickHeader }: DraftProps & { 
         </label>
         {d.headerImageKey && <Button size="sm" variant="ghost" onClick={() => set({ headerImageKey: null })}>이미지 빼기</Button>}
       </div>
-      <Select label="가이드" value={d.guideId ?? ""} onChange={(e) => set({ guideId: e.target.value || null })}>
-        <option value="">가이드 없음</option>
-        {guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-      </Select>
+      <SelectMenu label="가이드" options={[{ value: "", label: "가이드 없음" }, ...guides.map((g) => ({ value: g.id, label: g.name }))]} value={d.guideId ?? ""} onChange={(v) => set({ guideId: v || null })} />
     </SectionCard>
   );
 }
@@ -92,14 +89,11 @@ export function SubmitSection({ d, set, docs }: DraftProps & { docs: DocumentRow
       </Select>
       <Textarea label="안내 문구" value={d.afterSubmit.text} onChange={(e) => setAfter({ text: e.target.value })} />
       {d.afterSubmit.type === "document" && (
-        <Select label="연결할 자료" value={d.afterSubmit.documentId ?? ""} onChange={(e) => setAfter({ documentId: e.target.value || null })}>
-          <option value="">자료 고르기</option>
-          {docs.map((doc) => <option key={doc.id} value={doc.id}>{doc.title}</option>)}
-        </Select>
+        <SelectMenu label="연결할 자료" placeholder="자료 고르기" options={docs.map((doc) => ({ value: doc.id, label: doc.title }))} value={d.afterSubmit.documentId} onChange={(v) => setAfter({ documentId: v })} />
       )}
       <div className="lt-grid2">
-        <Input label="마감일 (선택)" type="date" value={toDateInput(d.closesAt)} onChange={(e) => set({ closesAt: fromDateInput(e.target.value) })} />
-        <Input label="최대 제출 수 (선택)" type="number" min={1} value={d.maxSubmissions ?? ""} onChange={(e) => set({ maxSubmissions: e.target.value ? Number(e.target.value) : null })} />
+        <TextField label="마감일 (선택)" type="date" value={toDateInput(d.closesAt)} onChange={(e) => set({ closesAt: fromDateInput(e.target.value) })} />
+        <NumberField label="최대 제출 수 (선택)" suffix="건" value={d.maxSubmissions} onChange={(v) => set({ maxSubmissions: v })} />
       </div>
       <Textarea label="마감 문구" value={d.closedMessage} onChange={(e) => set({ closedMessage: e.target.value })} />
     </SectionCard>

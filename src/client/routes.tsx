@@ -7,7 +7,7 @@ import { LoginPage } from "./pages/Login";
 import { SignupPage } from "./pages/Signup";
 import { NotFoundPage } from "./pages/NotFound";
 import { LandingPage } from "./pages/landing/LandingPage";
-import { legacyRoutes } from "./LegacyRedirect";
+import { guidesToCampaigns, legacyRoutes } from "./LegacyRedirect";
 import { LoadingState } from "./ui";
 import "./pages/Auth.css";
 
@@ -21,12 +21,14 @@ function page<K extends string>(load: () => Promise<PageModule<K>>, name: K): Pi
 // 로그인 후 앱 셸(LNB) 안의 화면. /dashboard 아래 상대 경로
 export const appRoutes: RouteObject[] = [
   { index: true, element: <HomePage /> },
-  { path: "guides", ...page(() => import("./features/guides/GuidesListPage"), "GuidesListPage") },
-  { path: "guides/new", ...page(() => import("./features/guides/GuideEditPage"), "GuideEditPage") },
-  { path: "guides/:id", ...page(() => import("./features/guides/GuideDetailPage"), "GuideDetailPage") },
-  { path: "guides/:id/edit", ...page(() => import("./features/guides/GuideEditPage"), "GuideEditPage") },
+  { path: "campaigns", ...page(() => import("./features/campaigns/CampaignsListPage"), "CampaignsListPage") },
+  { path: "campaigns/new", ...page(() => import("./features/campaigns/CampaignNewPage"), "CampaignNewPage") },
+  { path: "campaigns/:id", ...page(() => import("./features/guides/GuideDetailPage"), "GuideDetailPage") },
+  { path: "campaigns/:id/edit", ...page(() => import("./features/guides/GuideEditPage"), "GuideEditPage") },
+  ...guidesToCampaigns,
   { path: "settings/guidelines", ...page(() => import("./features/guides/GuidelinesPage"), "GuidelinesPage") },
   { path: "influencers", ...page(() => import("./features/guides/InfluencersPage"), "InfluencersPage") },
+  { path: "influencers/:id", ...page(() => import("./features/guides/InfluencerDetailPage"), "InfluencerDetailPage") },
   { path: "reviews", ...page(() => import("./features/reviews/ReviewsPage"), "ReviewsPage") },
   { path: "reviews/:submissionId", ...page(() => import("./features/reviews/ReviewDetailPage"), "ReviewDetailPage") },
   { path: "links", ...page(() => import("./features/links/LinksPage"), "LinksPage") },
@@ -38,6 +40,9 @@ export const appRoutes: RouteObject[] = [
   { path: "broadcasts", ...page(() => import("./features/messaging/BroadcastsPage"), "BroadcastsPage") },
   { path: "performance", ...page(() => import("./features/performance/PerformancePage"), "PerformancePage") },
   { path: "sites", ...page(() => import("./features/sites/Page"), "SitesPage") },
+  { path: "settings/brands", ...page(() => import("./pages/settings/Brands"), "BrandsSettingsPage") },
+  { path: "settings/brands/:brandId/terms", ...page(() => import("./features/brand-terms/BrandTermsPage"), "BrandTermsPage") },
+  { path: "settings/messages", ...page(() => import("./pages/settings/Messages"), "MessagesSettingsPage") },
   { path: "settings/workspace", ...page(() => import("./pages/settings/Workspace"), "WorkspaceSettingsPage") },
   { path: "settings/plan", ...page(() => import("./pages/settings/Plan"), "PlanPage") },
   { path: "settings/integrations", ...page(() => import("./pages/settings/Integrations"), "IntegrationsPage") },

@@ -32,7 +32,7 @@ export function SignupPage() {
         <Input label="비밀번호" type="password" autoComplete="new-password" hint="8자 이상" value={form.password} onChange={set("password")} error={fields.password} required />
         <Input label="워크스페이스 이름" autoComplete="organization" hint="브랜드나 회사 이름을 적어 주세요." value={form.workspaceName} onChange={set("workspaceName")} error={fields.workspaceName} required />
         <FormError message={error} />
-        <Button type="submit" disabled={busy}>가입하기</Button>
+        <Button type="submit" size="lg" loading={busy}>가입하기</Button>
       </form>
       <p className="auth-foot">
         이미 계정이 있으신가요? <Link to="/login">로그인</Link>

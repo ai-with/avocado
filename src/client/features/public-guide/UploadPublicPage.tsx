@@ -1,28 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Button, LoadingState } from "../../ui";
+import { useLocation, useParams } from "react-router-dom";
+import { ButtonLink, Disclosure, FloatingActionBar, LoadingState } from "../../ui";
 import { api } from "../../lib/api";
-import { makeT, type Lang, type TKey } from "../../i18n";
+import { makeT, type Lang } from "../../i18n";
+import { langFromSearch, withLangParam } from "../../../shared/guide-public";
+import type { InfluencerTabs as TabLinks } from "../../../shared/influencer-tabs";
+import type { VersionGroup } from "../../../shared/versions";
+import { versionLine } from "./versionLabel";
 import { PUBLIC_OPTS, type T } from "./guideTypes";
-import { PublicShell, PublicSection } from "./sections/PublicShell";
+import { InfluencerTabs, useStickyNav } from "./sections/InfluencerTabs";
+import { PublicShell } from "./sections/PublicShell";
 import { Slot } from "./sections/Slot";
 import "./public.css";
 
-type Sub = { id: string; version: number; kind: "final" | "clean"; status: string; fileName: string | null; note: string | null; driveUrl: string | null; uploadedAt: number | null };
-type UploadData = { brandName: string; guideName: string; lang: Lang; displayName: string; consented: boolean; guideUrl: string; feedbackUrl: string | null; approved: boolean; deliverables: { clean: boolean }; limits: { maxFrames: number }; submissions: Sub[] };
+type UploadData = { brandName: string; guideName: string; lang: Lang; displayName: string; consented: boolean; tabs: TabLinks; approved: boolean; deliverables: { clean: boolean }; limits: { maxFrames: number }; versions: VersionGroup[] };
 
-function PreviousSubmissions({ subs, t }: { subs: Sub[]; t: T }) {
+// 버전별 한 줄, 최신순 (TASK-074). 평소엔 안 봐도 되는 묶음이라 접어 둔다
+function PreviousVersions({ versions, t }: { versions: VersionGroup[]; t: T }) {
   return (
-    <PublicSection title={t("previous")}>
-      <ul className="pub-list">
-        {subs.map((s) => (
-          <li key={s.id}>
-            v{s.version} {s.kind === "final" ? t("final_cut") : t("clean_cut")} · {t(`status_${s.status}` as TKey) ?? s.status}
-            {s.note && <span className="text-caption"> · {s.note}</span>}
-          </li>
-        ))}
-      </ul>
-    </PublicSection>
+    <section className="pub-section">
+      <Disclosure title={t("previous")} count={versions.length}>
+        <ul className="pub-list">
+          {versions.map((g) => <li key={g.version}>{versionLine(t, g)}</li>)}
+        </ul>
+      </Disclosure>
+    </section>
   );
 }
 
@@ -31,29 +33,26 @@ function UploadBody({ data, token, t, lang, onDone }: { data: UploadData; token:
     return (
       <div className="stack">
         <p>{t("upload_need_consent")}</p>
-        <Button className="pub-btn" onClick={() => location.assign(data.guideUrl)}>{t("open_guide")}</Button>
+        <FloatingActionBar><ButtonLink variant="primary" size="xl" to={withLangParam(data.tabs.guide, lang)}>{t("open_guide")}</ButtonLink></FloatingActionBar>
       </div>
     );
-  const slot = { token, t, lang, maxFrames: data.limits.maxFrames, onDone };
   return (
     <div className="stack">
       <h1 className="pub-title">{t("upload_title")}</h1>
       <p className="text-secondary">{data.guideName} · {t("limits_hint")}</p>
-      {data.feedbackUrl && <a href={data.feedbackUrl}>{t("prev_feedback")}</a>}
       {data.approved && <p className="text-secondary">{t("upload_after_approval")}</p>}
-      <Slot kind="final" title={t("slot_final")} {...slot} />
-      <Slot kind="clean" title={t("slot_clean")} {...slot} />
-      {data.submissions.length > 0 && <PreviousSubmissions subs={data.submissions} t={t} />}
+      <Slot token={token} t={t} lang={lang} maxFrames={data.limits.maxFrames} hasFinal={data.versions.some((g) => g.hasFinal)} onDone={onDone} />
+      {data.versions.length > 0 && <PreviousVersions versions={data.versions} t={t} />}
     </div>
   );
 }
 
-// /u/:token: 완성본(필수)·클린본(선택) 업로드 (F-59). 업로드 후 브라우저에서 프레임·오디오를 뽑아 보낸다
+// /u/:token: 업로드 칸 하나에서 완성본·클린본을 골라 올린다 (F-59). 업로드 후 브라우저에서 프레임·오디오를 뽑아 보낸다
 export function UploadPublicPage() {
   const { token = "" } = useParams();
   const [data, setData] = useState<UploadData | null>(null);
   const [error, setError] = useState(false);
-  const [langPick, setLang] = useState<Lang | null>(null);
+  const [langPick, setLang] = useState<Lang | null>(langFromSearch(useLocation().search));
   const lang = langPick ?? data?.lang ?? "ko";
   const t = makeT(lang);
   const load = useCallback(async () => {
@@ -64,9 +63,11 @@ export function UploadPublicPage() {
     }
   }, [token]);
   useEffect(() => void load(), [load]);
+  const nav = useStickyNav(data ? { brand: data.brandName, tabs: data.tabs } : null);
+  const tabs = nav && <InfluencerTabs tabs={nav.tabs} current="upload" t={t} lang={lang} />;
 
   return (
-    <PublicShell brand={data?.brandName} langLabel={t("lang_toggle")} onToggleLang={() => setLang(lang === "ko" ? "en" : "ko")}>
+    <PublicShell centerBrand brand={nav?.brand} tabs={tabs} langLabel={t("lang_toggle")} onToggleLang={() => setLang(lang === "ko" ? "en" : "ko")}>
       {error ? <p className="pub-error">{t("link_expired")}</p> : !data ? <LoadingState label={t("loading")} /> : <UploadBody data={data} token={token} t={t} lang={lang} onDone={load} />}
     </PublicShell>
   );

@@ -1,0 +1,41 @@
+/* RadioGroup, Switch, SegmentedControl */
+.radio-group > legend { margin-bottom: var(--space-3); }
+.radio-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.radio-list-row { flex-direction: row; flex-wrap: wrap; gap: var(--space-4) var(--space-7); }
+.radio { width: var(--control-check-size); height: var(--control-check-size); flex-shrink: 0; accent-color: var(--color-accent); }
+fieldset:disabled .radio-list .checkbox, .radio-list .checkbox:has(input:disabled) { color: var(--color-text-tertiary); cursor: not-allowed; }
+
+.switch-row { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-5); font-size: var(--text-control-size); line-height: var(--text-control-lh); cursor: pointer; min-height: var(--switch-height); }
+.switch-row:has(.switch:disabled) { color: var(--color-text-tertiary); cursor: not-allowed; }
+.switch {
+  appearance: none; flex: none; position: relative; margin: 0; cursor: inherit;
+  width: var(--switch-width); height: var(--switch-height); border-radius: var(--radius-full);
+  background: var(--color-border-strong); transition: background-color var(--duration-fast) var(--ease-out);
+}
+.switch::before {
+  content: ""; position: absolute; top: 50%; left: var(--space-1); width: var(--switch-thumb); height: var(--switch-thumb);
+  border-radius: var(--radius-full); background: var(--color-surface); box-shadow: var(--shadow-control);
+  transform: translateY(-50%); transition: transform var(--duration-fast) var(--ease-out);
+}
+.switch:checked { background: var(--color-accent); }
+.switch:checked::before { transform: translate(calc(var(--switch-width) - var(--switch-thumb) - var(--space-1) * 2), -50%); }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.switch:disabled { opacity: 0.5; }
+
+/* 세그먼트: 옅은 바탕 홈 위에 고른 칸만 흰 면으로 떠 있다. 홈 안쪽 4, 칸 모서리 = 홈 모서리 - 안쪽 (TDS 실측 비율) */
+.segmented { display: inline-flex; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-button); background: var(--color-surface-muted); max-width: 100%; overflow-x: auto; }
+.segmented:not(.segmented-fluid) .segment { flex: 1 1 0; }
+.segmented-fluid { width: fit-content; }
+.segment {
+  display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; cursor: pointer;
+  border-radius: calc(var(--radius-button) - var(--space-2)); color: var(--color-text-secondary); font-weight: var(--weight-medium);
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.segmented-md .segment { height: calc(var(--control-height) - var(--space-2) * 2); padding: 0 var(--space-5); font-size: var(--text-control-size); }
+.segmented-sm { padding: var(--space-1); border-radius: var(--radius-control-sm); }
+.segmented-sm .segment { height: calc(var(--control-height-sm) - var(--space-1) * 2); padding: 0 var(--space-4); border-radius: calc(var(--radius-control-sm) - var(--space-1)); font-size: var(--text-control-sm-size); }
+.segment:hover { color: var(--color-text-primary); }
+.segment:has(input:checked) { background: var(--color-surface); color: var(--color-text-primary); font-weight: var(--weight-semibold); box-shadow: var(--shadow-ring), var(--shadow-control); }
+.segment:has(input:focus-visible) { box-shadow: var(--focus-ring); }
+.segment:has(input:disabled) { color: var(--color-text-muted); cursor: not-allowed; }
+@media (pointer: coarse) { .switch-row { min-height: var(--touch-target); } .segment { min-height: var(--touch-target); } }

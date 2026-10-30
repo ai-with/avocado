@@ -99,7 +99,7 @@ export function PhoneVerifyForm({ onDone, submitLabel = "인증 완료" }: { onD
       </div>
       {v.sent && <CodeField sent={v.sent} code={v.code} setCode={v.setCode} validLeft={v.validLeft} error={v.fields.code} />}
       <FormError message={v.error} />
-      <Button type="submit" disabled={v.busy || (!!v.sent && v.code.length !== 6)}>{v.sent ? submitLabel : "인증번호 받기"}</Button>
+      <Button type="submit" size="lg" loading={v.busy} disabled={!!v.sent && v.code.length !== 6}>{v.sent ? submitLabel : "인증번호 받기"}</Button>
       <p className="field-hint">한 번호로는 계정을 하나만 만들 수 있어요.</p>
     </form>
   );

@@ -33,7 +33,7 @@ export function SupportForm({ s }: Props) {
         <Input label="회신 이메일" type="email" required autoComplete="email" value={s.draft.replyEmail} onChange={(e) => s.set("replyEmail", e.target.value)} error={s.fields.replyEmail} />
         {s.error && !Object.keys(s.fields).length && <p className="text-danger" role="alert">{s.error}</p>}
         <div className="row row-end">
-          <Button type="submit" disabled={s.busy}>{s.busy ? "보내는 중" : "문의 보내기"}</Button>
+          <Button type="submit" loading={s.busy}>문의 보내기</Button>
         </div>
       </form>
     </SectionCard>

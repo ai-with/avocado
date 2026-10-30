@@ -1,4 +1,4 @@
-import { Input, SectionCard, Select, Textarea } from "../../../ui";
+import { Input, NumberField, SectionCard, Select, Textarea, TextField } from "../../../ui";
 import { toDateInput, type GuideForm, type SetField } from "../useGuideForm";
 import { ProductImportRow } from "./ProductImportRow";
 import { PhotoField } from "./PhotoField";
@@ -11,7 +11,7 @@ export function BasicInfoSection({ form, set, fields }: Props) {
     <SectionCard title="기본 정보">
       <div className="stack">
         <ProductImportRow form={form} set={set} />
-        <Input label="가이드 이름" value={form.name} onChange={(e) => set("name", e.target.value)} error={fields.name} placeholder="예: 여름 글로우 세럼 릴스" required maxLength={80} />
+        <Input label="브랜드 가이드 이름" value={form.name} onChange={(e) => set("name", e.target.value)} error={fields.name} placeholder="예: 여름 글로우 세럼 릴스" required maxLength={80} />
         <div className="grid-2">
           <Input label="제품 이름" value={form.product.name} onChange={(e) => setProduct({ name: e.target.value })} error={fields["product.name"]} />
           <Input label="영상 목적" value={form.purpose} onChange={(e) => set("purpose", e.target.value)} placeholder="예: 광고 소재용 UGC, 계정 게시용" />
@@ -24,12 +24,12 @@ export function BasicInfoSection({ form, set, fields }: Props) {
         <Textarea label="사용법" value={form.product.usage} onChange={(e) => setProduct({ usage: e.target.value })} />
         <PhotoField photos={form.product.photos} onChange={(photos) => setProduct({ photos })} error={fields["product.photos"]} />
         <div className="grid-3">
-          <Input label="영상 길이(초)" type="number" min={5} max={180} value={form.lengthS ?? ""} onChange={(e) => set("lengthS", e.target.value ? Number(e.target.value) : null)} error={fields.lengthS} />
+          <NumberField label="영상 길이" suffix="초" value={form.lengthS} onChange={(v) => set("lengthS", v)} error={fields.lengthS} />
           <Select label="인플루언서 기본 언어" value={form.lang} onChange={(e) => set("lang", e.target.value as "ko" | "en")}>
             <option value="ko">한국어</option>
             <option value="en">영어</option>
           </Select>
-          <Input label="초안 마감일" type="date" value={toDateInput(form.deadlineAt)} onChange={(e) => set("deadlineAt", e.target.value ? new Date(`${e.target.value}T23:59:59`).getTime() : null)} />
+          <TextField label="초안 마감일" type="date" value={toDateInput(form.deadlineAt)} onChange={(e) => set("deadlineAt", e.target.value ? new Date(`${e.target.value}T23:59:59`).getTime() : null)} />
         </div>
       </div>
     </SectionCard>

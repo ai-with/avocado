@@ -1,6 +1,8 @@
-import { Button, FilterBar, Select, ButtonAnchor } from "../../../ui";
+import { Button, FilterBar, Select, ButtonAnchor, SelectMenu } from "../../../ui";
 import { FORMAT_LABELS } from "../../../../shared/performance";
 import type { Filters, PerfQuery } from "../perfTypes";
+
+const ALL = { value: "", label: "전체" };
 
 type Props = { f: PerfQuery; setF: (f: PerfQuery) => void; filters: Filters; qs: string; showGuide: boolean };
 
@@ -15,15 +17,9 @@ export function PerfFilterBar({ f, setF, filters, qs, showGuide }: Props) {
   return (
     <FilterBar label="성과표 필터" actions={actions}>
       {showGuide && (
-        <Select label="가이드" value={f.guideId} onChange={(e) => setF({ ...f, guideId: e.target.value })}>
-          <option value="">전체</option>
-          {filters.guides.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </Select>
+        <SelectMenu label="가이드" options={[ALL, ...filters.guides.map((g) => ({ value: g.id, label: g.name }))]} value={f.guideId} onChange={(v) => setF({ ...f, guideId: v ?? "" })} />
       )}
-      <Select label="인플루언서" value={f.influencerId} onChange={(e) => setF({ ...f, influencerId: e.target.value })}>
-        <option value="">전체</option>
-        {filters.influencers.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-      </Select>
+      <SelectMenu label="인플루언서" options={[ALL, ...filters.influencers.map((i) => ({ value: i.id, label: i.name }))]} value={f.influencerId} onChange={(v) => setF({ ...f, influencerId: v ?? "" })} />
       <Select label="형식" value={f.format} onChange={(e) => setF({ ...f, format: e.target.value })}>
         <option value="">전체</option>
         {Object.entries(FORMAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

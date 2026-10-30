@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Button, Modal, Select, useToast } from "../../../ui";
+import { Button, Modal, useToast, SelectMenu } from "../../../ui";
 import { api, ApiError, errorMessage } from "../../../lib/api";
 import { InfluencerFields, emptyDraft, influencerBody, type InfluencerDraft } from "../InfluencersPage";
 import type { Influencer } from "../types";
@@ -41,13 +41,15 @@ export function AddInfluencerModal(props: Props) {
     <Modal open={open} title="인플루언서 추가" onClose={onClose}>
       <form className="stack" onSubmit={submit}>
         {choices.length > 0 && (
-          <Select label="등록된 인플루언서에서 고르기" value={pick} onChange={(e) => setPick(e.target.value)}>
-            <option value="">새로 입력</option>
-            {choices.map((i) => <option key={i.id} value={i.id}>{i.displayName}{i.igHandle ? ` (@${i.igHandle})` : ""}</option>)}
-          </Select>
+          <SelectMenu
+            label="등록된 인플루언서에서 고르기"
+            options={[{ value: "", label: "새로 입력" }, ...choices.map((i) => ({ value: i.id, label: i.displayName, description: i.igHandle ? `@${i.igHandle}` : undefined }))]}
+            value={pick}
+            onChange={(v) => setPick(v ?? "")}
+          />
         )}
         {!pick && <InfluencerFields draft={draft} onChange={setDraft} fields={fields} />}
-        <p className="text-caption">추가하면 이 사람만의 가이드·업로드 링크가 만들어져요. 링크는 30일 동안 열려요.</p>
+        <p className="text-caption">추가하면 이 사람만의 브랜드 가이드·업로드 링크가 만들어져요. 링크는 30일 동안 열려요.</p>
         <div className="row row-end">
           <Button variant="ghost" onClick={onClose}>취소</Button>
           <Button type="submit">추가</Button>

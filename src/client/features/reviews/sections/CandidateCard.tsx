@@ -3,6 +3,7 @@ import { Badge, Button, Card, Input, Select } from "../../../ui";
 import { api } from "../../../lib/api";
 import { CONFIDENCE_LABELS, CONFLICT_LABEL, DECISION_LABELS, DECISION_REASON_LABELS, RESULT_LABELS, fmtTimecode, type DecisionReason } from "../../../../shared/review";
 import { RESULT_TONE, ruleLabel } from "../labels";
+import { RULE_SOURCE_LABELS, ruleSource } from "../../../../shared/brand-terms";
 import type { ActFn, Candidate, Frame, ReviewDetail, SeekFn } from "../types";
 import { FrameThumb } from "./FrameThumb";
 
@@ -45,6 +46,7 @@ function CandidateHead({ c, flagged }: { c: Candidate; flagged: boolean }) {
       <div className="row row-tight row-wrap">
         <Badge tone={RESULT_TONE[c.result]}>{RESULT_LABELS[c.result]}</Badge>
         <strong>{ruleLabel(c.ruleType)}</strong>
+        {ruleSource(c.ruleId) !== "guide" && <Badge>{RULE_SOURCE_LABELS[ruleSource(c.ruleId)]}</Badge>}
         <span className="text-caption">신뢰도 {CONFIDENCE_LABELS[c.confidence]}</span>
         {flagged && <Badge tone="warn">{CONFLICT_LABEL}</Badge>}
       </div>

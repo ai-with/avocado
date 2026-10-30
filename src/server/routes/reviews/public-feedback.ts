@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { contents, feedbackItems, frames, guideInfluencers, reviewRounds, submissions } from "../../db/schema";
@@ -9,7 +9,9 @@ import { logEvent } from "../../lib/events";
 import { translate } from "../../lib/ai";
 import { streamObject } from "../../lib/http";
 import { registerContent } from "../../lib/contents";
-import { findByToken, guideLinks, linkNotFound } from "../../lib/guides";
+import { findByToken, linkNotFound } from "../../lib/guides";
+import { influencerTabs } from "../public-guide/shared";
+import { versionHistory } from "../public-guide/versions";
 import { fmtTimecode } from "../../../shared/review";
 import { BRAND_LANG, approvalOf, postUrlBody } from "./shared";
 
@@ -63,23 +65,24 @@ export const publicFeedbackRoutes = new Hono<AppEnv>()
   .get("/feedback/:token", async (c) => {
     const db = c.var.db;
     const token = c.req.param("token");
-    const { gi, guide, influencer, workspaceName } = await byFeedbackToken(db, token);
-    const rounds = await db.select().from(reviewRounds).where(eq(reviewRounds.guideInfluencerId, gi.id)).orderBy(desc(reviewRounds.n));
+    const { gi, guide, influencer, brandName } = await byFeedbackToken(db, token);
+    const { groups, rounds, approval, versionOf } = await versionHistory(db, gi.id);
     const items = rounds.length ? await db.select().from(feedbackItems).where(inArray(feedbackItems.roundId, rounds.map((r) => r.id))).orderBy(asc(feedbackItems.n)) : [];
-    const versions = new Map((await db.select({ id: submissions.id, version: submissions.version }).from(submissions).where(eq(submissions.guideInfluencerId, gi.id))).map((s) => [s.id, s.version]));
-    const approval = await approvalOf(db, gi.id);
+    const roundsOf = (version: number) =>
+      rounds.filter((r) => versionOf.get(r.submissionId) === version).map((r) => ({ n: r.n, submittedAt: r.submittedAt, items: items.filter((i) => i.roundId === r.id).map(publicItem(token)) }));
     const content = await db.select({ url: contents.url }).from(contents).where(eq(contents.guideInfluencerId, gi.id)).get();
     await logEvent(db, guide.workspaceId, "influencer_feedback_viewed", { guide_id: guide.id });
     return c.json({
-      brandName: workspaceName,
+      brandName,
       guideName: guide.name,
       lang: influencer.lang,
       displayName: influencer.displayName,
-      uploadUrl: guideLinks(c.env, gi).upload,
+      tabs: await influencerTabs(db, gi, guide),
       approved: !!approval,
-      approvedVersion: approval ? (versions.get(approval.submissionId) ?? null) : null,
+      approvedVersion: approval ? (versionOf.get(approval.submissionId) ?? null) : null,
       postUrl: content?.url ?? null,
-      rounds: rounds.map((r) => ({ n: r.n, version: versions.get(r.submissionId) ?? null, submittedAt: r.submittedAt, items: items.filter((i) => i.roundId === r.id).map(publicItem(token)) })),
+      // 버전별 이력, 최신 버전 먼저. 버전마다 받은 피드백 회차(최신 회차 먼저) (TASK-074)
+      versions: groups.map((g) => ({ ...g, rounds: roundsOf(g.version) })),
     });
   })
   .get("/feedback/:token/frame/:frameId", async (c) => {

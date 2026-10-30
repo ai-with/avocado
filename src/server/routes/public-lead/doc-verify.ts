@@ -9,7 +9,7 @@ import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
 import { logEvent } from "../../lib/events";
 import { SERVICE_NAME } from "../../../shared/brand";
-import { brandName } from "./shared";
+import { brandNameOf } from "../../lib/brands";
 import { docForSlug, passGate, viewFor, type Doc } from "./doc-access";
 
 // 게이트 이메일 인증(requireVerify): 인증 메일, 다시 보내기, 링크 확인
@@ -27,7 +27,7 @@ export async function sendVerifyMail(c: Context<AppEnv>, doc: Doc, slug: string,
   // 운영은 고정 주소(Host 헤더를 믿지 않는다), 로컬 개발은 요청한 주소로 돌아오게 한다
   const origin = c.env.APP_ENV === "production" ? c.env.APP_URL : new URL(c.req.url).origin;
   const url = `${origin}/d/${encodeURIComponent(slug)}?verify=${raw}`;
-  const brand = (await brandName(c.var.db, doc.workspaceId)) || SERVICE_NAME;
+  const brand = (await brandNameOf(c.var.db, doc.workspaceId, doc.guideId)) || SERVICE_NAME;
   await sendEmail(c.env, {
     to: email,
     subject: `[${brand}] ${doc.title} 열람 인증`,

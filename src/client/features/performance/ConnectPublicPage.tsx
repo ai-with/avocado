@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Button, LoadingState } from "../../ui";
+import { Button, FloatingActionBar, LoadingState } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { PublicShell, PublicSection, TextList } from "../public-guide/sections/PublicShell";
 import { CONNECT_TEXT, type ConnectText, type Lang } from "./connectText";
 
 type Info = { target: "influencer" | "client_brand"; name: string; lang: Lang; agencyName: string | null; brandName: string; configured: boolean; connected: boolean; username: string | null };
 
+// 연결할 수 있을 때만 '연결' 버튼이 하단에 뜬다. 나머지 상태는 본문 글로 알린다
 function ConnectCta({ info, token, t }: { info: Info; token: string; t: ConnectText }) {
+  if (info.connected && info.username) return <p className="pub-ok">{t.connectedAs(info.username)}</p>;
+  if (!info.configured) return <p className="text-secondary">{t.preparing}</p>;
   return (
-    <div className="pub-cta">
-      {info.connected && info.username ? (
-        <p className="pub-ok">{t.connectedAs(info.username)}</p>
-      ) : info.configured ? (
-        <Button onClick={() => location.assign(`/api/ig/oauth/start?target=${info.target}&token=${encodeURIComponent(token)}`)}>{t.connect}</Button>
-      ) : (
-        <p className="text-secondary">{t.preparing}</p>
-      )}
-    </div>
+    <FloatingActionBar>
+      <Button size="xl" onClick={() => location.assign(`/api/ig/oauth/start?target=${info.target}&token=${encodeURIComponent(token)}`)}>{t.connect}</Button>
+    </FloatingActionBar>
   );
 }
 

@@ -1,0 +1,52 @@
+/* Spinner, ProgressBar, Avatar, Tooltip, ListRow */
+.spinner-wrap { display: inline-flex; }
+.spinner { display: inline-block; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: var(--radius-full); color: var(--color-text-tertiary); animation: spin var(--duration-spin) linear infinite; }
+.btn .spinner { color: currentColor; }
+.spinner-sm { width: var(--spinner-size-sm); height: var(--spinner-size-sm); }
+.spinner-md { width: var(--spinner-size-md); height: var(--spinner-size-md); }
+.spinner-lg { width: var(--spinner-size-lg); height: var(--spinner-size-lg); border-width: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.progress-head { display: flex; justify-content: space-between; gap: var(--space-4); font-size: var(--text-label-size); line-height: var(--text-label-lh); color: var(--color-text-secondary); }
+.progress-track { width: 100%; overflow: hidden; border-radius: var(--radius-full); background: var(--color-surface-muted); }
+.progress-md { height: var(--progress-height); }
+.progress-sm { height: var(--progress-height-sm); }
+.progress-fill { height: 100%; border-radius: inherit; transition: width var(--duration-base) var(--ease-out); }
+.progress-accent { background: var(--color-accent); }
+.progress-success { background: var(--color-success); }
+.progress-danger { background: var(--color-danger); }
+
+.avatar-ui {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden;
+  border-radius: var(--radius-full); background: var(--color-surface-muted); color: var(--color-text-secondary); font-weight: var(--weight-semibold);
+}
+.avatar-ui img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-ui-sm { width: var(--avatar-size-sm); height: var(--avatar-size-sm); font-size: var(--text-caption-size); }
+.avatar-ui-md { width: var(--avatar-size-md); height: var(--avatar-size-md); font-size: var(--text-label-size); }
+.avatar-ui-lg { width: var(--avatar-size-lg); height: var(--avatar-size-lg); font-size: var(--text-body-lg-size); }
+
+.tooltip-anchor { position: relative; display: inline-flex; }
+.tooltip {
+  position: absolute; left: 50%; z-index: var(--z-popover); width: max-content; max-width: var(--tooltip-max); transform: translateX(-50%);
+  padding: var(--space-3) var(--space-5); border-radius: var(--radius-control-sm); background: var(--color-surface-inverted); color: var(--color-text-inverted);
+  font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); font-weight: var(--weight-regular); white-space: normal; pointer-events: none;
+}
+.tooltip[hidden] { display: none; }
+.tooltip-top { bottom: calc(100% + var(--space-3)); }
+.tooltip-bottom { top: calc(100% + var(--space-3)); }
+
+/* TDS ListRow: 칸 사이 16, 누르는 행은 면 모서리 12 */
+.list-row { display: flex; align-items: center; gap: var(--space-6); width: 100%; min-width: 0; padding: var(--space-5) 0; text-align: left; color: var(--color-text-primary); }
+.list-row-sm { padding-block: var(--space-4); }
+.list-row-lg { padding-block: var(--space-6); }
+.list-row-button { border: 0; background: transparent; font: inherit; cursor: pointer; border-radius: var(--radius-md); padding-inline: var(--space-6); margin-inline: calc(var(--space-6) * -1); width: calc(100% + var(--space-6) * 2); transition: background-color var(--duration-fast) var(--ease-out); }
+.list-row-button:hover:not(:disabled) { background: var(--color-surface-subtle); }
+.list-row-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.list-row.is-disabled { color: var(--color-text-tertiary); cursor: not-allowed; }
+.list-row-leading, .list-row-trailing { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); }
+.list-row-trailing { color: var(--color-text-secondary); font-size: var(--text-control-sm-size); }
+.list-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.list-row-title { font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-medium); }
+.list-row-desc { font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); }
+.list-row > svg { flex: none; color: var(--color-text-tertiary); }

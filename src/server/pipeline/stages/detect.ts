@@ -2,17 +2,20 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { processingJobs, transcriptSegments, violationCandidates } from "../../db/schema";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
+import { chunkRows } from "../../lib/chunks";
 import { PROMPT_VERSION, modelName } from "../../lib/ai";
-import { guideRules } from "../../lib/guides";
+import { reviewRules } from "../../lib/guides";
 import { StageSkip, bumpAttempt, jobWhere, type Ctx } from "../context";
 import type { Seg, Verdict } from "../rules";
 import { visualVotes } from "./detect-visual";
 import { judgeRule } from "./detect-rules";
 import type { CandidateResult } from "../../../shared/review";
 import type { GuideRule } from "../../../shared/guides";
+import { ruleSource } from "../../../shared/brand-terms";
 
 // 7 위반 후보 탐지 (F-61)
 const DETECT_ATTEMPTS = 2; // 1회 + 재시도 1회
+const CANDIDATE_COLUMNS = 20; // violation_candidates 컬럼 수(여유 포함). insert 한 문장의 행 수를 정한다
 
 type Draft = Verdict & { rule: GuideRule; frameIds: string[]; segmentIds: string[]; model: string };
 
@@ -26,17 +29,20 @@ async function noSpeechVerdict(ctx: Ctx): Promise<Verdict> {
   return { result: "undetermined", confidence: "low", reason: stt?.status === "failed" ? "전사에 실패해 대사를 확인하지 못했어요." : "음성이 없어 대사를 확인하지 못했어요." };
 }
 
+// 법규 기본 목록은 수십 개라 준수·판단 불가까지 남기면 후보 목록이 묻힌다. 걸린 것만 남긴다 (TASK-079)
+const keepDraft = (rule: GuideRule, v: Verdict) => ruleSource(rule.id) !== "legal" || v.result === "candidate";
+
 async function detectAll(ctx: Ctx): Promise<Draft[]> {
   const { db, env, sub, guide } = ctx;
   // 클린본에는 광고 표기 규칙을 적용하지 않는다 (F-61 예외)
-  const rules = (await guideRules(db, guide)).filter((r) => r.enabled && !(sub.kind === "clean" && r.type === "ad_disclosure"));
+  const rules = (await reviewRules(db, guide)).filter((r) => r.enabled && !(sub.kind === "clean" && r.type === "ad_disclosure"));
   const segs = await loadSegs(ctx);
   const noSpeech = segs.length > 0 ? null : await noSpeechVerdict(ctx);
   const input = { env, sub, segs, noSpeech, visual: await visualVotes(ctx, rules), textModel: modelName(env, "text"), visionModel: modelName(env, "vision") };
   const drafts: Draft[] = [];
   for (const rule of rules) {
     const j = await judgeRule(rule, input);
-    if (j) drafts.push({ ...j.verdict, rule, model: j.model, frameIds: j.frameIds ?? [], segmentIds: j.segmentIds ?? [] });
+    if (j && keepDraft(rule, j.verdict)) drafts.push({ ...j.verdict, rule, model: j.model, frameIds: j.frameIds ?? [], segmentIds: j.segmentIds ?? [] });
   }
   return drafts;
 }
@@ -44,26 +50,26 @@ async function detectAll(ctx: Ctx): Promise<Draft[]> {
 async function saveDrafts(ctx: Ctx, drafts: Draft[]) {
   const { db, sub } = ctx;
   const at = now();
-  await db.delete(violationCandidates).where(eq(violationCandidates.submissionId, sub.id));
-  if (drafts.length)
-    await db.insert(violationCandidates).values(
-      drafts.map((d) => ({
-        id: newId(),
-        submissionId: sub.id,
-        ruleId: d.rule.id,
-        ruleType: d.rule.type,
-        ruleContent: d.rule.content,
-        ruleVersion: d.rule.version ?? null,
-        result: d.result,
-        confidence: d.confidence,
-        frameIds: d.frameIds,
-        segmentIds: d.segmentIds,
-        reason: d.reason,
-        modelVersion: d.model,
-        promptVersion: PROMPT_VERSION,
-        createdAt: at,
-      })),
-    );
+  const rows = drafts.map((d) => ({
+    id: newId(),
+    submissionId: sub.id,
+    ruleId: d.rule.id,
+    ruleType: d.rule.type,
+    ruleContent: d.rule.content,
+    ruleVersion: d.rule.version ?? null,
+    result: d.result,
+    confidence: d.confidence,
+    frameIds: d.frameIds,
+    segmentIds: d.segmentIds,
+    reason: d.reason,
+    modelVersion: d.model,
+    promptVersion: PROMPT_VERSION,
+    createdAt: at,
+  }));
+  // 사전 규칙이 붙으면 후보가 수십 개라 D1 바인딩 한도(100)에 맞춰 나눠 넣는다. 지우기와 넣기는 한 batch 로 묶는다
+  const deleteOld = db.delete(violationCandidates).where(eq(violationCandidates.submissionId, sub.id));
+  const inserts = chunkRows(rows, CANDIDATE_COLUMNS).map((part) => db.insert(violationCandidates).values(part));
+  await db.batch([deleteOld, ...inserts]);
   const byResult: Partial<Record<CandidateResult, number>> = {};
   for (const d of drafts) byResult[d.result] = (byResult[d.result] ?? 0) + 1;
   await logEvent(db, ctx.workspaceId, "violation_candidates_generated", { count: (byResult.candidate ?? 0) + (byResult.needs_check ?? 0), by_result: byResult, model_version: modelName(ctx.env, "vision") });

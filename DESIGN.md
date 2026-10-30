@@ -36,7 +36,7 @@
 
 1. **따뜻한 흰 바탕 위 흰 카드, 깊이는 배경 단계와 얇은 링으로.** 바탕은 `--color-bg`(#fefdfb), 카드는 `--color-surface`(흰색)에 `--shadow-card`(1px 링 + 아주 옅은 그림자). 진한 그림자로 띄우지 않는다. 한 단계 낮은 면은 `--color-surface-subtle`(Stat, EmptyState, 공개 화면 바탕).
 2. **초록 강조색은 "누를 곳"과 "선택됨"에만.** 쓰는 곳은 primary 버튼, 선택된 칩, 링크, 사이드바 활성 아이콘, accent 배지뿐이다. 한 화면 머리(PageHeader actions)에는 primary 버튼을 하나만 둔다. 나머지는 secondary 또는 ghost. 탭 선택 표시는 강조색이 아니라 검정(`--color-text-primary`) 밑줄이다.
-3. **글자 위계는 크기를 적게, 굵기는 semibold 하나, 색은 3단계.** 앱 화면 제목은 20px(`--text-title-size`)이 가장 크다. 그 아래 h3는 18px, h4는 16px로 자동으로 낮아진다(AppShell.css). 본문 14px, 보조 13px, 캡션 12px. 색은 primary, secondary, tertiary 세 가지.
+3. **글자 위계는 크기를 적게, 굵기는 semibold 하나(고른 탭만 bold), 색은 3단계.** 앱 화면 제목은 20px(`--text-title-size`)이 가장 크다. 그 아래 h3는 18px, h4는 16px로 자동으로 낮아진다(AppShell.css). 본문 14px, 보조 13px, 캡션 12px. 색은 primary, secondary, tertiary 세 가지.
 4. **밀도는 낮게.** 화면 덩어리 사이 24px(`.stack-loose`), 카드 안 20~24px, 목록 위아래 요소 사이 16px(`.stack`). 앱 본문 최대 폭 1200px.
 5. **빈 화면·로딩·작은 손가락도 화면의 일부.** 숫자 0 대신 다음 할 일을 보여 주고(EmptyState, Home 지표), 로딩은 `LoadingState` 스켈레톤, 터치 기기에서는 누르는 영역 44px, 아이콘 버튼에는 이름이 필수다.
 
@@ -83,7 +83,7 @@
 
 ### 3.2 글자
 
-글꼴 `--font-sans`(Pretendard), 고정폭 `--font-mono`. 굵기 `--weight-regular`(400), `--weight-medium`(500), `--weight-semibold`(600). 700은 없다.
+글꼴 `--font-sans`(Pretendard), 고정폭 `--font-mono`. 굵기 `--weight-regular`(400), `--weight-medium`(500), `--weight-semibold`(600), `--weight-bold`(700, 고른 탭만). 버튼·고른 세그먼트·배지·토스트는 semibold(토스 TDS 실측, `findings/toss-design-system-benchmark.md` 8절).
 
 | 단계 | 크기 / 줄높이 (PC) | 태블릿 | 휴대폰 | 자간 | 용도 |
 |-|-|-|-|-|-|
@@ -95,9 +95,13 @@
 | `--text-title-size` / `--text-title-lh` | 20 / 28 | 같음 | 같음 | | 앱 화면 제목(PageHeader) |
 | `--text-body-lg-size` / `--text-body-lg-lh` | 16 / 24 | 같음 | 같음 | | 카드 제목(SectionCard h4), 긴 읽기 글 |
 | `--text-body-size` / `--text-body-lh` | 14 / 20 | 같음 | 같음 | | 기본 본문(body) |
-| `--text-body-sm-size` / `--text-body-sm-lh` | 14 / 20 | 같음 | 같음 | | 버튼, 입력칸, 탭 |
-| `--text-label-size` / `--text-label-lh` | 13 / 18 | 같음 | 같음 | | 라벨, 설명 문단, 작은 버튼, 토스트 |
-| `--text-caption-size` / `--text-caption-lh` | 12 / 16 | 같음 | 같음 | | 캡션(`.text-caption`), 배지, 도움말 |
+| `--text-body-sm-size` / `--text-body-sm-lh` | 14 / 20 | 같음 | 같음 | | 작은 본문(이제 컨트롤에는 안 씀) |
+| `--text-control-size` / `--text-control-lh` | 15 / 22 | 같음 | 같음 | | md 버튼·입력칸·탭·세그먼트·토스트·ListRow 제목 (TDS t6) |
+| `--text-control-sm-size` / `--text-control-sm-lh` | 13 / 18 | 같음 | 같음 | | sm 버튼·입력칸, 툴팁, 다중 선택 칩 (TDS t7) |
+| `--text-control-lg-size` / `--text-control-lg-lh` | 17 / 24 | 같음 | 같음 | | lg·xl 버튼, lg 입력칸 (TDS t5) |
+| `--text-help-size` / `--text-help-lh` | 13 / 20 | 같음 | 같음 | | 입력칸 도움말·오류·글자 수, 체크박스·선택지 설명, ListRow 설명 |
+| `--text-label-size` / `--text-label-lh` | 13 / 18 | 같음 | 같음 | | 입력칸 라벨(보통 굵기, secondary 색), 설명 문단 |
+| `--text-caption-size` / `--text-caption-lh` | 12 / 16 | 같음 | 같음 | | 캡션(`.text-caption`), 배지, 목록 묶음 제목 |
 | `--text-overline-size` / `--text-overline-lh` | 11 / 16 | 같음 | 같음 | | 사이드바 그룹 제목 |
 | `--text-input-min-size` | 16 | | | | 터치 기기 입력 글자 하한(iOS 확대 방지) |
 
@@ -114,8 +118,8 @@
 | `--space-2` | 4px | 제목 아래 설명(PageHeader, SectionCard), `.row-tight` |
 | `--space-3` | 6px | `.stack-tight`, 버튼 안 아이콘과 글자 |
 | `--space-4` | 8px | `.row` 요소 사이, 버튼끼리, 모달 머리 |
-| `--space-5` | 12px | 작은 버튼 좌우 여백, 입력칸 좌우 여백, StatGrid 칸 사이 |
-| `--space-6` | 16px | `.stack`(목록 위 요소들), 버튼 좌우 여백, Stat 안 여백, 휴대폰 모달 여백 |
+| `--space-5` | 12px | 작은 버튼 좌우 여백, StatGrid 칸 사이 |
+| `--space-6` | 16px | `.stack`(목록 위 요소들), 버튼·입력칸 좌우 여백, Stat 안 여백, 휴대폰 모달 여백 |
 | `--space-7` | 20px | 탭 아래, 공개 화면 섹션 안 여백 |
 | `--space-8` | 24px | `.stack-loose`(화면 덩어리 사이), SectionCard 안 여백, PageHeader 아래, 모달 안 여백 |
 | `--space-9` | 32px | `.stack-section`, 앱 본문 좌우 여백 |
@@ -141,20 +145,35 @@
 | `--layout-sidebar` / `--layout-sidebar-collapsed` | 232px / 56px | 앱 사이드바 |
 | `--sidebar-item-height` | 32px | 사이드바 항목 |
 | `--icon-size-sm` | 16px | 버튼 안 아이콘 |
-| `--control-height` / `--control-height-sm` | 40px / 32px | 버튼·입력칸 높이 |
+| `--control-height-sm` / `--control-height` / `--control-height-lg` / `--control-height-xl` | 32 / 40 / 48 / 56px | 버튼 sm·md·lg·xl 높이(TDS small·medium·large·xlarge, md만 PC 정렬 때문에 38 대신 40). 입력칸 sm·md는 32·40, 입력칸 lg는 xl(56, TDS box) |
+| `--control-padding-x` / `--control-padding-x-sm` | 16px / 8px | 입력칸 좌우 여백 |
+| `--control-check-size` | 20px | 체크박스 네모, 라디오 동그라미 (TDS 24를 PC에 맞춰 20) |
+| `--switch-width` / `--switch-height` / `--switch-thumb` | 40px / 24px / 20px | Switch 바탕·손잡이 (TDS 50×30 비율) |
+| `--badge-height` | 24px | Badge 높이 (TDS small) |
+| `--tab-height` | 44px | Tabs 최소 높이 |
+| `--count-badge-size` | 16px | 아이콘 위 숫자 배지(알림 개수 `shell/NotificationBell.css`) 높이·최소 폭 |
+| `--floating-bar-height` | 0px | FloatingActionBar 높이. 줄이 뜨면 `ui/FloatingActionBar.tsx`가 실제 높이로 바꿔 넣고 scroll-padding에 쓴다 |
+| `--sheet-handle-width` / `--sheet-handle-height` | 36px / 4px | 바텀시트 위 손잡이 |
+| `--select-menu-max-height` / `--select-menu-min-width` | 320px / 200px | SelectMenu 목록 최대 높이·최소 폭 |
+| `--progress-height` / `--progress-height-sm` | 6px / 4px | ProgressBar 굵기 |
+| `--avatar-size-sm` / `--avatar-size-md` / `--avatar-size-lg` | 24 / 32 / 40px | Avatar, 스켈레톤 list 동그라미 |
+| `--spinner-size-sm` / `--spinner-size-md` / `--spinner-size-lg` | 16 / 24 / 32px | Spinner |
+| `--tooltip-max` | 240px | Tooltip 최대 폭 |
 | `--touch-target` | 44px | 터치 기기 최소 누르는 영역 |
 
 ### 3.4 모서리
 
 | 토큰 | 값 | 쓰임 |
 |-|-|-|
-| `--radius-button` | 10px, 휴대폰 9999px | 버튼 |
-| `--radius-input` | 10px | 입력칸 |
+| `--radius-control-sm` / `--radius-control` / `--radius-control-lg` / `--radius-control-xl` | 8 / 10 / 14 / 16px | 컨트롤 높이별 모서리(TDS 32→8, 38→10, 48→14, 56→16). sm 버튼·입력칸·툴팁·목록 항목은 sm, lg 입력칸은 lg, lg 버튼 lg, xl 버튼 xl |
+| `--radius-button` | 10px(= radius-control) | md 버튼. 휴대폰에서도 알약으로 바꾸지 않는다(TDS 실측) |
+| `--radius-input` | 10px(= radius-control) | md 입력칸 |
 | `--radius-card` | 12px | 카드, EmptyState, ActionBar 윗모서리 |
-| `--radius-modal` | 16px | 모달 |
+| `--radius-modal` | 24px | 모달 (TDS Dialog) |
+| `--radius-sheet` | 28px | 바텀시트, 휴대폰 모달 시트 위 모서리 (TDS Bottom Sheet) |
 | `--radius-popover` | 12px | 드롭다운 메뉴 |
 | `--radius-xs` / `--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` / `--radius-2xl` | 4 / 6 / 12 / 16 / 20 / 24px | 위 이름으로 안 맞을 때만. 스켈레톤은 xs, 작은 태그는 sm |
-| `--radius-full` | 9999px | 배지, 칩, 아바타, 원형 아이콘 |
+| `--radius-full` | 9999px | 배지, 칩, 토스트, 아바타, 원형 아이콘 |
 
 ### 3.5 그림자
 
@@ -163,14 +182,15 @@
 | `--shadow-ring` | 1px 링만. 작은 원형 아이콘 |
 | `--shadow-card` | Card, SectionCard |
 | `--shadow-raised` | 살짝 뜬 요소 |
-| `--shadow-control` | 입력칸, secondary·primary 버튼 |
+| `--shadow-control` | secondary·primary 버튼(입력칸은 채움형이라 그림자 없음) |
 | `--shadow-button-primary` | primary 버튼 안쪽 하이라이트(`--shadow-control`과 함께) |
 | `--shadow-popover` | 드롭다운, 모달, 토스트 |
 | `--shadow-drawer` | 드로어 |
 | `--shadow-bar` | ActionBar(아래 고정 줄) |
 | `--shadow-page` | 어두운 뷰어 위 문서 페이지 |
 | `--shadow-scroll-edge` | 표 가로 스크롤 가장자리 그림자 색(값이 색 하나다) |
-| `--focus-ring` | 입력칸 포커스 링 |
+| `--focus-ring` | 포커스 링. TDS식 이중 링: 1px 진한 선 + 4px 옅은 번짐 |
+| `--focus-ring-danger` | 오류 입력칸 포커스 링(빨간 1px + 옅은 빨강 번짐) |
 | `--border-control` | 입력칸 테두리 전체 선언(1px solid border-strong) |
 
 ### 3.6 z-index
@@ -181,15 +201,21 @@
 | `--z-popover` | 45 | 드롭다운 메뉴 |
 | `--z-drawer` | 50 | 드로어, 휴대폰 사이드바 |
 | `--z-modal` | 55 | 모달 |
+| `--z-select-menu` | 57 | SelectMenu 목록(body에 붙어 모달·드로어 위로 뜸) |
 | `--z-toast` | 60 | 토스트, 본문 건너뛰기 링크 |
 
 ### 3.7 모션
 
 | 토큰 | 값 | 쓰임 |
 |-|-|-|
+| `--duration-press` | 100ms | 버튼 눌림(TDS 0.1s) |
 | `--duration-fast` | 150ms | hover, 색·테두리 전환 |
 | `--duration-base` | 200ms | 모달·드로어·토스트 등장 |
+| `--duration-loop` | 1200ms | 스켈레톤(LoadingState list·card) 깜빡임 한 바퀴 |
+| `--duration-spin` | 800ms | Spinner 한 바퀴 |
 | `--ease-out` | cubic-bezier(0.22, 1, 0.36, 1) | 모든 전환 |
+| `--ease-in-out` | ease-in-out | 버튼 눌림 |
+| `--scale-press` | 0.96 | 눌린 버튼 크기(TDS) |
 
 `prefers-reduced-motion`은 base.css가 전역으로 처리한다. 따로 막을 필요 없다.
 
@@ -211,9 +237,13 @@ CSS 변수는 `@media` 안에서 못 쓴다. 쿼리에는 위 두 숫자(599, 10
 import { Button, Input, PageHeader, Table } from "../../ui";
 ```
 
+**크기·모양은 토스 TDS 실측을 따른다(2026-10-30, 근거 `findings/toss-design-system-benchmark.md` 8절). 색은 우리 토큰 그대로.** 요약: 버튼 4단(32·40·48·56, 모서리 8·10·14·16, semibold), 입력칸 채움형(옅은 면, 그림자 없음, 15px, 라벨 13px 보통 굵기), 체크박스·라디오 20, 스위치 40×24, 세그먼트 홈 안쪽 4·고른 칸 semibold, 배지 24, 탭 15px·고름 bold, ListRow 칸 사이 16·누름 면 모서리 12, 모달 모서리 24·제목 20px, 바텀시트 모서리 28 + 손잡이, 토스트 알약·15px semibold, 툴팁 13px·모서리 8, 포커스 이중 링, 버튼 눌림 0.96.
+
 ### 4.1 Button, IconButton, ButtonLink, ButtonAnchor (`ui/Button.tsx`)
 
-- props: `Button`은 `ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm" | "md" }`. 기본 `variant="primary"`, `size="md"`, `type="button"`.
+- props: `Button`은 `ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm" | "md" | "lg" | "xl"; loading?: boolean }`. 기본 `variant="primary"`, `size="md"`, `type="button"`.
+- 크기(TDS 실측 기준, findings 8절): sm 32·r8·13px(표·줄 안), md 40·r10·15px(기본), lg 48·r14·17px(인증 화면 주 버튼·구글 버튼), xl 56·r16·17px(공개 화면 하단 줄 주 동작, 랜딩 "시작하기"). 글자는 모두 semibold, 누르면 0.96으로 작아진다. 휴대폰에서도 알약으로 바꾸지 않는다. 화면 CSS로 높이·모서리·글자 크기를 덮어쓰지 않고 `size`를 고른다(폭 100% 같은 배치만 화면 CSS).
+- `loading`: 누를 수 없고(`aria-busy`), 글자 자리에 Spinner. 글자는 숨기기만 해서 버튼 폭이 그대로다(토스 Button 규칙). 반투명이 아니라 진한 색 그대로 둔다.
 - `IconButton`: `{ icon: IconName; label: string }` + Button props(children, aria-label 제외). 기본 `variant="ghost"`.
 - `ButtonLink`: react-router `LinkProps & { variant?; size? }`, 기본 `secondary`. 앱 안 이동.
 - `ButtonAnchor`: `AnchorHTMLAttributes<HTMLAnchorElement> & { variant?; size? }`, 기본 `secondary`. 외부 주소·내려받기.
@@ -224,9 +254,13 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 <Button onClick={publish}>공개하기</Button>
 <Button variant="secondary" onClick={edit}>편집</Button>
 <Button type="submit" disabled={busy}>{busy ? "저장 중" : "저장"}</Button>
+<Button type="submit" loading={busy}>저장</Button>
 <IconButton icon="x" label="닫기" size="sm" onClick={onClose} />
 <ButtonLink size="sm" to="/dashboard/guides/new">시작</ButtonLink>
 <ButtonAnchor href={`/api/leads/export?${query}`}>CSV 내보내기</ButtonAnchor>
+<Button type="submit" size="lg" loading={busy}>로그인</Button>   {/* 인증 화면 주 버튼 */}
+<Button size="xl" onClick={upload} disabled={!file}>올리기</Button>   {/* 공개 업로드 화면 주 동작 */}
+<ButtonLink variant="primary" size="xl" to="/signup">시작하기</ButtonLink>   {/* 랜딩 CTA */}
 ```
 
 ### 4.2 CopyButton (`ui/CopyButton.tsx`)
@@ -241,7 +275,10 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 
 ### 4.3 Input, Textarea, Select, Checkbox (`ui/Form.tsx`)
 
-- props: `Input`은 `InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string; error?: string }`. `Textarea`, `Select`도 각 HTML 속성 + 같은 `{ label?, hint?, error? }`. `Checkbox`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode }`.
+- props: `Input`은 `InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string; error?: string }`. `Textarea`, `Select`도 각 HTML 속성 + 같은 `{ label?, hint?, error? }`. `Textarea`는 `autoGrow?: boolean`(내용만큼 높이가 늘어남, 손잡이 없음), `showCount?: boolean`(아래 오른쪽 글자 수, `maxLength`가 있으면 "n/최대", 넘으면 빨강)이 더 있다. `Select`는 `size?: "sm" | "md" | "lg"`(기본 `md`)가 더 있다. `lg`는 높이 56px(TDS box). `sm`은 높이 32px, 폭은 내용에 맞고(최소 72px) 오른쪽에 화살표 자리가 항상 확보된다. 표 안·줄 안 선택칸에 쓰고, 화면 CSS로 `.control` 여백을 덮어쓰지 않는다. `Checkbox`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; description?: ReactNode; indeterminate?: boolean }`. `description`은 라벨 아래 작은 글씨(`aria-describedby` 연결), `indeterminate`는 "일부만 고름"(전체 선택 칸).
+- 모양(TDS box 채움형, findings 8절): 바탕 `surface-subtle`, 그림자 없음, 테두리는 3:1 대비 때문에 `--border-control` 그대로. 포커스면 바탕이 흰색이 되고 이중 링. 비활성은 `surface-muted`. 라벨 13px 보통 굵기 secondary 색, 도움말·오류 13px.
+- 앞뒤 단위·지우기·글자 수·크기·읽기 전용 모양이 필요하면 `TextField`(4.21). `Input`은 그대로 둔다.
+- 검색·설명 줄·묶음·다중 선택이 필요한 선택은 `SelectMenu`(4.32). 고르는 기준은 4.32.
 - `required`를 주면 라벨 옆에 "필수"가 붙는다. `hint`·`error`는 `aria-describedby`로 연결되고, `error`가 있으면 hint 대신 빨간 문구 + 빨간 테두리.
 - 쓴다: 모든 입력. 라벨이 화면에 없을 때(FilterBar 안)는 `aria-label`을 준다.
 - 안 쓴다: 2~6개 중 하나 고르기를 눈에 보이게 하려면 ChoiceChips.
@@ -252,12 +289,13 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 <Select label="가이드" value={guide} onChange={(e) => setGuide(e.target.value)}>
   <option value="">모든 가이드</option>
 </Select>
+<Select size="sm" aria-label="진행 상태" value={status} onChange={(e) => setStatus(e.target.value)}>{/* 표 안 작은 선택칸 */}</Select>
 <Checkbox label="알림톡 수신에 동의해요" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
 ```
 
 ### 4.4 Badge (`ui/Badge.tsx`)
 
-- props: `{ tone?: BadgeTone; dot?: boolean; children: ReactNode }`. `BadgeTone = "neutral" | "accent" | "success" | "warn" | "danger" | "info"`, 기본 `neutral`.
+- props: `{ tone?: BadgeTone; dot?: boolean; children: ReactNode }`. 높이 24, 12px semibold, 알약(TDS Badge small). `BadgeTone = "neutral" | "accent" | "success" | "warn" | "danger" | "info"`, 기본 `neutral`.
 - 쓴다: 상태 한두 단어(공개, 작성 중, 처리 지연), 개수(3/5). 상태값은 `Record<State, BadgeTone>` 상수로 매핑(ReviewsPage `STATE_TONE`).
 - tone 고르는 기준:
 
@@ -345,8 +383,9 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 
 ### 4.9 Drawer (`ui/Drawer.tsx`)
 
-- props: `{ title: string; description?: ReactNode; onClose: () => void; children: ReactNode }`. 열린 동안만 렌더한다(`open` prop 없음).
+- props: `{ title: string; description?: ReactNode; onClose: () => void; children: ReactNode; side?: "right" | "bottom" }`. 기본 `side="right"`. 열린 동안만 렌더한다(`open` prop 없음).
 - 쓴다: 표에서 한 행을 눌러 오른쪽에 상세 보기(리드 상세 `features/leads/common.tsx`).
+- `side="bottom"`: 바텀시트. 폭 전체, 높이는 내용만큼(최대 화면 85%). 공개 화면 휴대폰에서 선택 목록·짧은 확인. 바깥을 누르거나 Esc면 닫힌다(토스 Bottom Sheet 권장 동작). PC 대시보드에서는 쓰지 않는다.
 - 안 쓴다: 입력 위주 작업(Modal), 화면 이동이 필요한 상세(별도 화면).
 
 ```tsx
@@ -382,9 +421,10 @@ catch (e) { toast(errorMessage(e), "danger"); }
 
 ### 4.12 LoadingState (`ui/LoadingState.tsx`)
 
-- props: `{ lines?: number; label?: string }`. 기본 `lines=3`, `label="불러오는 중"`.
+- props: `{ lines?: number; label?: string; pattern?: "lines" | "list" | "card" }`. 기본 `lines=3`, `label="불러오는 중"`, `pattern="lines"`.
+- `pattern`: 실제 화면 모양에 맞춘다. `lines`(제목 + 글줄), `list`(동그라미 + 두 줄 행을 `lines`개, ListRow 목록 자리), `card`(카드 면을 `lines`개).
 - 쓴다: 데이터를 받기 전(`data === null`). `return null` 대신.
-- 안 쓴다: 버튼 안 진행 표시(버튼 글자를 "저장 중"으로 바꾸고 `disabled`).
+- 안 쓴다: 버튼 안 진행 표시(`Button loading` 또는 글자를 "저장 중"으로 바꾸고 `disabled`), 작은 자리 기다림(Spinner).
 
 ```tsx
 if (!rows) return <LoadingState label="검수 목록을 불러오는 중" />;
@@ -425,6 +465,19 @@ if (!rows) return <LoadingState label="검수 목록을 불러오는 중" />;
 </ActionBar>
 ```
 
+### 4.15.1 FloatingActionBar, FloatingActionBarSlot (`ui/FloatingActionBar.tsx`)
+
+- props: `FloatingActionBar`는 `{ children: ReactNode }`, `FloatingActionBarSlot`은 props 없음. 줄은 `FloatingActionBarSlot` 안에 portal로 그려지고, 슬롯은 `PublicShell`이 본문 맨 아래에 이미 둔다. 그래서 줄은 화면 트리 어디(폼, 업로드 칸 깊은 곳)에 써도 된다.
+- 화면 아래에 붙고(sticky) 본문 폭에 맞으며, 위쪽 옅은 그림자(`--shadow-bar`)와 흰 바탕, safe-area 여백이 들어 있다. 자기 실제 높이만큼 본문에서 자리를 차지해 마지막 내용을 가리지 않는다(`--floating-bar-height`를 측정해 scroll-padding에도 쓴다). 내용이 짧으면 화면 맨 아래에 붙는다. 줄을 렌더하지 않으면 자리는 접힌다.
+- 쓴다: 인플루언서 공개 화면의 주 CTA 1개(참여하기, 동의하고 참여하기, 올리기). 폼 제출은 버튼에 `form="폼id"`를 준다. 진행 중처럼 누를 게 없으면 줄을 렌더하지 않는다.
+- 안 쓴다: 앱 화면 편집 폼(그건 ActionBar). 보조 버튼(참여 취소 등)은 본문에 둔다.
+
+- 줄 안 주 버튼은 `size="xl"`(56). 폭은 줄이 100%로 채운다.
+
+```tsx
+<FloatingActionBar><Button type="submit" size="xl" form="consent-form" disabled={!ready}>{t("submit_consent")}</Button></FloatingActionBar>
+```
+
 ### 4.16 Tabs (`ui/Tabs.tsx`)
 
 - props: `{ tabs: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string }` (`T extends string`). 화살표 이동, 좁으면 가로 스크롤.
@@ -436,9 +489,20 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 <Tabs<Tab> tabs={TABS} value={tab} onChange={setTab} />
 ```
 
+### 4.16.1 LinkTabs (`ui/LinkTabs.tsx`)
+
+- props: `{ tabs: LinkTab[]; current: string; label: string }`. `LinkTab = { key: string; label: string; to: string | null; count?: number }`. 모양은 Tabs와 같고(`Tabs.css`), 현재 탭은 `aria-current="page"`.
+- `to`가 null이면 잠긴 탭(흐리게, 누를 수 없음). 왜 잠겼는지는 탭 아래 캡션 한 줄로 알린다(툴팁 금지). `count`가 0보다 크면 옆에 accent 배지.
+- 쓴다: 주소가 다른 화면끼리를 한 페이지처럼 오가는 탭 줄(인플루언서 공개 화면 가이드·영상 올리기·피드백, `features/public-guide/sections/InfluencerTabs.tsx`). react-router `Link`라 새로고침 없이 이동한다.
+- 안 쓴다: 한 화면 안 보기 전환(그건 Tabs).
+
+```tsx
+<LinkTabs label="인플루언서 메뉴" current="upload" tabs={[{ key: "guide", label: "가이드", to: "/g/abc" }, { key: "feedback", label: "피드백", to: null, count: 2 }]} />
+```
+
 ### 4.17 Icon (`ui/icons.tsx`)
 
-- props: `{ name: IconName; size?: number }`. 기본 18. `aria-hidden` 처리돼 있다. Lucide 경로를 옮겨 둔 목록에서만 고른다(house, file-text, users, link, search, plus, check, x, chevron-left, bell 등 35개).
+- props: `{ name: IconName; size?: number }`. 기본 18. `aria-hidden` 처리돼 있다. Lucide 경로를 옮겨 둔 목록에서만 고른다(house, file-text, users, link, search, plus, check, x, chevron-left, bell, megaphone, tag 등 37개).
 - 쓴다: 글자 옆 보조 그림, EmptyState·Table 머리글·Dropdown 항목 아이콘.
 - 안 쓴다: 아이콘만으로 누르는 버튼(그건 IconButton). 새 아이콘 라이브러리 설치 금지. 필요하면 lucide.dev SVG 경로를 `icons.tsx`에 추가.
 
@@ -453,7 +517,7 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 - `DropdownItem = { label: string; onSelect: () => void; id?: string; description?: string; icon?: IconName; leading?: ReactNode; danger?: boolean; disabled?: boolean; divider?: boolean }`.
 - `id`: label 이 겹칠 수 있는 목록의 key. `description`: label 아래 작은 글씨 한 줄(시간 등). 있으면 label 이 두 줄까지 줄바꿈되고 항목 높이가 내용에 맞춰진다.
 - 쓴다: 버튼 하나 뒤에 숨긴 동작 목록(계정 메뉴 `shell/AccountMenu.tsx`, 행의 더 보기), 짧은 소식 목록(알림 `shell/NotificationBell.tsx`: 제목 + "안 읽음, 3분 전" 설명 줄).
-- 안 쓴다: 값 고르기(Select 또는 ChoiceChips).
+- 안 쓴다: 값 고르기(Select, SelectMenu 또는 ChoiceChips). Dropdown은 "동작" 메뉴(role=menu)이고, 값을 고르는 칸은 SelectMenu(role=combobox + listbox)다.
 
 ```tsx
 <Dropdown label="계정 메뉴" align="end" items={[{ label: "설정", icon: "building-2", onSelect: goSettings }, { label: "로그아웃", icon: "log-out", danger: true, divider: true, onSelect: logout }]}>
@@ -463,9 +527,10 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 
 ### 4.19 ChoiceChips (`ui/ChoiceChips.tsx`)
 
-- props: `{ options: ChoiceOption<T>[]; label: string; hint?: string }` + 하나 고르기 `{ multiple?: false; value: T | null; onChange: (value: T) => void }` 또는 여러 개 `{ multiple: true; value: T[]; onChange: (value: T[]) => void }`. `ChoiceOption<T> = { value: T; label: string }`.
+- props: `{ options: ChoiceOption<T>[]; label: string; hint?: string; disabled?: boolean }` + 하나 고르기 `{ multiple?: false; value: T | null; onChange: (value: T) => void }` 또는 여러 개 `{ multiple: true; value: T[]; onChange: (value: T[]) => void }`. `ChoiceOption<T> = { value: T; label: string }`.
 - 쓴다: 선택지 2~8개를 한눈에 보여 줄 때(온보딩 설문 `features/onboarding/sections/SurveyStep.tsx`).
 - 안 쓴다: 선택지가 많거나 길 때(Select).
+- `disabled`: 진행 중이라 바꾸면 안 될 때 칩 전체를 잠근다(공개 업로드 화면의 영상 종류 선택, 올리는 중).
 
 ```tsx
 <ChoiceChips label="팀 규모" options={[...TEAM_SIZES]} value={teamSize} onChange={setTeamSize} />
@@ -488,6 +553,163 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 | `.sr-only` | 화면 낭독기 전용 |
 | `.link-button` | 글자처럼 보이는 버튼(표 안 이름 클릭) |
 | `.fieldset-plain` `.list-plain` | 기본 테두리·여백 없앤 fieldset, 목록 |
+
+### 4.21 TextField, NumberField, SearchField (`ui/TextField.tsx`)
+
+토스 TDS TextField 패턴(라벨 위, 도움말·오류 아래 한 자리, 지우기, 앞뒤 단위)을 우리 색으로 만든 입력칸. 근거: `findings/toss-design-system-benchmark.md`.
+
+- props: `TextField`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "prefix"> & { label?; hint?; error?; size?: "sm" | "md" | "lg"; prefix?: ReactNode; suffix?: ReactNode; clearable?: boolean; onClear?: () => void; showCount?: boolean }`. 기본 `size="md"`.
+  - `prefix`·`suffix`: 칸 안 앞뒤 글자나 아이콘("https://", "원", "초"). 단위를 라벨에 쓰지 말고 여기에.
+  - `clearable`: 값이 있고 비활성·읽기 전용이 아닐 때 오른쪽에 지우기 버튼. 눌러도 일반 입력처럼 `onChange`가 ""로 불려서 제어·비제어 모두 비워진다. 추가 동작만 `onClear`에.
+  - `showCount`: 아래 오른쪽 글자 수(보이는 글자 단위, 이모지 1자). `maxLength`와 함께.
+  - `readOnly`: 바탕 subtle, 옅은 테두리, 지우기 숨김. 고를 수 있고 복사된다. 못 바꾸는 이유가 "아직 안 됨"이면 `disabled`, "원래 바꾸는 값이 아님"(공유 URL, 아이디)이면 `readOnly`.
+  - 날짜는 `type="date"`(네이티브 날짜 선택기). 따로 DateField를 만들지 않는다.
+- `NumberField`: TextField props에서 `value`·`defaultValue`·`onChange`·`type`·`inputMode`를 빼고 `{ value: number | null; onChange: (value: number | null) => void; decimal?: boolean; maxDecimals?: number }`. 화면에는 천 단위 쉼표, 바깥으로는 숫자(비면 null). 숫자 아닌 글자는 버리고 15자리까지. 음수는 받지 않는다. 금액은 `suffix="원"`.
+  - 기본은 정수. `decimal`(또는 `maxDecimals`)이면 소수를 받는다: 숫자와 점 하나만 입력되고 다른 글자·두 번째 점·자리 초과는 막힌다. "12." "0.0" 같은 입력 중간 상태는 표시 글자를 따로 들고 있어 사라지지 않는다. 쉼표는 정수 부분에만("1,234.5"), ".5"는 0.5. `inputMode="decimal"`. 순수 함수는 `ui/format.ts`의 `normalizeDecimalInput`·`parseDecimalInput`·`formatDecimalInput`.
+- `SearchField`: TextField props에서 `type`·`prefix`·`label`을 빼고 `{ label: string; showLabel?: boolean }`. 앞에 돋보기, `clearable` 기본 켜짐. 라벨은 기본으로 화면 낭독기에만(FilterBar 안), `showLabel`이면 위에 보인다.
+- 쓴다: 단위·지우기·글자 수가 필요한 입력, 금액, 검색. 단순 한 줄은 `Input`도 된다.
+- 안 쓴다: 여러 줄(Textarea), 정해진 선택지(Select, RadioGroup, ChoiceChips).
+
+```tsx
+<TextField label="영상 길이" suffix="초" value={sec} onChange={(e) => setSec(e.target.value)} error={fields.sec} />
+<TextField label="캠페인 이름" showCount maxLength={30} clearable value={name} onChange={(e) => setName(e.target.value)} />
+<TextField label="공유 URL" value={url} readOnly />
+<TextField label="마감일" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+<NumberField label="원고료" suffix="원" value={fee} onChange={setFee} />
+// 참여 조건 금액: 통화를 금액 앞에 두고, 금액은 숫자와 점만 (12.5 USD 그대로 서버로)
+<div className="grid-2">
+  <Select label="통화" value={currency} onChange={(e) => setCurrency(e.target.value)}>{/* 원(KRW), 달러(USD) */}</Select>
+  <NumberField label="금액" suffix={currency === "KRW" ? "원" : "달러"} decimal maxDecimals={2} value={amount} onChange={setAmount} />
+</div>
+<SearchField label="인플루언서 검색" placeholder="이름, 핸들" value={q} onChange={(e) => setQ(e.target.value)} />
+```
+
+### 4.22 Field (`ui/Field.tsx`)
+
+- props: `{ id: string; label?; hint?; error?; required?: boolean; fit?: boolean; count?: { current: number; max?: number }; children: ReactNode }`. `describedBy(id, { hint, error }, hasCount?)`가 짝 함수.
+- 쓴다: 공통 컴포넌트를 새로 만들 때 라벨·도움말·오류·글자 수 묶음. 안쪽 입력에 `id`와 `aria-describedby={describedBy(...)}`를 꼭 준다.
+- 안 쓴다: 화면 파일에서 직접(그건 TextField·Select 등).
+
+### 4.23 RadioGroup (`ui/RadioGroup.tsx`)
+
+- props: `{ label: string; options: RadioOption<T>[]; value: T | null; onChange: (value: T) => void; hint?; error?; name?: string; required?: boolean; disabled?: boolean; direction?: "column" | "row" }`. `RadioOption<T> = { value: T; label: string; description?: string; disabled?: boolean }`. 기본 `direction="column"`.
+- 네이티브 라디오라 Tab 한 번에 묶음으로 들어오고 화살표로 이동·선택한다. `fieldset` + `legend`, 오류는 `aria-invalid`와 `aria-describedby`.
+- 쓴다: 하나 고르기인데 선택지마다 설명이 필요하거나 글이 길 때(보상 방식).
+- 안 쓴다: 짧은 선택지 2~8개(ChoiceChips), 많을 때(Select), 보기 전환(SegmentedControl).
+
+```tsx
+<RadioGroup label="보상 방식" options={PAY_OPTIONS} value={pay} onChange={setPay} error={fields.pay} />
+```
+
+### 4.24 Switch (`ui/Switch.tsx`)
+
+- props: `Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "role" | "onChange" | "checked"> & { label: ReactNode; description?: ReactNode; checked: boolean; onChange: (checked: boolean) => void; hideLabel?: boolean }`.
+- 네이티브 체크박스 + `role="switch"`. Space로 토글, `aria-checked`는 브라우저가 맞춘다. 라벨 왼쪽, 스위치 오른쪽.
+- 쓴다: 누르는 즉시 반영되는 켜고 끄기(알림 받기, 링크 공개).
+- 안 쓴다: 저장 버튼을 눌러야 반영되는 폼 안 선택(Checkbox). 라벨에 "켜짐·꺼짐·스위치"를 쓰지 않는다(낭독기가 읽는다). 표 행처럼 라벨을 숨길 때도 `label`은 꼭 주고 `hideLabel`.
+
+```tsx
+<Switch label="새 업로드 알림" checked={notify} onChange={(v) => void save({ notify: v })} />
+```
+
+### 4.25 SegmentedControl (`ui/SegmentedControl.tsx`)
+
+- props: `{ label: string; options: SegmentOption<T>[]; value: T; onChange: (value: T) => void; size?: "sm" | "md"; fluid?: boolean; disabled?: boolean }`. `SegmentOption<T> = { value: T; label: string; disabled?: boolean }`. 기본 `size="md"`, 모든 칸 같은 폭.
+- 숨긴 네이티브 라디오라 화살표 키로 이동·선택. `label`은 화면 낭독기 전용. `fluid`면 칸 폭이 글자에 맞고, 넘치면 가로 스크롤.
+- 쓴다: 같은 내용을 다르게 보기(기간 7일·30일·90일, 표·카드). 2~4개.
+- 안 쓴다: 다른 화면·패널로 바꾸기(Tabs), 폼 값 입력(ChoiceChips, RadioGroup).
+
+```tsx
+<SegmentedControl label="기간" options={PERIODS} value={period} onChange={setPeriod} />
+```
+
+### 4.26 ListRow (`ui/ListRow.tsx`)
+
+- props: `{ title: ReactNode; description?: ReactNode; leading?: ReactNode; trailing?: ReactNode; onClick?: () => void; withArrow?: boolean; disabled?: boolean; padding?: "sm" | "md" | "lg" }`. 기본 `padding="md"`(위아래 12px).
+- 왼쪽(Avatar·Icon) / 가운데(제목·설명) / 오른쪽(Badge·값·Switch) 세 칸. `onClick`이 있으면 행 전체가 버튼이고 hover 바탕이 생긴다.
+- 쓴다: 설정 항목, 연결 계정, 짧은 사람 목록.
+- 안 쓴다: 열이 여러 개인 데이터(Table). `onClick` 행의 `trailing`에 Switch·버튼을 넣지 않는다(버튼 안 버튼).
+
+```tsx
+<ListRow leading={<Avatar name={c.name} />} title={c.name} description={c.handle} trailing={<Badge tone="success">연결됨</Badge>} />
+<ListRow title="결제 수단" description="카드 1개" withArrow onClick={openPayment} />
+```
+
+### 4.27 Avatar (`ui/Avatar.tsx`)
+
+- props: `{ name: string; src?: string; size?: "sm" | "md" | "lg" }`. 기본 `md`(32px). 사진이 없으면 첫 글자.
+- 장식(`aria-hidden`)이라 옆에 이름 글자를 꼭 같이 둔다. 셸 계정 메뉴의 지역 Avatar(`shell/AccountMenu.tsx`)는 아직 따로다.
+
+### 4.28 Tooltip (`ui/Tooltip.tsx`)
+
+- props: `{ content: string; children: ReactElement; placement?: "top" | "bottom" }`. 기본 `top`.
+- 마우스를 올리거나 키보드 포커스면 열리고, 떠나거나 Esc면 닫힌다. `aria-describedby`로 트리거에 이어진다. 트리거는 포커스되는 요소(IconButton 등) 하나.
+- 쓴다: 아이콘 버튼·지표 이름의 짧은 보조 설명 한두 문장.
+- 안 쓴다: 꼭 읽어야 하는 안내(hint·캡션으로 보이게), 누르는 동작·링크, 터치 기기 전용 화면(hover가 없다).
+
+```tsx
+<Tooltip content="전환율은 가입 수를 클릭 수로 나눈 값이에요."><IconButton icon="circle-help" label="전환율 설명" /></Tooltip>
+```
+
+### 4.29 ProgressBar, Spinner (`ui/ProgressBar.tsx`, `ui/Spinner.tsx`)
+
+- `ProgressBar`: `{ value: number; label: string; showValue?: boolean; size?: "sm" | "md"; tone?: "accent" | "success" | "danger" }`. `value`는 0~1(밖이면 자름). `role="progressbar"` + `aria-valuenow`(0~100). `showValue`면 위에 라벨과 "42%".
+- `Spinner`: `{ size?: "sm" | "md" | "lg"; label?: string }`. 기본 `md`. `label`이 있으면 `role="status"`로 읽히고, 없으면 장식.
+- 쓴다: 업로드·처리 진행률(ProgressBar), 작은 자리의 짧은 기다림(Spinner).
+- 안 쓴다: 화면 전체·목록 로딩(LoadingState), 버튼 진행(Button `loading`).
+
+```tsx
+<ProgressBar label="업로드" value={sent / total} showValue />
+<Spinner label="미리보기를 만드는 중" />
+```
+
+### 4.30 TagInput (`ui/TagInput.tsx`)
+
+- props: `{ label?; hint?; error?; value: string[]; onChange: (value: string[]) => void; id?: string; placeholder?: string; max?: number; required?: boolean; disabled?: boolean }`.
+- Enter·쉼표로 칩 추가, 칩의 x 또는 빈 칸에서 Backspace로 마지막 칩 삭제, 칸을 벗어나면 친 글도 칩이 된다. 쉼표가 든 글을 붙여 넣으면 나눠서 넣는다. 앞뒤 공백·빈 값·중복(대소문자 무시)은 빠진다. 한글 조합 중 Enter는 조합 확정이라 추가하지 않는다.
+- `max`에 닿으면 입력칸이 잠긴다(hint로 "n개까지"를 알린다). 라벨·도움말·오류 규칙은 TextField와 같다(7.1절).
+- 쓴다: 키워드, 해시태그, 금지어처럼 짧은 글 여러 개.
+- 안 쓴다: 정해진 선택지에서 고르기(ChoiceChips), 긴 문장 목록(Textarea 한 줄에 하나).
+
+```tsx
+<TagInput label="금지어" hint="Enter나 쉼표로 하나씩 넣어 주세요." value={words} onChange={setWords} error={fields.words} />
+```
+
+### 4.31 Disclosure (`ui/Disclosure.tsx`)
+
+- props: `{ title: ReactNode; count?: number; description?: ReactNode; defaultOpen?: boolean; children: ReactNode }`.
+- 네이티브 `details`/`summary`: Enter·Space로 열고 닫고, 낭독기가 펼침 상태를 읽는다. 왼쪽 화살표가 열리면 90도 돈다. `count`는 접혀 있어도 안에 몇 개인지 보이는 작은 숫자, `description`은 오른쪽 옅은 글.
+- 쓴다: 평소엔 안 봐도 되는 묶음(지난 버전, 적용된 규칙 목록, 자주 묻는 질문). 여러 개를 이어 두면 아래 경계선으로 나뉜다.
+- 안 쓴다: 처음부터 꼭 봐야 하는 내용, 화면 전환(Tabs), 열고 닫을 때 다른 동작이 필요한 패널(Drawer).
+
+```tsx
+<Disclosure title="적용된 브랜드 규칙" count={rules.length}>{rules.map((r) => <p key={r.id}>{r.text}</p>)}</Disclosure>
+```
+
+### 4.32 SelectMenu (`ui/SelectMenu.tsx`)
+
+직접 그린 선택 드롭다운. WAI-ARIA combobox + listbox 패턴. 순수 로직은 `ui/selectMenuLogic.ts`(vitest), 위치는 `ui/usePopoverPosition.ts`, 키 동작은 `ui/useSelectMenu.ts`.
+
+- props: `SelectMenuProps = SingleProps | MultiProps`.
+  - 공통: `{ options: SelectOption[]; label?; hint?; error?; placeholder?: string; size?: "sm" | "md" | "lg"; disabled?; required?; searchable?: boolean; clearable?: boolean; emptyText?: string; searchPlaceholder?: string; id?: string; "aria-label"?: string }`.
+  - 단일: `{ multiple?: false; value: string | null; onChange: (value: string | null) => void }`.
+  - 다중: `{ multiple: true; value: string[]; onChange: (value: string[]) => void; display?: "chips" | "count" }`. 기본 `chips`(2개 + "+N"), `count`는 "N개 선택".
+  - `SelectOption = { value: string; label: string; description?: string; disabled?: boolean; group?: string }`. 같은 `group`은 묶음 제목 아래 모인다(처음 나온 순서).
+- 검색: `searchable`을 안 주면 선택지 8개 이상일 때 목록 위에 검색칸이 뜬다. 이름·설명에서 찾고, 없으면 `emptyText`(기본 "맞는 항목이 없어요").
+- 키보드: 닫힌 칸에서 아래·위·Enter·Space·Home·End로 열기, 글자를 치면 그 글자로 시작하는 항목으로(검색칸이 없을 때). 열린 목록에서 아래·위·Home·End·PageUp·PageDown 이동(비활성 건너뜀, 끝에서 멈춤), Enter(검색칸 없으면 Space도) 고르기, Esc 닫고 칸으로 포커스 복귀(모달·드로어는 안 닫힘), Tab 닫고 다음 칸으로. 단일은 고르면 닫히고, 다중은 열린 채로 넣고 뺀다(`aria-multiselectable`).
+- 위치: 목록은 `document.body`에 `position: fixed`로 붙어(`--z-select-menu`) 표·모달·드로어의 overflow에 잘리지 않는다. 아래 공간이 모자라면 위로 열리고, 스크롤하면 따라가며, 칸이 화면 밖으로 나가면 닫힌다.
+- 휴대폰 폭(599 이하)에서는 `Drawer side="bottom"` 바텀시트로 연다. 다중 선택은 아래 고정 "완료"로 닫는다.
+- 크기: `sm`(표 안·줄 안, 폭은 내용만큼), `md`, `lg`(공개 화면 주 입력, 56). 칸 모양은 TextField와 같다(채움형).
+- **Select(네이티브)와 고르는 기준**
+  - `Select`: 선택지가 짧고(대략 7개 이하) 이름만 있으면 된다. 휴대폰 OS 선택기를 그대로 쓰고 가장 가볍다. 필터 줄, 폼의 단순 선택.
+  - `SelectMenu`: 검색이 필요할 만큼 많거나, 선택지에 설명 줄·묶음·비활성 이유를 보여야 하거나, 여러 개를 고르거나, 지우기 단추가 필요할 때.
+  - `ChoiceChips`·`RadioGroup`: 2~6개를 펼쳐 보여 주는 편이 나을 때. `Dropdown`: 값이 아니라 동작 목록.
+
+```tsx
+<SelectMenu label="주 채널" options={CHANNELS} value={channel} onChange={setChannel} clearable />
+<SelectMenu label="게시 채널" multiple options={CHANNELS} value={channels} onChange={setChannels} />
+<SelectMenu aria-label={`${row.name} 상태`} size="sm" options={STATUS} value={row.status} onChange={(v) => save(row.id, v)} />
+```
 
 ## 5. 레이아웃 패턴
 
@@ -516,7 +738,7 @@ PageHeader(주 동작 = 만들기) → (Tabs) → FilterBar → Table. 비었으
 {rows === null ? <LoadingState /> : rows.length === 0 ? <EmptyState title="..." action={create} /> : <Table>...</Table>}
 ```
 
-예: `src/client/features/guides/GuidesListPage.tsx`, `src/client/features/reviews/ReviewsPage.tsx`(Tabs + FilterBar + Table)
+예: `src/client/features/campaigns/CampaignsListPage.tsx`(FilterBar + Table), `src/client/features/reviews/ReviewsPage.tsx`(Tabs + FilterBar + Table)
 
 ### 5.3 상세
 
@@ -538,7 +760,7 @@ PageHeader(`back`, 오른쪽에 편집 secondary + 주 동작 primary) → `.sta
 
 ### 5.6 공개 화면(인플루언서용, 로그인 없음)
 
-AppShell 밖. 모바일 우선, 넓은 화면에서는 가운데 560px. 바탕 `--color-surface-subtle`, 섹션은 흰 면 + `--radius-card`, 좌우 여백 `--layout-gutter`, 아래 고정 CTA(`.pub-cta`, 버튼 폭 100%, 높이 44px 이상, safe-area 여백). 문구는 i18n `t()`로.
+AppShell 밖. 모바일 우선, 넓은 화면에서는 가운데 560px. 바탕 `--color-surface-subtle`, 섹션은 흰 면 + `--radius-card`, 좌우 여백 `--layout-gutter`, 아래 고정 CTA(`FloatingActionBar`, 4.15.1). 문구는 i18n `t()`로. 머리글은 `PublicShell centerBrand`(브랜드 가운데, 오른쪽 언어 전환). 인플루언서 개인 링크(/g, /u, /f)는 머리글 아래에 같은 탭 줄(`InfluencerTabs`, LinkTabs)을 붙이고, 탭 주소에 `?lang=`을 붙여 언어를 유지한다.
 
 예: `src/client/features/public-guide/GuidePublicPage.tsx`, `src/client/features/public-guide/public.css`, `src/client/features/reviews/FeedbackPublicPage.tsx`
 
@@ -553,6 +775,8 @@ AppShell 밖. 모바일 우선, 넓은 화면에서는 가운데 560px. 바탕 `
 | 동작 오류 | `toast(errorMessage(e), "danger")` | try/catch로 잡아 토스트. 화면을 비우지 않는다 |
 | 성공 | `toast("...했어요.", "success")` | 저장·복사·발송 결과 한 줄. 화면 이동이 결과를 보여 주면 생략 가능 |
 | 비활성 | `disabled` 속성 | 버튼은 반투명 + not-allowed, 입력칸은 `--color-surface-subtle` 바탕. 왜 못 누르는지 hint나 캡션으로 |
+| 읽기 전용 | TextField `readOnly` | 원래 바꾸는 값이 아닌 것(공유 URL, 아이디). 고르고 복사는 된다. "아직 못 바꿈"은 `disabled` |
+| 진행 중 | `Button loading`, `Spinner`, `ProgressBar` | 버튼은 폭 유지 + `aria-busy`. 진행률을 알면 ProgressBar |
 | 상태값 | `Badge` + tone 매핑 상수 | 색만으로 구분하지 않는다. 항상 글자 |
 | 위험 확인 | 현재는 `confirm()` | 삭제 등. 문구는 해요체 질문 |
 
@@ -566,6 +790,21 @@ AppShell 밖. 모바일 우선, 넓은 화면에서는 가운데 560px. 바탕 `
 - **날짜**: `fmtDate(ms: number | null)`(날짜만), `fmtDateTime(ms: number | null)`(짧은 날짜+시간), 둘 다 `src/client/features/guides/types.ts`의 `ko-KR` 형식. 인자는 밀리초 숫자(ISO 문자열이면 `Date.parse`로 바꿔 넘김), null이면 빈 문자열. 새 형식을 만들지 않는다.
 - **나열 구분**: 가운뎃점 `·`, 쉼표.
 - **금지어·금지 문자**: "무료"(랜딩·인증 포함 전부), 긴 대시(U+2014), 중간 대시(U+2013), 이모지. 영어 UI 단어(Submit, Cancel)를 섞지 않는다.
+
+### 7.1 입력칸 문구(도움말·오류)
+
+토스 오류 문구 원칙("다음으로 넘어갈 수 있게 안내", 해요체)을 따른다. 근거: `findings/toss-design-system-benchmark.md` 4절.
+
+- **자리**: 도움말과 오류는 칸 바로 아래 한 자리. 오류가 생기면 도움말 자리를 오류가 차지한다. 단위는 문장에 넣지 말고 `suffix`로.
+- **도움말(hint)**: 무엇을 넣으면 되는지 한 문장. 예시가 낫다. "가입에 쓴 주소를 넣어 주세요.", "숫자만 넣으면 쉼표는 저절로 붙어요."
+- **오류(error)**: 무엇이 틀렸고 어떻게 고치는지를 한 문장에. 사용자를 탓하지 않는다.
+  - 비었음: "~을/를 입력해 주세요." / 고르기: "~을/를 골라 주세요."
+  - 형식: "이메일 주소 형식으로 입력해 주세요(예: name@brand.com)."
+  - 범위: "1초 이상으로 입력해 주세요.", "30자 이내로 줄여 주세요."
+  - 서버 확인: "이미 쓰고 있는 이름이에요. 다른 이름을 입력해 주세요."
+  - 쓰지 않는다: "잘못된 입력입니다", "오류", "Invalid", 느낌표, 합쇼체.
+- **검사 시점**: 제출할 때(6절). 입력 중에는 글자 수 넘침처럼 바로 보이는 것만 빨간 글자 수로 알린다.
+- **라벨**: 명사로 짧게("원고료", "마감일"). 라벨에 "입력", "선택"을 붙이지 않는다. 자리 표시(placeholder)는 예시만, 라벨 대신 쓰지 않는다.
 
 ## 8. 금지 패턴
 

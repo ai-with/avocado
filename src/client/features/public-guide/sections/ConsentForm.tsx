@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, Card, Checkbox, Input, Select } from "../../../ui";
+import { Button, Card, FloatingActionBar, Checkbox, Input, SelectMenu } from "../../../ui";
 import { api, ApiError, errorMessage } from "../../../lib/api";
 import { makeT, type Lang, type TKey } from "../../../i18n";
 import { CONSENT_ITEMS, CONSENT_NOTICES, EU_COUNTRIES, type SecondaryUseScope } from "../../../../shared/guides";
@@ -63,24 +63,28 @@ function useConsentForm(token: string, data: PersonalData, t: T, onDone: () => v
   return { items, setItems, name, setName, email, setEmail, country, setCountry, age, setAge, err, msg, allRequired, submit };
 }
 
+const FORM_ID = "consent-form";
+
 export function ConsentForm({ token, lang, data, onDone }: { token: string; lang: Lang; data: PersonalData; onDone: () => void }) {
   const t = makeT(lang);
   const s = useConsentForm(token, data, t, onDone);
   return (
-    <form className="stack" onSubmit={s.submit}>
+    <>
+    <form id={FORM_ID} className="stack" onSubmit={s.submit}>
       <h1 className="pub-title">{t("consent_title")}</h1>
       <p className="text-secondary">{t("consent_desc")}</p>
       <ConsentItems items={s.items} setItems={s.setItems} scope={data.guide.secondaryUseScope} t={t} />
       <Input label={t("name")} value={s.name} onChange={(e) => s.setName(e.target.value)} error={s.err.name} required />
       <Input label={t("email")} type="email" value={s.email} onChange={(e) => s.setEmail(e.target.value)} error={s.err.email} required />
-      <Select label={t("country")} value={s.country} onChange={(e) => s.setCountry(e.target.value)}>
-        {countryOptions(lang).map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-      </Select>
+      <SelectMenu label={t("country")} options={countryOptions(lang).map((c) => ({ value: c.code, label: c.label }))} value={s.country} onChange={(v) => v && s.setCountry(v)} />
       {EU_COUNTRIES.includes(s.country) && <Card className="pub-consent"><span className="pub-tag">{t("notice")}</span> {t("consent_eu")}</Card>}
       <Checkbox checked={s.age} onChange={(e) => s.setAge(e.target.checked)} label={t("age_confirm")} />
-      {s.err.ageConfirmed && <p className="form-error">{s.err.ageConfirmed}</p>}
-      {s.msg && <p className="form-error" role="alert">{s.msg}</p>}
-      <Button type="submit" className="pub-btn" disabled={!s.allRequired || !s.age}>{t("submit_consent")}</Button>
+      {s.err.ageConfirmed && <p className="field-error">{s.err.ageConfirmed}</p>}
+      {s.msg && <p className="field-error" role="alert">{s.msg}</p>}
     </form>
+    <FloatingActionBar>
+      <Button type="submit" size="xl" form={FORM_ID} disabled={!s.allRequired || !s.age}>{t("submit_consent")}</Button>
+    </FloatingActionBar>
+    </>
   );
 }

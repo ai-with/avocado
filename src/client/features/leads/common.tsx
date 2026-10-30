@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge, Button, Drawer, LoadingState, Stat, StatGrid, Table, useToast } from "../../ui";
+import { Badge, Button, Checkbox, Drawer, LoadingState, Stat, StatGrid, Table, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { channelLabel, SOURCE_TYPE_LABELS } from "../../../shared/leads";
 import { dateTime } from "../links/common";
@@ -28,7 +28,7 @@ export function LeadsTable({ leads, lk, selected, onSelect, onOpen }: TableProps
       <thead>
         <tr>
           {selectable && (
-            <th><input type="checkbox" aria-label="모두 선택" checked={leads.length > 0 && selected?.size === leads.length} onChange={(e) => onSelect?.(new Set(e.target.checked ? leads.map((l) => l.id) : []))} /></th>
+            <th><Checkbox label={<span className="sr-only">모두 선택</span>} checked={leads.length > 0 && selected?.size === leads.length} indeterminate={!!selected?.size && selected.size < leads.length} onChange={(e) => onSelect?.(new Set(e.target.checked ? leads.map((l) => l.id) : []))} /></th>
           )}
           <th>이메일</th><th>이름</th><th>출처</th><th>가이드</th><th>인플루언서</th><th>채널</th><th>마케팅 동의</th><th>알림톡 동의</th><th>첫 방문</th><th>마지막 방문</th><th>태그</th>
         </tr>
@@ -46,7 +46,7 @@ type RowProps = { lead: LeadRow; lk: Lookups; checked: boolean | null; onToggle:
 function LeadTableRow({ lead: l, lk, checked, onToggle, onOpen }: RowProps) {
   return (
     <tr>
-      {checked !== null && <td><input type="checkbox" aria-label={`${l.email} 선택`} checked={checked} onChange={onToggle} /></td>}
+      {checked !== null && <td><Checkbox label={<span className="sr-only">{l.email} 선택</span>} checked={checked} onChange={onToggle} /></td>}
       <td><button type="button" className="link-button" onClick={onOpen}>{l.email}</button></td>
       <td>{l.name}</td>
       <td>{l.sourceTypes.map((t) => SOURCE_TYPE_LABELS[t]).join(", ")}</td>

@@ -1,14 +1,22 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { Link, type LinkProps } from "react-router-dom";
 import { Icon, type IconName } from "./icons";
+import { Spinner } from "./Spinner";
 import "./Button.css";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md";
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size };
+type Size = "sm" | "md" | "lg" | "xl";
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size; loading?: boolean };
 
-export function Button({ variant = "primary", size = "md", className = "", type = "button", ...rest }: Props) {
-  return <button type={type} className={`btn btn-${variant} btn-${size} ${className}`} {...rest} />;
+// size: sm(표·줄 안) md(기본) lg·xl(공개 화면 휴대폰 주 동작, TDS large·xlarge)
+// loading: 누를 수 없고(aria-busy), 글자 자리에 스피너. 글자는 숨기기만 해서 버튼 폭이 변하지 않는다
+export function Button({ variant = "primary", size = "md", className = "", type = "button", loading, disabled, children, ...rest }: Props) {
+  const cls = `btn btn-${variant} btn-${size} ${loading ? "btn-loading" : ""} ${className}`;
+  return (
+    <button type={type} className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+      {loading ? <><span className="btn-label">{children}</span><Spinner size="sm" /></> : children}
+    </button>
+  );
 }
 
 type IconButtonProps = Omit<Props, "children" | "aria-label"> & { icon: IconName; label: string };

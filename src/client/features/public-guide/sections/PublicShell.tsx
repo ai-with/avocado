@@ -1,17 +1,26 @@
 import type { ReactNode } from "react";
+import { FloatingActionBarSlot } from "../../../ui";
 import "../public.css";
 
-type ShellProps = { brand?: string; langLabel: string; onToggleLang: () => void; children: ReactNode; className?: string };
+type ShellProps = { brand?: string; langLabel: string; onToggleLang: () => void; children: ReactNode; className?: string; centerBrand?: boolean; tabs?: ReactNode };
 
-// 공개 화면 공통 틀: 브랜드 이름과 언어 전환이 있는 머리글 + 가운데 본문
-export function PublicShell({ brand, langLabel, onToggleLang, children, className = "" }: ShellProps) {
+// 공개 화면 공통 틀: 브랜드 이름과 언어 전환이 있는 머리글 + 가운데 본문.
+// centerBrand 면 왼쪽에 보이지 않는 같은 폭 버튼을 두어 브랜드 이름이 화면 정가운데에 오게 한다.
+// tabs 는 머리글 아래에 같이 붙어 스크롤해도 따라온다
+export function PublicShell({ brand, langLabel, onToggleLang, children, className = "", centerBrand = false, tabs }: ShellProps) {
   return (
     <div className="pub">
-      <header className="pub-head">
-        <span className="pub-brand">{brand}</span>
-        <button type="button" className="pub-lang" onClick={onToggleLang}>{langLabel}</button>
-      </header>
-      <main className={`pub-main ${className}`}>{children}</main>
+      <div className="pub-top">
+        <header className={centerBrand ? "pub-head is-centered" : "pub-head"}>
+          {centerBrand && <span className="pub-lang pub-lang-spacer" aria-hidden="true">{langLabel}</span>}
+          <span className="pub-brand">{brand}</span>
+          <button type="button" className="pub-lang" onClick={onToggleLang}>{langLabel}</button>
+        </header>
+        {tabs}
+      </div>
+      <main className={`pub-main ${className}`}>{children}
+        <FloatingActionBarSlot />
+      </main>
     </div>
   );
 }

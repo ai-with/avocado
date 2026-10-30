@@ -1,4 +1,6 @@
 import type { GuideProduct, GuideRule, SecondaryUseScope, VideoGuide } from "../../../shared/guides";
+import type { DictRule } from "../../../shared/brand-terms";
+import type { ContactLogKind, ParticipationStatus, ParticipationTerms } from "../../../shared/participation";
 
 export type Guide = {
   id: string;
@@ -15,11 +17,17 @@ export type Guide = {
   deliverables: { final: boolean; clean: boolean; note: string };
   secondaryUseScope: SecondaryUseScope;
   videoGuide: VideoGuide | null;
+  // TASK-079: 이번 캠페인에서 끈 사전 규칙 id
+  brandTermExclusions: string[];
   generatedByModel: string | null;
   publishedAt: number | null;
   createdAt: number;
 };
-export type GuideResponse = { guide: Guide; rules: GuideRule[]; warnings: string[]; lineWarnings: string[]; sharedUrl: string };
+// 캠페인 = 브랜드 가이드 1:1 (TASK-070). 캠페인 id 는 가이드 id 와 같다
+export type GuideCampaign = { id: string; name: string; status: "active" | "archived"; brandId: string; brandName: string };
+// 브랜드 검수 사전에서 들어오는 규칙 (TASK-079). rules 는 끄기 전 전체, excluded 는 이번 캠페인에서 끈 id
+export type GuideDictionary = { brandId: string | null; rules: DictRule[]; excluded: string[] };
+export type GuideResponse = { guide: Guide; campaign: GuideCampaign | null; rules: GuideRule[]; warnings: string[]; lineWarnings: string[]; dictionary: GuideDictionary; sharedUrl: string };
 
 export type RuleSet = { id: string; name: string; version: number; updatedAt: number; ruleCount: number };
 export type RuleSetDetail = { set: { id: string; name: string; version: number }; rules: (GuideRule & { version: number })[]; warnings: string[] };
@@ -50,7 +58,7 @@ export type StageSummary = {
   snapshots: number | null;
   leads: number | null;
 };
-export type GuideInfluencerRow = {
+export type GuideInfluencerRow = Participation & {
   id: string;
   influencer: Influencer;
   stage: string;
@@ -61,3 +69,7 @@ export type GuideInfluencerRow = {
 
 export const fmtDate = (ms: number | null) => (ms ? new Date(ms).toLocaleDateString("ko-KR") : "");
 export const fmtDateTime = (ms: number | null) => (ms ? new Date(ms).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" }) : "");
+
+// TASK-072: 진행 상태·조건·회차·계약 기간, 소통 이력
+export type ContactLog = { id: string; kind: ContactLogKind; channel: "dm" | "email" | null; body: string; createdAt: number };
+export type Participation = { participationStatus: ParticipationStatus; terms: ParticipationTerms | null; round: number; contractStartAt: number | null; contractEndAt: number | null };

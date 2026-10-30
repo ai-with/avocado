@@ -10,7 +10,8 @@ import { logEvent, logEvents } from "../../lib/events";
 import { upsertLead } from "../../lib/leads";
 import { enqueueAutomations } from "../../lib/messaging";
 import type { FormFields } from "../../../shared/leads";
-import { NOINDEX, brandName, consentFields, contactFields, isMember, visitorId } from "./shared";
+import { brandNameOf } from "../../lib/brands";
+import { NOINDEX, consentFields, contactFields, isMember, visitorId } from "./shared";
 
 // 공개 폼 (/form/:slug)
 
@@ -95,7 +96,7 @@ export const publicFormRoutes = new Hono<AppEnv>()
       description: form.description,
       headerImageUrl: form.headerImageKey ? `/api/public/asset/${form.headerImageKey}` : null,
       fields: form.fields,
-      brandName: await brandName(db, form.workspaceId),
+      brandName: await brandNameOf(db, form.workspaceId, form.guideId),
       closed,
       closedMessage: form.closedMessage,
     };
