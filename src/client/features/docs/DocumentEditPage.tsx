@@ -41,7 +41,7 @@ export function DocumentEditPage() {
   const [settings, setSettings] = useState(false);
   const [preview, setPreview] = useState(false);
   const { doc, gate } = s;
-  if (!doc || !gate) return <LoadingState />;
+  if (!doc || !gate) return <LoadingState pattern="detail" />;
   return (
     <>
       <PageHeader

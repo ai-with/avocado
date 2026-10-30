@@ -84,7 +84,7 @@ export function DocumentAnalytics({ doc, channels }: { doc: DocumentRow; channel
   useEffect(() => {
     void api.get<DocAnalytics>(`/documents/${doc.id}/analytics`).then(setA);
   }, [doc.id]);
-  if (!a) return <LoadingState />;
+  if (!a) return <LoadingState pattern="detail" />;
   if (a.views === 0) return <EmptyState compact title="아직 열람이 없어요" description={`이 자료를 목적지로 한 ${ZERO_HINT}.`} />;
   return (
     <div className="stack">

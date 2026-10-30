@@ -40,7 +40,7 @@ function LegalTable({ terms, off, disabled, onToggle }: { terms: LegalTerm[]; of
 export function LegalTab({ brandId, preset, canEdit, reload }: Props) {
   const data = useCosmeticPreset();
   const save = usePresetSave(brandId, reload);
-  if (!data) return <LoadingState label="법규 기본 목록을 불러오는 중" />;
+  if (!data) return <LoadingState pattern="table" label="법규 기본 목록을 불러오는 중" />;
   const off = new Set(preset.disabled);
   const onToggle = (id: string, on: boolean) => void save({ disabled: on ? preset.disabled.filter((x) => x !== id) : [...preset.disabled, id] });
   const active = data.terms.filter((t) => !off.has(t.id)).length;

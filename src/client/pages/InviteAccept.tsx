@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Input, LoadingState, Tabs, TextField } from "../ui";
+import { Button, Input, Loader, Tabs, TextField } from "../ui";
 import { api, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { ROLE_LABELS, type Role } from "../../shared/roles";
@@ -93,7 +93,7 @@ export function InviteAcceptPage() {
   }, [token]);
 
   if (loadError) return <AuthCard title="초대를 열 수 없어요" description={loadError} />;
-  if (!invite || loading) return <AuthCard><LoadingState label="초대 정보를 불러오는 중" /></AuthCard>;
+  if (!invite || loading) return <AuthCard><Loader fill label="초대 정보를 불러오는 중이에요" /></AuthCard>;
 
   const sameUser = me?.user.email === invite.email;
   return (

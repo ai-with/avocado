@@ -125,7 +125,7 @@ function AdOffConfirm({ open, onClose, onConfirm }: { open: boolean; onClose: ()
     </>
   );
   return (
-    <Modal open={open} title="광고 표기 규칙을 끌까요?" onClose={onClose} footer={footer}>
+    <Modal open={open} size="sm" title="광고 표기 규칙을 끌까요?" onClose={onClose} footer={footer}>
       <p>광고 표기가 빠지면 인플루언서와 브랜드 모두 표시광고 규정(국내 공정위 지침, 미국 FTC 등)을 어길 수 있어요. 국가별 표기 의무를 확인한 뒤 끄세요.</p>
     </Modal>
   );

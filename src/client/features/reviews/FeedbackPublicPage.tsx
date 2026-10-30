@@ -33,7 +33,7 @@ export function FeedbackPublicPage() {
 
   return (
     <PublicShell centerBrand brand={nav?.brand} tabs={tabs} langLabel={t("lang_toggle")} onToggleLang={() => setLang(lang === "ko" ? "en" : "ko")}>
-      {error ? <p className="pub-error" role="alert">{t("link_expired")}</p> : !data ? <LoadingState label={t("loading")} /> : <FeedbackPublicBody data={data} base={base} t={t} lang={lang} onChanged={load} />}
+      {error ? <p className="pub-error" role="alert">{t("link_expired")}</p> : !data ? <LoadingState pattern="detail" label={t("loading")} /> : <FeedbackPublicBody data={data} base={base} t={t} lang={lang} onChanged={load} />}
     </PublicShell>
   );
 }

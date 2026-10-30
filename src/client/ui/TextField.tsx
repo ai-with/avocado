@@ -98,6 +98,7 @@ export function SearchField({ label, showLabel, clearable = true, ...rest }: Sea
       clearable={clearable}
       label={showLabel ? label : undefined}
       aria-label={showLabel ? undefined : label}
+      className={`control-search ${rest.className ?? ""}`.trim()}
       prefix={<Icon name="search" size={16} />}
     />
   );

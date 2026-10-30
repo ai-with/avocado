@@ -1,8 +1,12 @@
 .badge {
-  /* TDS Badge small: 높이 24, 12px, 굵게 */
-  display: inline-flex; align-items: center; gap: var(--space-2); height: var(--badge-height); padding: 0 var(--space-4);
-  border-radius: var(--radius-full); font-size: var(--text-caption-size); line-height: var(--text-caption-lh); font-weight: var(--weight-semibold); white-space: nowrap;
+  /* TDS Badge 실측: 좌우 7(large 8), 모서리는 크기별, 굵기 700(xsmall 600) */
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--badge-padding-x);
+  font-weight: var(--weight-bold); white-space: nowrap;
 }
+.badge-xs { height: var(--badge-height-xs); border-radius: var(--radius-badge-xs); font-size: var(--text-badge-xs-size); line-height: var(--text-badge-xs-lh); font-weight: var(--weight-semibold); }
+.badge-sm { height: var(--badge-height); border-radius: var(--radius-badge-sm); font-size: var(--text-caption-size); line-height: var(--text-caption-lh); }
+.badge-md { height: var(--badge-height-md); border-radius: var(--radius-badge-md); font-size: var(--text-label-size); line-height: var(--text-label-lh); }
+.badge-lg { height: var(--badge-height-lg); padding: 0 var(--space-4); border-radius: var(--radius-badge-lg); font-size: var(--text-badge-lg-size); line-height: var(--text-badge-lg-lh); }
 .badge-dot::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; }
 .badge-neutral { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 .badge-accent { background: var(--color-accent-subtle); color: var(--color-accent); }

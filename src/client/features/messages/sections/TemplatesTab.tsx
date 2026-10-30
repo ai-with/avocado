@@ -52,7 +52,7 @@ export function TemplatesTab({ templates, variables, canEdit, reload }: Props) {
     }
   };
   const add = canEdit && <Button onClick={() => setEditing({ template: null })}>템플릿 추가</Button>;
-  if (templates === null) return <LoadingState label="템플릿을 불러오는 중" />;
+  if (templates === null) return <LoadingState pattern="table" label="템플릿을 불러오는 중" />;
   return (
     <div className="stack">
       {templates.length === 0 ? (

@@ -55,7 +55,7 @@ export function PerformanceTable({ guideId }: { guideId?: string }) {
     <div className="stack">
       <PerfFilterBar f={f} setF={setF} filters={filters} qs={qs} showGuide={!guideId} />
       <p className="text-caption">24시간 값은 조회 시각 값이에요. 플랫폼 집계는 최대 48시간 늦을 수 있어요. 미연결 계정은 저장·공유를 받을 수 없어 빈칸으로 보여요.</p>
-      {rows === null ? <LoadingState /> : rows.length === 0 ? (
+      {rows === null ? <LoadingState pattern="table" /> : rows.length === 0 ? (
         <EmptyState title="아직 게시물이 없어요" description="인플루언서가 게시물 URL을 넣거나 가이드 상세에서 직접 넣으면 24시간·3일·7일 성과가 여기에 쌓여요." />
       ) : (
         <Table className="perf-table">

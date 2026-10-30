@@ -38,7 +38,7 @@
 2. **초록 강조색은 "누를 곳"과 "선택됨"에만.** 쓰는 곳은 primary 버튼, 선택된 칩, 링크, 사이드바 활성 아이콘, accent 배지뿐이다. 한 화면 머리(PageHeader actions)에는 primary 버튼을 하나만 둔다. 나머지는 secondary 또는 ghost. 탭 선택 표시는 강조색이 아니라 검정(`--color-text-primary`) 밑줄이다.
 3. **글자 위계는 크기를 적게, 굵기는 semibold 하나(고른 탭만 bold), 색은 3단계.** 앱 화면 제목은 20px(`--text-title-size`)이 가장 크다. 그 아래 h3는 18px, h4는 16px로 자동으로 낮아진다(AppShell.css). 본문 14px, 보조 13px, 캡션 12px. 색은 primary, secondary, tertiary 세 가지.
 4. **밀도는 낮게.** 화면 덩어리 사이 24px(`.stack-loose`), 카드 안 20~24px, 목록 위아래 요소 사이 16px(`.stack`). 앱 본문 최대 폭 1200px.
-5. **빈 화면·로딩·작은 손가락도 화면의 일부.** 숫자 0 대신 다음 할 일을 보여 주고(EmptyState, Home 지표), 로딩은 `LoadingState` 스켈레톤, 터치 기기에서는 누르는 영역 44px, 아이콘 버튼에는 이름이 필수다.
+5. **빈 화면·로딩·작은 손가락도 화면의 일부.** 숫자 0 대신 다음 할 일을 보여 주고(EmptyState, Home 지표), 로딩은 `LoadingState` 스켈레톤, 아이콘 버튼에는 이름이 필수다. 누르는 크기는 TDS 단계 그대로 쓴다(터치 기기라고 따로 키우지 않음, AIWITH-557).
 
 ## 3. 토큰 표
 
@@ -52,14 +52,14 @@
 | `--color-surface` | #ffffff | 카드, 모달, 드로어, 입력칸, secondary 버튼 | 페이지 바탕 |
 | `--color-surface-subtle` | #f7f6f3 | 한 단계 낮은 면: Stat, EmptyState, 공개 화면 바탕, 비활성 입력칸, hover | 본문 글자 |
 | `--color-surface-muted` | #f1f0ef | neutral 배지, ghost 버튼 hover, 스켈레톤 줄 | 넓은 영역 바탕 |
-| `--color-surface-inverted` | #1e1d1c | 토스트 바탕, 본문 건너뛰기 링크 | 버튼(그건 primary) |
+| `--color-surface-inverted` | #1e1d1c | 본문 건너뛰기 링크 | 버튼(그건 primary), 토스트·툴팁(TDS처럼 흰 면) |
 | `--color-text-primary` | #1e1d1c | 본문, 제목, 선택된 탭 | |
 | `--color-text-secondary` | #5f5b55 | 설명 문단(`.text-secondary`), ghost 버튼 글자 | 제목 |
 | `--color-text-tertiary` | #6c6963 | 캡션, 표 머리글, 플레이스홀더, 비선택 탭 | 오류 문구 |
 | `--color-text-muted` | #a8a29e | 장식성 글자만 | 읽어야 하는 글자(대비 부족) |
 | `--color-text-inverted` | #fefdfb | 어두운 면(inverted) 위 글자 | |
 | `--color-border` | #dfdcd9 | 구분선, 표 줄, 카드 안 나눔선 | 입력칸 테두리 |
-| `--color-border-strong` | #8c8781 | 입력칸·secondary 버튼 테두리(3:1 대비) | 장식 구분선 |
+| `--color-border-strong` | #8c8781 | 읽기 전용 입력칸 포커스 테두리, 진하게 보여야 하는 구분 테두리. 입력칸 기본 테두리는 TDS를 따라 `--color-border`(아주 옅게, 3:1 미만)이고 포커스 때 브랜드 색 테두리로 위치를 보인다 | 장식 구분선 |
 | `--color-border-focus` | #1e1d1c | 포커스 테두리·outline | |
 | `--color-accent` | #3d6f22 | primary 버튼, 링크, 선택된 칩 | 넓은 면, 장식, 제목 글자 |
 | `--color-accent-hover` | #2f571a | accent 요소 hover | |
@@ -99,7 +99,11 @@
 | `--text-control-size` / `--text-control-lh` | 15 / 22 | 같음 | 같음 | | md 버튼·입력칸·탭·세그먼트·토스트·ListRow 제목 (TDS t6) |
 | `--text-control-sm-size` / `--text-control-sm-lh` | 13 / 18 | 같음 | 같음 | | sm 버튼·입력칸, 툴팁, 다중 선택 칩 (TDS t7) |
 | `--text-control-lg-size` / `--text-control-lg-lh` | 17 / 24 | 같음 | 같음 | | lg·xl 버튼, lg 입력칸 (TDS t5) |
-| `--text-help-size` / `--text-help-lh` | 13 / 20 | 같음 | 같음 | | 입력칸 도움말·오류·글자 수, 체크박스·선택지 설명, ListRow 설명 |
+| `--text-help-size` / `--text-help-lh` | 13 / 19.5 | 같음 | 같음 | | 입력칸 라벨·도움말·오류·글자 수, 체크박스·선택지 설명 (TDS t7 실측) |
+| `--text-input-lh` | 25.5 | 같음 | 같음 | | 입력칸 글자 17px의 줄 높이 (TDS 실측) |
+| `--text-row-title-lh` / `--text-row-desc-lh` | 22.95 / 20.25 | 같음 | 같음 | | ListRow 제목 17·부제 15 (TDS 1.35 실측) |
+| `--text-dialog-title-lh` / `--text-sheet-title-lh` | 27 / 29 | 같음 | 같음 | | 다이얼로그·바텀시트 제목 20px (TDS 실측) |
+| `--text-float-lh` | 22.5 | 같음 | 같음 | | 토스트·툴팁·시트 부제 15px (TDS 실측) |
 | `--text-label-size` / `--text-label-lh` | 13 / 18 | 같음 | 같음 | | 입력칸 라벨(보통 굵기, secondary 색), 설명 문단 |
 | `--text-caption-size` / `--text-caption-lh` | 12 / 16 | 같음 | 같음 | | 캡션(`.text-caption`), 배지, 목록 묶음 제목 |
 | `--text-overline-size` / `--text-overline-lh` | 11 / 16 | 같음 | 같음 | | 사이드바 그룹 제목 |
@@ -145,21 +149,43 @@
 | `--layout-sidebar` / `--layout-sidebar-collapsed` | 232px / 56px | 앱 사이드바 |
 | `--sidebar-item-height` | 32px | 사이드바 항목 |
 | `--icon-size-sm` | 16px | 버튼 안 아이콘 |
-| `--control-height-sm` / `--control-height` / `--control-height-lg` / `--control-height-xl` | 32 / 40 / 48 / 56px | 버튼 sm·md·lg·xl 높이(TDS small·medium·large·xlarge, md만 PC 정렬 때문에 38 대신 40). 입력칸 sm·md는 32·40, 입력칸 lg는 xl(56, TDS box) |
+| `--control-height-sm` / `--control-height` / `--control-height-lg` / `--control-height-xl` | 32 / 38 / 48 / 56px | 버튼 sm·md·lg·xl 높이 = TDS small·medium·large·xlarge 실측 그대로 (AIWITH-552) |
+| `--input-height` | 56px (= control-height-xl) | 기본 입력칸(TextField·Input·Select·SelectMenu md) = TDS TextField box. sm은 32 |
+| `--table-row-height` | 40px | 표 한 줄 높이(안에 sm 컨트롤 32) |
 | `--control-padding-x` / `--control-padding-x-sm` | 16px / 8px | 입력칸 좌우 여백 |
-| `--control-check-size` | 20px | 체크박스 네모, 라디오 동그라미 (TDS 24를 PC에 맞춰 20) |
-| `--switch-width` / `--switch-height` / `--switch-thumb` | 40px / 24px / 20px | Switch 바탕·손잡이 (TDS 50×30 비율) |
-| `--badge-height` | 24px | Badge 높이 (TDS small) |
-| `--tab-height` | 44px | Tabs 최소 높이 |
+| `--control-padding-y` | 14px | 여러 줄 입력칸 위아래 (TDS box 14) |
+| `--button-padding-x-sm` / `--button-padding-x-xl` | 10px / 28px | 버튼 sm·xl 좌우 (TDS 실측. md·lg는 16 = `--space-6`) |
+| `--search-padding-x` / `--radius-search` | 10px / 12px | SearchField(높이 44 = `--touch-target` 값과 같음) |
+| `--control-check-size` / `--check-ring` | 24px / 2px | 체크박스·라디오 = TDS Checkbox.Circle: 24 칸 안 지름 22 원, 안 고름은 옅은 2px 테두리 + 옅은 체크, 고름은 강조색 원 + 흰 체크 |
+| `--switch-width` / `--switch-height` / `--switch-thumb` / `--switch-inset` / `--switch-thumb-off-scale` | 50 / 30 / 24 / 3px / 0.6667 | Switch 바탕·손잡이·손잡이 둘레, 꺼짐 손잡이 16(= 24 × 0.6667). 손잡이 그림자 없음 (TDS Switch 실측) |
+| `--segmented-height` / `--segmented-height-sm` | 48px / 39px | SegmentedControl 홈 (TDS large 48 칸 40, small 39 칸 33 실측) |
+| `--segmented-inset-x` / `--segmented-inset-sm` / `--segment-padding-x-sm` | 5px / 3px / 14px | large 홈 안쪽 좌우 5(위아래 4), small 홈 안쪽 3, small 칸 좌우 14 (large 칸 좌우 12) |
+| `--badge-height-xs` / `--badge-height` / `--badge-height-md` / `--badge-height-lg` | 21 / 24 / 25.5 / 29px | Badge xs·sm·md·lg (TDS xsmall·small·medium·large) |
+| `--badge-padding-x` | 7px | Badge 좌우 (lg는 8) |
+| `--tab-height` / `--tab-padding-bottom` / `--tab-padding-x` | 47px / 14px / 12px | Tabs (TDS Tab 47, 위 12 아래 14, fluid 탭 좌우 12) |
+| `--tab-indicator` / `--tab-indicator-inset` / `--tab-indicator-height` | 막대 색 / 10px / 2px | 고른 탭 아래 막대: 탭 양옆 10 안쪽, 높이 2, 모서리 1 (TDS 실측) |
+| `--list-row-padding-x` | 24px | 누르는 ListRow 좌우 (TDS ListRow 12·24) |
+| `--dialog-width` / `--dialog-padding` | 320px / 22px | Modal sm(확인 다이얼로그) 폭과 모든 모달 안쪽 (TDS Dialog) |
+| `--sheet-inset` / `--sheet-padding-x` | 10px / 24px | 바텀시트가 화면 좌우·아래에서 뜬 거리, 시트 본문 좌우 (TDS 실측) |
+| `--sheet-handle-area` / `--sheet-handle-top` / `--sheet-head-padding-top` / `--sheet-head-padding-bottom` | 16 / 12 / 25 / 13px | 시트 위 손잡이 자리, 손잡이 위치, 제목 위아래 여백 (TDS 실측) |
 | `--count-badge-size` | 16px | 아이콘 위 숫자 배지(알림 개수 `shell/NotificationBell.css`) 높이·최소 폭 |
 | `--floating-bar-height` | 0px | FloatingActionBar 높이. 줄이 뜨면 `ui/FloatingActionBar.tsx`가 실제 높이로 바꿔 넣고 scroll-padding에 쓴다 |
-| `--sheet-handle-width` / `--sheet-handle-height` | 36px / 4px | 바텀시트 위 손잡이 |
+| `--sheet-handle-width` / `--sheet-handle-height` | 48px / 4px | 바텀시트 위 손잡이 (TDS 실측) |
 | `--select-menu-max-height` / `--select-menu-min-width` | 320px / 200px | SelectMenu 목록 최대 높이·최소 폭 |
 | `--progress-height` / `--progress-height-sm` | 6px / 4px | ProgressBar 굵기 |
 | `--avatar-size-sm` / `--avatar-size-md` / `--avatar-size-lg` | 24 / 32 / 40px | Avatar, 스켈레톤 list 동그라미 |
-| `--spinner-size-sm` / `--spinner-size-md` / `--spinner-size-lg` | 16 / 24 / 32px | Spinner |
-| `--tooltip-max` | 240px | Tooltip 최대 폭 |
-| `--touch-target` | 44px | 터치 기기 최소 누르는 영역 |
+| `--spinner-size-sm` / `-md` / `-lg` / `-xl` | 16 / 24 / 36 / 48px | Spinner. md·lg·xl = TDS Loader small·medium·large, sm은 글줄 안 전용 |
+| `--loader-gap` / `--loader-gap-xl` | 12 / 16px | Loader 스피너 둘레 (TDS 실측) |
+| `--dot-size` / `--dot-gap` | 8 / 7px | 버튼 로딩 점 3개 (TDS 실측) |
+| `--skeleton-line` / `-title` / `-bar` / `-row` / `-card` / `-icon` | 22 / 30 / 42 / 64 / 240 / 40px | 스켈레톤 부제·제목·아이콘 줄·목록 줄·카드·아이콘 (TDS Skeleton 모듈 실측) |
+| `--radius-skeleton-bar` / `--radius-skeleton-card` | 13 / 38px | 아이콘 줄, 카드 스켈레톤 모서리 |
+| `--tooltip-max` / `--tooltip-padding-y` | 240px / 13px | Tooltip 최대 폭, 위아래 안쪽 (좌우 16) |
+| `--toast-top` / `--toast-margin-x` | 46px / 18px | 토스트가 멈추는 화면 위 거리, 좌우 최소 여백 (TDS 실측) |
+| `--field-text-inset` | 4px | 라벨·도움말 글자가 입력칸 가장자리보다 안쪽으로 들어간 거리 (TDS 실측) |
+| `--opacity-disabled` / `--opacity-check-disabled` | 0.3 / 0.4 | 비활성 버튼·스위치, 비활성 체크박스·라디오 (TDS 실측) |
+| `--press-dim` | 0.74 | 눌린 버튼 밝기(TDS 검정 0.26 덧칠) |
+| `--skeleton-line` / `--skeleton-title` / `--radius-skeleton-sm` / `-md` / `-lg` | 22 / 30 / 9 / 11 / 18px | 스켈레톤 줄·제목 높이와 모서리, 카드 모서리 (TDS 실측) |
+| `--touch-target` | 44px | SearchField 높이. AIWITH-557부터 터치 기기에서 누르는 영역을 따로 늘리지 않는다(TDS를 따름) |
 
 ### 3.4 모서리
 
@@ -167,13 +193,14 @@
 |-|-|-|
 | `--radius-control-sm` / `--radius-control` / `--radius-control-lg` / `--radius-control-xl` | 8 / 10 / 14 / 16px | 컨트롤 높이별 모서리(TDS 32→8, 38→10, 48→14, 56→16). sm 버튼·입력칸·툴팁·목록 항목은 sm, lg 입력칸은 lg, lg 버튼 lg, xl 버튼 xl |
 | `--radius-button` | 10px(= radius-control) | md 버튼. 휴대폰에서도 알약으로 바꾸지 않는다(TDS 실측) |
-| `--radius-input` | 10px(= radius-control) | md 입력칸 |
+| `--radius-input` | 14px(= radius-control-lg) | 기본 입력칸(56, TDS box) |
+| `--radius-badge-xs` / `-sm` / `-md` / `-lg` | 9 / 11 / 12 / 13px | Badge 크기별 모서리 (TDS 실측. 알약 아님) |
 | `--radius-card` | 12px | 카드, EmptyState, ActionBar 윗모서리 |
 | `--radius-modal` | 24px | 모달 (TDS Dialog) |
-| `--radius-sheet` | 28px | 바텀시트, 휴대폰 모달 시트 위 모서리 (TDS Bottom Sheet) |
+| `--radius-sheet` | 28px | 바텀시트, 휴대폰 모달 시트 네 모서리(떠 있음) (TDS Bottom Sheet) |
 | `--radius-popover` | 12px | 드롭다운 메뉴 |
-| `--radius-xs` / `--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` / `--radius-2xl` | 4 / 6 / 12 / 16 / 20 / 24px | 위 이름으로 안 맞을 때만. 스켈레톤은 xs, 작은 태그는 sm |
-| `--radius-full` | 9999px | 배지, 칩, 토스트, 아바타, 원형 아이콘 |
+| `--radius-xs` / `--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` / `--radius-2xl` | 4 / 6 / 12 / 16 / 20 / 24px | 위 이름으로 안 맞을 때만. 작은 태그는 sm. 툴팁은 lg(16) |
+| `--radius-full` | 9999px | 칩, 토스트, 아바타, 원형 아이콘, 체크박스·라디오 원 |
 
 ### 3.5 그림자
 
@@ -182,16 +209,19 @@
 | `--shadow-ring` | 1px 링만. 작은 원형 아이콘 |
 | `--shadow-card` | Card, SectionCard |
 | `--shadow-raised` | 살짝 뜬 요소 |
-| `--shadow-control` | secondary·primary 버튼(입력칸은 채움형이라 그림자 없음) |
-| `--shadow-button-primary` | primary 버튼 안쪽 하이라이트(`--shadow-control`과 함께) |
-| `--shadow-popover` | 드롭다운, 모달, 토스트 |
+| `--shadow-control` | 작은 컨트롤 그림자가 꼭 필요할 때만 (버튼·입력칸·스위치 손잡이는 TDS처럼 그림자 없음) |
+| `--shadow-segment` | 고른 세그먼트 칸 (TDS 0 1px 2px) |
+| `--shadow-toast` | 토스트 (TDS 0 2px 30px 옅게) |
+| `--shadow-tooltip` | 툴팁 (TDS 0 16px 60px 0.18) |
+| `--shadow-popover` | 드롭다운, 오른쪽 드로어 밖 메뉴. 다이얼로그·바텀시트는 TDS처럼 그림자 없음 |
 | `--shadow-drawer` | 드로어 |
 | `--shadow-bar` | ActionBar(아래 고정 줄) |
 | `--shadow-page` | 어두운 뷰어 위 문서 페이지 |
 | `--shadow-scroll-edge` | 표 가로 스크롤 가장자리 그림자 색(값이 색 하나다) |
-| `--focus-ring` | 포커스 링. TDS식 이중 링: 1px 진한 선 + 4px 옅은 번짐 |
-| `--focus-ring-danger` | 오류 입력칸 포커스 링(빨간 1px + 옅은 빨강 번짐) |
-| `--border-control` | 입력칸 테두리 전체 선언(1px solid border-strong) |
+| `--focus-ring` | 키보드 포커스 링(버튼은 `:focus-visible`에서 outline 대신 이것). TDS 실측 이중 링: 1px 진한 선 + 3px 옅은 번짐 |
+| `--focus-ring-danger` | 오류 상태 버튼류 포커스 링 |
+| `--focus-ring-control` / `--focus-ring-control-danger` | 입력칸 포커스: 테두리를 브랜드 색(`--color-accent`)으로 바꾸고 같은 색 1px 링을 더한다. 오류 칸은 오류 색. 마우스 클릭 포커스에도 보인다 |
+| `--border-control` | 입력칸 테두리 전체 선언(1px solid `--color-border`, TDS처럼 아주 옅게) |
 
 ### 3.6 z-index
 
@@ -210,14 +240,22 @@
 |-|-|-|
 | `--duration-press` | 100ms | 버튼 눌림(TDS 0.1s) |
 | `--duration-fast` | 150ms | hover, 색·테두리 전환 |
-| `--duration-base` | 200ms | 모달·드로어·토스트 등장 |
-| `--duration-loop` | 1200ms | 스켈레톤(LoadingState list·card) 깜빡임 한 바퀴 |
-| `--duration-spin` | 800ms | Spinner 한 바퀴 |
+| `--duration-base` | 200ms | 모달·오른쪽 드로어 등장 |
+| `--duration-sheet` | 300ms | 바텀시트·휴대폰 모달 시트 올라옴, 다이얼로그 떠오름, 배경 어두워짐, 토스트 내려옴 |
+| `--duration-loop` | 2400ms | 스켈레톤 한 바퀴: 불투명도 1~0.2, 크기 1~0.96 (TDS 실측) |
+| `--duration-tab` | 300ms | 탭 글자색·막대 전환 (TDS 0.3s) |
+| `--duration-spin` | 800ms | (예전 Spinner 값, 지금은 안 씀) |
+| `--duration-loader` / `--delay-loader` | 1800 / 700ms | Spinner 한 바퀴와 호 늘고 줄기, 0.7초 뒤 0.3초에 나타남 (TDS Loader 실측) |
+| `--duration-dots` | 600ms | 버튼 로딩 점 한 번 깜빡임, 점마다 0.1초 늦게 (TDS 실측) |
 | `--ease-out` | cubic-bezier(0.22, 1, 0.36, 1) | 모든 전환 |
-| `--ease-in-out` | ease-in-out | 버튼 눌림 |
-| `--scale-press` | 0.96 | 눌린 버튼 크기(TDS) |
+| `--ease-in-out` | ease-in-out | 버튼·목록 행·칩 눌림 |
+| `--ease-sheet` | cubic-bezier(0.32, 0.72, 0, 1) | 시트·다이얼로그·토스트: 빠르게 움직여 부드럽게 멈춤 (TDS 시간별 측정과 비슷한 곡선, 곡선 값 자체는 [추론]) |
+| `--scale-press` | 0.96 | 눌린 버튼·누르는 ListRow·칩 크기(TDS) |
+| `--offset-dialog-rise` | 80px | 다이얼로그가 이만큼 아래에서 떠오르며 페이드 (TDS 40ms 시점 75 남음, 근사) |
+| `--offset-rise` | 16px | 아래에서 올라오는 짧은 거리 |
+| `--opacity-skeleton-min` / `--scale-skeleton-min` | 0.2 / 0.96 | 스켈레톤 가장 옅고 작을 때 |
 
-`prefers-reduced-motion`은 base.css가 전역으로 처리한다. 따로 막을 필요 없다.
+`prefers-reduced-motion`은 base.css가 전역으로 처리한다(전환·애니메이션 끔, 눌림 작아짐도 끔). 따로 막을 필요 없다. 시트·다이얼로그 뒤 배경 흐림은 TDS에 없어 AIWITH-557에서 뺐다.
 
 ### 3.8 반응형 기준점
 
@@ -227,7 +265,7 @@
 | `--bp-desktop` | 1024px | 태블릿 이하: `@media (max-width: 1023px)` |
 | `--bp-wide` | 1440px | 캡처 기준 폭(쿼리 없음) |
 
-CSS 변수는 `@media` 안에서 못 쓴다. 쿼리에는 위 두 숫자(599, 1023)만 쓴다. 터치 기기는 `@media (pointer: coarse)`.
+CSS 변수는 `@media` 안에서 못 쓴다. 쿼리에는 위 두 숫자(599, 1023)만 쓴다. 터치 기기는 `@media (pointer: coarse)`(지금은 iOS 확대를 막는 16px 글자에만 쓴다).
 
 ## 4. 공통 컴포넌트 카탈로그
 
@@ -237,13 +275,40 @@ CSS 변수는 `@media` 안에서 못 쓴다. 쿼리에는 위 두 숫자(599, 10
 import { Button, Input, PageHeader, Table } from "../../ui";
 ```
 
-**크기·모양은 토스 TDS 실측을 따른다(2026-10-30, 근거 `findings/toss-design-system-benchmark.md` 8절). 색은 우리 토큰 그대로.** 요약: 버튼 4단(32·40·48·56, 모서리 8·10·14·16, semibold), 입력칸 채움형(옅은 면, 그림자 없음, 15px, 라벨 13px 보통 굵기), 체크박스·라디오 20, 스위치 40×24, 세그먼트 홈 안쪽 4·고른 칸 semibold, 배지 24, 탭 15px·고름 bold, ListRow 칸 사이 16·누름 면 모서리 12, 모달 모서리 24·제목 20px, 바텀시트 모서리 28 + 손잡이, 토스트 알약·15px semibold, 툴팁 13px·모서리 8, 포커스 이중 링, 버튼 눌림 0.96.
+**크기·모양은 토스 TDS 실측 값을 그대로 기본값으로 쓴다(AIWITH-552, 2026-10-30, 근거 `findings/toss-design-system-benchmark.md` 8.2·8.5). 색은 우리 토큰 그대로.**
+
+AIWITH-542(findings 8.3·8.4)에서 PC 대시보드라는 이유로 둔 타협(기본 높이 40, 글자 한 단계 작게, 체크박스 20·스위치 40×24, 진한 입력 테두리, 탭 15px·44, 목록 행 15/13, 바텀시트 떠 있지 않음, 배지 600)은 **걷어냈다.** 촘촘한 자리(표 안, 필터 줄, 툴바)는 기본값을 줄이지 않고 화면에서 작은 단계(Button `sm`, Input·Select·SelectMenu `sm`, Badge `sm`)를 고른다. FilterBar 안 칸·버튼은 컴포넌트가 sm(32)으로 맞춘다. 입력칸(56) 옆 버튼은 `xl`(56)로 높이를 맞춘다.
+
+| 컴포넌트 | 크기 단계와 값 (TDS 실측과 같음) |
+|-|-|
+| Button | sm 32 / 좌우 10 / r8 / 13px, md 38 / 16 / r10 / 15px, lg 48 / 16 / r14 / 17px, xl 56 / 28 / r16 / 17px. 모두 600, 테두리 0. secondary = TDS weak(옅은 면). 비활성 불투명도 0.3, 마우스를 올려도 면은 그대로(ghost만 옅은 면), 키보드 포커스는 1px + 3px 이중 링 |
+| 입력칸 (TextField·Input·Textarea·Select·SelectMenu·TagInput) | 기본 md = box 56 / 좌우 16 / r14 / 채움 면 + 아주 옅은 테두리 / 17px 400. sm 32 / r8 / 13px. lg는 md와 같은 모양 |
+| 라벨·도움말 | 13/19.5 400, 칸과 6, 글자는 칸 가장자리보다 4 안쪽. 오류면 라벨도 오류 색 |
+| 포커스(입력칸) | 면 그대로, 테두리 브랜드 색 + 같은 색 1px 링, 커서 브랜드 색. 오류 칸은 오류 색 |
+| SearchField | 44 / 좌우 10 / r12 (FilterBar 안은 32) |
+| Checkbox·Radio | 24, TDS Checkbox.Circle 모양(원 22, 테두리 2), 비활성 0.4 |
+| Switch | 50×30, 손잡이 켜짐 24 · 꺼짐 16, 꺼짐 바탕 옅은 회색, 손잡이 그림자 없음, 비활성 0.3 |
+| SegmentedControl | md 홈 48 r14 안쪽 4·5, 칸 40 r10 좌우 12, 17px 고름 600 / 안 고름 500, 고른 칸 흰 면 + 그림자. sm 홈 39 r10 안쪽 3, 칸 33 r8 좌우 14, 15px |
+| Tabs | 47, 위 12 아래 14 좌우 12(fluid), 17px 고름 700 / 안 고름 600, 아래 막대 2px(양옆 10 안쪽, 모서리 1), 색 전환 0.3s |
+| Badge | xs 21 / 10px 600 / r9, sm 24 / 12px 700 / r11(기본), md 25.5 / 13px 700 / r12, lg 29 / 14px 700 / r13 |
+| ListRow | 위아래 12, 누르는 행 좌우 24, 제목 17/22.95 500, 부제 15/20.25 (제목과 붙음), 칸 사이 16 |
+| Bottom sheet (Drawer bottom) | 화면 좌우·아래에서 10 떠 있음, 네 모서리 28, 그림자 없음, 손잡이 자리 16(손잡이 48×4, 위 12), 제목 20/29 700(위 25 아래 13), 부제 15/22.5, 본문 좌우 24, 17px. 뒤 배경 흐림 없음 |
+| Modal | sm(다이얼로그) 폭 320, 모든 크기 모서리 24, 그림자 없음, 안쪽 22, 제목 20/27 700, 설명 15/500(제목과 8), 아래 버튼 48 / r14 / 17px, sm 버튼 줄은 위 20 좌우·아래 16. 휴대폰에서 md·lg는 떠 있는 시트, sm은 TDS처럼 가운데 320 그대로 |
+| Toast | 화면 위 가운데(위 46), 흰 알약, 안쪽 12·16, 15/22.5 600, 옅고 큰 그림자. 성공·오류는 아이콘 색으로만 |
+| Tooltip | 흰 면, r16, 안쪽 13·16, 15/22.5 700, 그림자 0 16px 60px. 꼬리 없음(아래 한계) |
+| LoadingState·Skeleton | TDS Skeleton 모듈: title 30 r11 폭 50%, subtitle 22 r9, list 64 r18(사이 16), 아이콘 줄 40 원 + 42 r13(사이 14, 줄 사이 32), card 240 r38(사이 20). 불투명도 1~0.2·크기 1~0.96을 2.4초에 한 번, 조각마다 조금씩 늦게 |
+| Spinner·Loader | TDS Loader: 원(지름 66 기준 선 6, 둥근 끝) 호가 180~45로 늘었다 줄며 1.8초에 한 바퀴, 0.7초 뒤 나타남. 강조색. Loader는 둘레 12(xl 16), 아래 문구 15/22.5 |
+| Button loading | 글자 자리에 8 점 3개(사이 7), 글자색, 불투명도 1~0.2·크기 1~0.8을 0.6초, 점마다 0.1초 늦게 |
+
+움직임: 버튼은 눌리면 0.96으로 작아지고 어두워진다(0.1초). 누르는 ListRow·칩은 0.96. 바텀시트·휴대폰 모달은 아래에서 올라오며 나타나고 뒤 배경은 어두워지기만 한다. 다이얼로그는 80 아래에서 떠오르며 페이드. 토스트는 위에서 내려온다. 움직임 줄이기 설정이면 모두 끈다(스피너 회전·스켈레톤 반짝임·버튼 점도 멈추고 모양만 보인다).
+
+**정밀 대조 (AIWITH-557, 2026-10-31).** TDS 문서 예시를 다시 재서(findings 8.7) 접근성·PC 사정으로 TDS와 다르게 두었던 것을 되돌렸다: 터치 기기 44 누르는 영역, 버튼·입력칸 hover 변화, 비활성 0.5, 배경 흐림, 다이얼로그 확대 등장, 토스트 오른쪽 아래·어두운 면, 툴팁 어두운 면 13px. TDS와 다르게 두는 것은 두 가지뿐이다. ① 색: 우리 색 토큰을 쓴다(TDS 반투명 면은 가장 가까운 기존 토큰). ② 입력칸 포커스: 테두리를 브랜드 색으로 바꾸고 1px 링을 더하며, 오류 칸은 오류 색 테두리를 유지한다. 입력칸 기본 테두리가 3:1 대비에 못 미치는 것도 TDS를 따른 것이고, 포커스 때 브랜드 테두리로 위치를 보인다.
 
 ### 4.1 Button, IconButton, ButtonLink, ButtonAnchor (`ui/Button.tsx`)
 
 - props: `Button`은 `ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "sm" | "md" | "lg" | "xl"; loading?: boolean }`. 기본 `variant="primary"`, `size="md"`, `type="button"`.
-- 크기(TDS 실측 기준, findings 8절): sm 32·r8·13px(표·줄 안), md 40·r10·15px(기본), lg 48·r14·17px(인증 화면 주 버튼·구글 버튼), xl 56·r16·17px(공개 화면 하단 줄 주 동작, 랜딩 "시작하기"). 글자는 모두 semibold, 누르면 0.96으로 작아진다. 휴대폰에서도 알약으로 바꾸지 않는다. 화면 CSS로 높이·모서리·글자 크기를 덮어쓰지 않고 `size`를 고른다(폭 100% 같은 배치만 화면 CSS).
-- `loading`: 누를 수 없고(`aria-busy`), 글자 자리에 Spinner. 글자는 숨기기만 해서 버튼 폭이 그대로다(토스 Button 규칙). 반투명이 아니라 진한 색 그대로 둔다.
+- 크기(TDS 실측 그대로, findings 8.5): sm 32·좌우 10·r8·13px(표·필터 줄·툴바), md 38·r10·15px(기본), lg 48·r14·17px(인증 화면 주 버튼·구글 버튼), xl 56·좌우 28·r16·17px(공개 화면 하단 줄 주 동작, 랜딩 "시작하기", 56 입력칸 옆 버튼). 글자는 모두 semibold, 누르면 0.96으로 작아진다. 휴대폰에서도 알약으로 바꾸지 않는다. 화면 CSS로 높이·모서리·글자 크기를 덮어쓰지 않고 `size`를 고른다(폭 100% 같은 배치만 화면 CSS).
+- `loading`: 누를 수 없고(`aria-busy`), 글자 자리에 TDS처럼 점 3개가 차례로 깜빡인다. 글자는 숨기기만 해서 버튼 폭이 그대로다(토스 Button 규칙). 반투명이 아니라 진한 색 그대로 둔다.
 - `IconButton`: `{ icon: IconName; label: string }` + Button props(children, aria-label 제외). 기본 `variant="ghost"`.
 - `ButtonLink`: react-router `LinkProps & { variant?; size? }`, 기본 `secondary`. 앱 안 이동.
 - `ButtonAnchor`: `AnchorHTMLAttributes<HTMLAnchorElement> & { variant?; size? }`, 기본 `secondary`. 외부 주소·내려받기.
@@ -276,7 +341,8 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 ### 4.3 Input, Textarea, Select, Checkbox (`ui/Form.tsx`)
 
 - props: `Input`은 `InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string; error?: string }`. `Textarea`, `Select`도 각 HTML 속성 + 같은 `{ label?, hint?, error? }`. `Textarea`는 `autoGrow?: boolean`(내용만큼 높이가 늘어남, 손잡이 없음), `showCount?: boolean`(아래 오른쪽 글자 수, `maxLength`가 있으면 "n/최대", 넘으면 빨강)이 더 있다. `Select`는 `size?: "sm" | "md" | "lg"`(기본 `md`)가 더 있다. `lg`는 높이 56px(TDS box). `sm`은 높이 32px, 폭은 내용에 맞고(최소 72px) 오른쪽에 화살표 자리가 항상 확보된다. 표 안·줄 안 선택칸에 쓰고, 화면 CSS로 `.control` 여백을 덮어쓰지 않는다. `Checkbox`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; description?: ReactNode; indeterminate?: boolean }`. `description`은 라벨 아래 작은 글씨(`aria-describedby` 연결), `indeterminate`는 "일부만 고름"(전체 선택 칸).
-- 모양(TDS box 채움형, findings 8절): 바탕 `surface-subtle`, 그림자 없음, 테두리는 3:1 대비 때문에 `--border-control` 그대로. 포커스면 바탕이 흰색이 되고 이중 링. 비활성은 `surface-muted`. 라벨 13px 보통 굵기 secondary 색, 도움말·오류 13px.
+- 모양(TDS box 그대로, findings 8.5): 높이 56, 바탕 `surface-subtle`, 아주 옅은 테두리(`--color-border`), 그림자 없음, 17px. 포커스(마우스 클릭 포함)면 면은 그대로 두고 테두리가 브랜드 색 + 같은 색 1px 링, 오류 칸은 오류 색. 비활성은 `surface-muted`. 라벨 13px 보통 굵기 secondary 색, 도움말·오류 13px. `Input`도 `size="sm"`(32)을 받는다.
+- `Select size="lg"`는 네이티브 목록이 아니라 `SelectMenu`의 직접 그린 목록으로 열린다(`ui/SelectLarge.tsx`). `<option>`·`<optgroup label>` 자식, `value`/`defaultValue`, `onChange(e.target.value)`, `name`(숨은 input)은 그대로 쓴다. sm·md는 네이티브.
 - 앞뒤 단위·지우기·글자 수·크기·읽기 전용 모양이 필요하면 `TextField`(4.21). `Input`은 그대로 둔다.
 - 검색·설명 줄·묶음·다중 선택이 필요한 선택은 `SelectMenu`(4.32). 고르는 기준은 4.32.
 - `required`를 주면 라벨 옆에 "필수"가 붙는다. `hint`·`error`는 `aria-describedby`로 연결되고, `error`가 있으면 hint 대신 빨간 문구 + 빨간 테두리.
@@ -295,7 +361,7 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 
 ### 4.4 Badge (`ui/Badge.tsx`)
 
-- props: `{ tone?: BadgeTone; dot?: boolean; children: ReactNode }`. 높이 24, 12px semibold, 알약(TDS Badge small). `BadgeTone = "neutral" | "accent" | "success" | "warn" | "danger" | "info"`, 기본 `neutral`.
+- props: `{ tone?: BadgeTone; size?: BadgeSize; dot?: boolean; children: ReactNode }`. `BadgeSize = "xs" | "sm" | "md" | "lg"`(TDS xsmall~large), 기본 `sm`(24, 12px 700, r11). 표 안은 sm 그대로. `BadgeTone = "neutral" | "accent" | "success" | "warn" | "danger" | "info"`, 기본 `neutral`.
 - 쓴다: 상태 한두 단어(공개, 작성 중, 처리 지연), 개수(3/5). 상태값은 `Record<State, BadgeTone>` 상수로 매핑(ReviewsPage `STATE_TONE`).
 - tone 고르는 기준:
 
@@ -357,7 +423,7 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 
 ### 4.8 Modal (`ui/Modal.tsx`)
 
-- props: `{ open: boolean; title: string; description?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: "md" | "lg" }`. 기본 `md`(480px), `lg`(720px). 휴대폰에서는 아래에서 올라오는 시트.
+- props: `{ open: boolean; title: string; description?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" }`. `sm`(320px, 확인·알림 다이얼로그 = TDS Dialog, 아래 버튼이 반씩 나눠 찬다), 기본 `md`(480px, 폼), `lg`(720px). 휴대폰에서는 화면 가장자리에서 뜬 시트로 아래에서 올라온다.
 - Esc 닫기, 포커스 가둠, 배경 스크롤 잠금, 닫으면 포커스 복귀가 들어 있다(`useDialog`). 첫 포커스를 정하려면 요소에 `data-autofocus`.
 - 쓴다: 짧은 입력(추가, 가져오기), 확인 후 보내기. 버튼은 `footer`에 둔다(휴대폰에서 버튼이 가로로 꽉 찬다).
 - 안 쓴다: 목록 항목 상세 보기(그건 Drawer), 화면 하나 분량의 편집(그건 별도 화면).
@@ -399,6 +465,7 @@ import { Button, Input, PageHeader, Table } from "../../ui";
 ### 4.10 ToastProvider, useToast (`ui/Toast.tsx`)
 
 - props: `ToastProvider`는 `{ children: ReactNode }`(앱 최상단에 이미 있음). `useToast()`는 `(text: string, tone?: "neutral" | "success" | "danger") => void`. 3.5초 뒤 사라진다.
+- 모양: TDS 기본 토스트처럼 화면 위 가운데에 흰 알약으로 내려온다. 성공·오류는 아이콘 색으로만 구분한다(면 색은 같다).
 - 쓴다: 저장·복사·발송 같은 동작의 결과 한 줄, API 오류 문구(`errorMessage(e)`).
 - 안 쓴다: 입력칸별 오류(그건 Input `error`), 사라지면 안 되는 안내.
 
@@ -421,10 +488,11 @@ catch (e) { toast(errorMessage(e), "danger"); }
 
 ### 4.12 LoadingState (`ui/LoadingState.tsx`)
 
-- props: `{ lines?: number; label?: string; pattern?: "lines" | "list" | "card" }`. 기본 `lines=3`, `label="불러오는 중"`, `pattern="lines"`.
-- `pattern`: 실제 화면 모양에 맞춘다. `lines`(제목 + 글줄), `list`(동그라미 + 두 줄 행을 `lines`개, ListRow 목록 자리), `card`(카드 면을 `lines`개).
+- props: `{ lines?: number; label?: string; pattern?: "lines" | "list" | "card" | "table" | "detail" }`. 기본 `lines=3`, `label="불러오는 중"`, `pattern="lines"`.
+- `pattern`: 실제 화면 모양에 맞춘다(TDS Skeleton 모듈 조합). `lines`(제목 + 글줄, 폼), `list`(아이콘 원 + 줄을 `lines`개, ListRow·타임라인), `card`(큰 카드 면을 `lines`개, 카드 목록), `table`(표 한 줄 높이마다 글줄 조각 셋을 `lines`줄, 표 자리), `detail`(제목·부제 + 큰 줄 `lines`개, 상세 화면·공개 화면).
+- 조각 하나만 필요하면 `Skeleton`: `{ shape?: "text" | "title" | "circle" | "rect"; width?; height?; className? }`. text 22 r9(폭 33%), title 30 r11(폭 50%), circle 40, rect 64 r18. 장식이라 낭독기에 숨는다(상태 문구는 부모가).
 - 쓴다: 데이터를 받기 전(`data === null`). `return null` 대신.
-- 안 쓴다: 버튼 안 진행 표시(`Button loading` 또는 글자를 "저장 중"으로 바꾸고 `disabled`), 작은 자리 기다림(Spinner).
+- 안 쓴다: 버튼 안 진행 표시(`Button loading` 또는 글자를 "저장 중"으로 바꾸고 `disabled`), 작은 자리 기다림(Spinner), 모양을 알 수 없는 화면 전체 기다림(로그인 확인, 라우트 지연 로딩: `Loader fill`).
 
 ```tsx
 if (!rows) return <LoadingState label="검수 목록을 불러오는 중" />;
@@ -644,6 +712,7 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 
 - props: `{ content: string; children: ReactElement; placement?: "top" | "bottom" }`. 기본 `top`.
 - 마우스를 올리거나 키보드 포커스면 열리고, 떠나거나 Esc면 닫힌다. `aria-describedby`로 트리거에 이어진다. 트리거는 포커스되는 요소(IconButton 등) 하나.
+- 모양: TDS Tooltip medium 실측(흰 면, 모서리 16, 15px 굵게, 큰 옅은 그림자). TDS의 꼬리 모양은 아직 없다.
 - 쓴다: 아이콘 버튼·지표 이름의 짧은 보조 설명 한두 문장.
 - 안 쓴다: 꼭 읽어야 하는 안내(hint·캡션으로 보이게), 누르는 동작·링크, 터치 기기 전용 화면(hover가 없다).
 
@@ -654,8 +723,9 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 ### 4.29 ProgressBar, Spinner (`ui/ProgressBar.tsx`, `ui/Spinner.tsx`)
 
 - `ProgressBar`: `{ value: number; label: string; showValue?: boolean; size?: "sm" | "md"; tone?: "accent" | "success" | "danger" }`. `value`는 0~1(밖이면 자름). `role="progressbar"` + `aria-valuenow`(0~100). `showValue`면 위에 라벨과 "42%".
-- `Spinner`: `{ size?: "sm" | "md" | "lg"; label?: string }`. 기본 `md`. `label`이 있으면 `role="status"`로 읽히고, 없으면 장식.
-- 쓴다: 업로드·처리 진행률(ProgressBar), 작은 자리의 짧은 기다림(Spinner).
+- `Spinner`: `{ size?: "sm" | "md" | "lg" | "xl"; label?: string }`. 기본 `md`. `label`이 있으면 `role="status"`로 읽히고, 없으면 장식. 모양은 TDS Loader(강조색 원 호, 0.7초 뒤 나타남).
+- `Loader`: `{ label?: string; size?: "md" | "lg" | "xl"; fill?: boolean }`. 기본 `lg`, 문구 "불러오는 중이에요". TDS Loader + label: 가운데 스피너 아래 15px 문구. `fill`이면 영역 가운데(최소 높이 화면 40%). 앱 첫 로그인 확인, 번호 인증·초대·온보딩 확인, `Suspense` fallback에 쓴다.
+- 쓴다: 업로드·처리 진행률(ProgressBar), 작은 자리의 짧은 기다림(Spinner), 모양을 미리 보여 줄 수 없는 기다림(Loader).
 - 안 쓴다: 화면 전체·목록 로딩(LoadingState), 버튼 진행(Button `loading`).
 
 ```tsx
@@ -735,7 +805,7 @@ AppShell(`src/client/shell/AppShell.tsx`)이 사이드바, 휴대폰 상단 바,
 PageHeader(주 동작 = 만들기) → (Tabs) → FilterBar → Table. 비었으면 EmptyState, 받기 전이면 LoadingState.
 
 ```tsx
-{rows === null ? <LoadingState /> : rows.length === 0 ? <EmptyState title="..." action={create} /> : <Table>...</Table>}
+{rows === null ? <LoadingState pattern="table" /> : rows.length === 0 ? <EmptyState title="..." action={create} /> : <Table>...</Table>}
 ```
 
 예: `src/client/features/campaigns/CampaignsListPage.tsx`(FilterBar + Table), `src/client/features/reviews/ReviewsPage.tsx`(Tabs + FilterBar + Table)

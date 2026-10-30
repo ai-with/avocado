@@ -18,7 +18,7 @@ export function ReviewDetailPage() {
   const r = useReviewDetail(submissionId);
   const [tab, setTab] = useState<Tab>("candidates");
   const { d, base, frame, seek, act, processing } = r;
-  if (!d) return <LoadingState label="검수 화면을 불러오는 중" />;
+  if (!d) return <LoadingState pattern="detail" label="검수 화면을 불러오는 중" />;
   const locked = d.locked;
   const canEdit = d.canEdit && !locked;
   const flagged = d.candidates.filter((c) => c.result === "candidate").length;

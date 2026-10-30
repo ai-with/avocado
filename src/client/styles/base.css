@@ -28,6 +28,11 @@ button:not(:disabled), [role="button"], summary, label[for] { cursor: pointer; }
 /* 움직임 줄이기 설정을 켠 사람에게는 전환 효과를 끄되, 상태 변화 자체는 그대로 보인다 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  /* 눌림 작아짐·스켈레톤 크기 변화도 끈다 */
+  .btn:active, .chip:active, .list-row-button:active { transform: none !important; }
+  /* 스피너 회전·스켈레톤 반짝임·버튼 점도 멈춘다(모양은 그대로 보인다) */
+  .spinner, .spinner-arc, .skeleton, .btn-dots > span { animation: none !important; }
+  .spinner-arc { stroke-dashoffset: 45; }
 }
 
 /* 글자 */

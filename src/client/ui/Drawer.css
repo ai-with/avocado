@@ -9,10 +9,19 @@
   .drawer-head { padding: var(--space-6); }
   .drawer-body { padding: var(--space-6) var(--space-6) calc(var(--space-9) + env(safe-area-inset-bottom)); }
 }
-/* 바텀시트: 폭 전체, 높이는 내용만큼(최대 화면 85%), 위 모서리만 둥글게(TDS 28), 위 가운데 손잡이 */
-.drawer-bottom { inset: auto 0 0 0; width: 100%; max-height: 85vh; padding-top: var(--space-5); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; animation-name: slide-up; }
-.drawer-bottom::before { content: ""; position: absolute; top: var(--space-4); left: 50%; width: var(--sheet-handle-width); height: var(--sheet-handle-height); transform: translateX(-50%); border-radius: var(--radius-full); background: var(--color-border); }
-.drawer-bottom .drawer-head { border-bottom: 0; padding-bottom: 0; }
-.drawer-bottom .drawer-body { padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom)); }
-@keyframes slide-up { from { transform: translateY(24px); opacity: 0; } }
+/* 바텀시트 (TDS Bottom Sheet 실측): 좌우·아래 10 떠 있고 네 모서리 28, 위 손잡이 자리 16(손잡이 48×4, 위 12), 본문 좌우 24
+ * 아래에서 올라오며 함께 나타나고, 뒤 배경은 흐림 없이 어두워지기만 한다 */
+.drawer-backdrop:has(.drawer-bottom) { animation-duration: var(--duration-sheet); }
+.drawer-bottom {
+  inset: auto var(--sheet-inset) calc(var(--sheet-inset) + env(safe-area-inset-bottom)) var(--sheet-inset); width: auto;
+  max-height: calc(85vh - var(--sheet-inset)); padding-top: var(--sheet-handle-area); border-radius: var(--radius-sheet); box-shadow: none;
+  animation: sheet-up var(--duration-sheet) var(--ease-sheet);
+}
+.drawer-bottom::before { content: ""; position: absolute; top: var(--sheet-handle-top); left: 50%; width: var(--sheet-handle-width); height: var(--sheet-handle-height); transform: translateX(-50%); border-radius: var(--radius-full); background: var(--color-border); }
+.drawer-bottom .drawer-head { border-bottom: 0; padding: var(--sheet-head-padding-top) var(--sheet-padding-x) var(--sheet-head-padding-bottom); }
+.drawer-bottom .drawer-head h4 { font-size: var(--text-title-size); line-height: var(--text-sheet-title-lh); font-weight: var(--weight-bold); }
+.drawer-bottom .drawer-head .text-secondary { padding-top: var(--space-4); font-size: var(--text-control-size); line-height: var(--text-float-lh); }
+/* 아래 여백은 TDS에선 기기 안전 영역이 맡는다. PC·안전 영역 0인 화면에서 글자가 모서리에 붙지 않게 24를 둔다 [추론] */
+.drawer-bottom .drawer-body { padding: 0 var(--sheet-padding-x) var(--sheet-padding-x); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+@keyframes sheet-up { from { opacity: 0; transform: translateY(calc(100% + var(--sheet-inset))); } }
 @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }

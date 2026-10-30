@@ -23,7 +23,7 @@ export function PublicFormPage() {
   if (!form) {
     return (
       <div className="visitor">
-        <div className="visitor-card"><LoadingState /></div>
+        <div className="visitor-card"><LoadingState pattern="detail" /></div>
       </div>
     );
   }

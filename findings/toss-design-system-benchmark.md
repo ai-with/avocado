@@ -229,8 +229,129 @@ TASK-080은 TDS의 기능·상태·접근성 규칙만 가져오고 높이·모�
 | 포커스 링 | 1px + 3px 이중 | 3px 한 겹 | `0 0 0 1px` 진한 선 + `0 0 0 4px` 옅은 번짐 | 색은 기존 그대로, 모양만 [웹: oh-my-design 재인용] |
 | 모션 | 0.1s ease-in-out(Dialog 버튼) | 150ms ease-out | 눌림 전용 `--duration-press: 100ms`, `--ease-in-out` 추가 | 나머지 전환은 그대로 |
 
-### 8.5 한계
+### 8.5 실제 토스 수준 반영 (AIWITH-552, 2026-10-30)
+
+사용자 요청("컴포넌트에 실제 토스 컴포넌트처럼 적용해줘")에 따라 8.3·8.4의 PC 타협을 걷어내고 8.2 실측 값을 기본값으로 바꿨다. 색은 그대로다.
+
+| 컴포넌트 | 8.4 값 | 지금 값 | 8.2 TDS와 |
+|-|-|-|-|
+| Button sm·md·lg·xl | 32·12 / 40·16 / 48·20 / 56·24 | 32·10 / 38·16 / 48·16 / 56·28, 테두리 0, 그림자 없음 | 같음 |
+| Button secondary | 흰 면 + 진한 테두리 | 옅은 면(surface-muted), 테두리 0 | 모양 같음. 반투명 대신 불투명 면 [추론: 색 토큰을 늘리지 않음] |
+| 입력칸 기본 | 40 / r10 / 15px / 진한 테두리 | 56 / 좌우 16 / r14 / 17px 400 / 옅은 테두리 | 같음 |
+| 입력칸 포커스 | 흰 면 + 이중 링 | 면 그대로 + 테두리 브랜드 색 + 같은 색 1px 링 + 브랜드 색 커서 | 다름(아래 접근성) |
+| SearchField | 40 | 44 / r12 / 좌우 10 | 같음 |
+| Checkbox·Radio | 20 | 24 | 같음 |
+| Switch | 40×24, 20 | 50×30, 24 | 같음 |
+| Segmented | 40 안 홈 r10 | 홈 48 r14 안쪽 4, 칸 40 r10, 17px 600/500, small 15px | 같음(small 높이 38은 [추론]) |
+| Tabs | 44 / 15px | 47 / 위 12 아래 14 / 17px 700·600 | 같음 |
+| Badge | 24 하나, 600, 알약 | xs·sm·md·lg 21·24·26·29, 700(xs 600), 모서리 9·11·12·13 | 같음 |
+| ListRow | 15 / 13 | 제목 17/500, 부제 15, 누르는 행 좌우 24 | 같음 |
+| Bottom sheet | 바닥에 붙음, 위 모서리 28 | 가장자리에서 12 떠 있음, 네 모서리 28, 본문 좌우 24 | 떠 있는 거리 12는 [추론] |
+| Dialog(Modal) | r24, 안쪽 24 | sm 폭 320, r24, 안쪽 22, 제목 20/700, 설명 15/500, 아래 버튼 48 r14 | 같음. 폼 모달(md 480, lg 720)은 폭만 우리 값 |
+| Toast | 12·20 | 12·16, 15px 600, 0 2px 30px 옅은 그림자 | 같음 |
+
+움직임(모션 토큰): 버튼·누르는 ListRow·칩 눌림 scale(0.96) 0.1s, 바텀시트·휴대폰 모달 시트는 아래에서 올라오고 배경이 흐려지며 페이드(0.3s), 모달은 0.96에서 커지며 페이드, 토스트는 16px 아래에서 올라옴. `prefers-reduced-motion`이면 전부 끈다. 시트 곡선 `cubic-bezier(0.32, 0.72, 0, 1)`과 흐림 4px는 [추론].
+
+촘촘한 자리: 기본값을 줄이지 않고 화면에서 작은 단계(Button·Input·Select·SelectMenu `sm`, Badge `sm`)를 고른다. FilterBar 안 칸·버튼은 컴포넌트가 sm(32)으로 맞춘다. 56 입력칸 옆 버튼은 `xl`(56)로 맞췄다.
+
+접근성 때문에 TDS와 다르게 둔 것 [추론]:
+- 입력칸 포커스: TDS box는 커서 색만 바뀐다. 우리는 마우스 클릭 포함 포커스 때 테두리를 브랜드 색으로 바꾸고 같은 색 1px 링을 더한다(WCAG 2.4.7 포커스 보이기, 사용자 추가 요청). 텍스트 입력칸은 브라우저가 클릭에도 `:focus-visible`을 켜므로 "키보드일 때만 링"은 입력칸에서 구분이 안 된다.
+- 버튼·탭·스위치 등 나머지 컨트롤의 키보드 포커스 링(`:focus-visible`)은 그대로 둔다.
+- 입력칸 테두리는 TDS처럼 아주 옅게 바꿨다. 경계 대비는 3:1(WCAG 1.4.11)에 못 미친다. 칸은 채움 면과 라벨로 구분된다는 판단이고, 문제가 되면 `--border-control` 한 줄로 되돌린다.
+- 터치 기기에서 누르는 영역 44 이상 규칙은 그대로다.
+
+비교 캡처: `.agent_work/scratch/086/vs-toss/*-vs.png`(왼쪽 토스 문서 예시, 오른쪽 우리 `/dev/ui`).
+
+### 8.6 한계
 
 - 문서 예시 실측은 그 시점 문서 사이트에 실린 TDS 버전 값이다. 버전이 바뀌면 달라질 수 있다.
 - Tooltip, TextField 오류 모양, Bottom Sheet 손잡이 크기는 예시가 hover·입력·애니메이션 뒤에만 보여 재지 못했다 [추론으로 정함].
 - TDS 웹(PC)용 수치는 공개 자료에서 찾지 못했다. PC 단계(md 40)는 모두 우리 판단이다 [추론].
+
+### 8.7 정밀 대조 (AIWITH-557, 2026-10-31)
+
+사용자 요청("토스 디자인 시스템 확인해서 그대로 적용해줘")에 따라 TDS Mobile 문서 예시를 다시 쟀다. 이번에는 열고 닫기·누르기·포커스·입력을 실제로 넣고(CDP 마우스·키 입력) 시간별로 값을 받아 8.6에서 못 잰 항목까지 쟀다. 측정 스크립트와 원자료는 `.agent_work/scratch/087/`(m.mjs, lib.js, js/*.js, measure/*.json).
+
+TDS와 다르게 두는 것은 두 가지뿐이다. ① 색: 우리 색 토큰을 쓰고 TDS 반투명 면은 가장 가까운 기존 토큰으로 바꾼다(예: weak 버튼 면, 입력칸 면, 배경 어두움 rgba(14,14,16,0.4)). ② 입력 계열 포커스: 테두리를 브랜드 색(`--color-accent`)으로 바꾸고 1px 링을 더하며, 오류 칸은 오류 색 테두리를 유지한다(사용자 요청). 그 밖에 접근성·PC 사정으로 달리 두었던 것은 아래 표처럼 TDS대로 되돌렸다. 입력칸 기본 테두리가 3:1(WCAG 1.4.11)에 못 미치는 것도 TDS를 따른 것이고, 포커스 때 브랜드 색 테두리로 위치를 보인다.
+
+| 컴포넌트 | 항목 | TDS 실측 | 우리 (바꾸기 전) | 판정 |
+|-|-|-|-|-|
+| Button | 크기 4단 | 32/r8/13, 38/r10/15, 48/r14/17, 56/r16/17, 600, 테두리 0 | 같음 | 같음 |
+| Button | 비활성 | 불투명도 0.3, 색 그대로 [실측: https://tossmini-docs.toss.im/tds-mobile/components/button/] | 0.5 | 고침 |
+| Button | 로딩 | 불투명도 1 유지 | 같음 | 같음 |
+| Button | 눌림 | scale 0.96(약 0.13s에 도달) + 검정 덧칠 0.26 | scale 0.96만 | 고침(밝기 0.74로 같은 효과) |
+| Button | 마우스 올림 | 변화 없음 | primary·secondary·danger 면이 진해짐 | 고침(ghost는 TDS에 없는 변형이라 유지) |
+| Button | 키보드 포커스 | outline 없음, 0 0 0 1px + 0 0 0 3px 이중 링 | 2px outline | 고침(링 모양 TDS, 색은 우리) |
+| Button | 전환 | 색·면·테두리·그림자·불투명도 0.1s ease-in-out | 150ms ease-out | 고침 |
+| TextField | box | 56(55.5), 안쪽 14·16, r14, 17/25.5 400 | 17/24 | 고침(줄높이 25.5) |
+| TextField | 라벨·도움말 | 13/19.5 400, 칸과 6, 글자가 칸 가장자리보다 4 안쪽(라벨 좌우 24, 칸 20) | 13/18·13/20, 안쪽 0 | 고침 |
+| TextField | 오류 | 칸 모양 그대로, 라벨·도움말이 오류 색 [실측: https://tossmini-docs.toss.im/tds-mobile/components/TextField/text-field/ 3글자 입력 뒤] | 칸 테두리 오류 색, 라벨 그대로 | 라벨 오류 색은 고침. 칸 테두리 오류 색은 예외 ② |
+| TextField | 포커스 | 면·테두리 그대로 | 브랜드 테두리 + 1px 링 | 예외 ② |
+| TextField | 비활성 | 면 한 단계 진한 회색, 글자 옅은 회색 | 같음(색은 우리 토큰) | 같음 |
+| TextField | 마우스 올림 | 변화 없음 | 테두리 진해짐 | 고침 |
+| TextField | 앞 단위 | 오른쪽 8 띄움, 17px 400 | 같음 | 같음 |
+| SearchField | 칸 | 44, 안쪽 8·10, r12, 사이 8, 아이콘 24 | 같음 | 같음 |
+| Checkbox·Radio | 모양 | 24 칸 안 지름 22 원. 안 고름: 옅은 2px 테두리 + 옅은 체크, 고름: 강조색 원 + 흰 체크. 라디오는 같은 그림(inputType radio) [실측: https://tossmini-docs.toss.im/tds-mobile/components/checkbox/ SVG 경로] | 브라우저 기본 네모·동그라미(accent-color) | 고침(같은 체크 경로를 mask로) |
+| Checkbox·Radio | 비활성 | 불투명도 0.4 | 브라우저 기본 | 고침 |
+| Switch | 크기 | 50×30, r15 | 같음 | 같음 |
+| Switch | 손잡이 | 켜짐 24(오른쪽 3), 꺼짐 16(왼쪽 7, 같은 중심), 그림자 없음 [실측: https://tossmini-docs.toss.im/tds-mobile/components/switch/] | 늘 24, 그림자 있음 | 고침 |
+| Switch | 꺼짐 바탕 | 옅은 회색(grey200) | 진한 회색(border-strong) | 고침(가장 가까운 `--color-border`) |
+| Switch | 비활성 | 불투명도 0.3 | 0.5 | 고침 |
+| Segmented | large | 홈 47.5(48) r14 안쪽 4·5, 칸 39.5(40) r10 좌우 12, 고른 칸 흰 면 + 0 1px 2px | 안쪽 4·4, 칸 좌우 16, 칸 사이 2 | 고침 |
+| Segmented | small | 홈 39 r10 안쪽 3, 칸 33 r8 좌우 14, 15px [실측: https://tossmini-docs.toss.im/tds-mobile/components/segmented-control/] | 홈 38 안쪽 4, 칸 30 좌우 12 [추론] | 고침 |
+| Segmented | 고름 표시 | 흰 칸 하나가 옮겨 다니는 별도 요소(JS 애니메이션) | 칸마다 면이 바뀜 | 한계(아래) |
+| Tab | 칸 | 47.3, 위 12 아래 14, 17px 700/600, 기본은 같은 폭 좌우 8, fluid는 좌우 12 | 좌우 8, 칸 사이 4 | 고침(우리 탭은 왼쪽 정렬이라 fluid 12) |
+| Tab | 아래 막대 | 높이 2, 탭 양옆 10 안쪽, 모서리 1, 진한 글자색 [실측: https://tossmini-docs.toss.im/tds-mobile/components/tab/] | 탭 폭 전체 2px 안쪽 그림자 | 고침 |
+| Tab | 전환 | 글자색 0.3s | 150ms | 고침 |
+| Badge | 4단 | xs 21/10 600/r9, sm 24/12 700/r11, md 25.5/13 700/r12, lg 29/14 700/r13, 안쪽 3·7(lg 4·8) | md 26 | 고침(25.5) |
+| ListRow | 한 줄 | 위아래 12, 제목 17/22.95 500, 부제 15/20.25 400, 제목과 부제 사이 0 | 줄높이 24·22, 사이 2 | 고침 |
+| ListRow | 눌림 면 | r12, 옅은 면 | 같음(색은 우리) | 같음 |
+| Bottom Sheet | 떠 있는 거리 | 좌우 10, 아래 10(translateY -10) [실측: https://tossmini-docs.toss.im/tds-mobile/components/bottom-sheet/ 열고 1초 뒤] | 12 [추론] | 고침 |
+| Bottom Sheet | 손잡이 | 자리 16, 48×4, 위 12, r5, 옅은 회색 | 36×4, 위 8, 자리 12 | 고침 |
+| Bottom Sheet | 제목·부제 | 제목 20/29 700, 위 21 + 4, 아래 13, 좌우 24. 부제 15/22.5, 위 8 | 위 16, 우리 h4 | 고침 |
+| Bottom Sheet | 그림자·배경 | 시트 그림자 없음, 배경 검정 0.2, 흐림 없음 | 팝오버 그림자, 흐림 4px | 고침(배경 색·진하기는 예외 ①) |
+| Bottom Sheet | 움직임 | 시트가 아래에서 올라오며 불투명도 0→1(약 0.3s에 멈춤), 배경 0.3s에 0.2까지 | 올라오기만, 배경 흐림 | 고침 |
+| Dialog | 모양 | 폭 320, r24, 그림자 없음, 안쪽 22, 제목 20/27 700, 설명 15/22.5 500 제목과 8, 버튼 줄 위 20 좌우·아래 16, 버튼 48 r14 사이 8 [실측: https://tossmini-docs.toss.im/tds-mobile/components/Dialog/dialog/] | 그림자 있음, 제목 줄높이 28, 사이 4, 버튼 줄 위 16 좌우 22 | 고침 |
+| Dialog | 휴대폰(390) | 가운데 320 그대로 | 아래 떠 있는 시트로 바뀜 | 고침(확인 다이얼로그 sm만. 폼 모달 md·lg는 TDS에 대응이 없어 시트 유지) |
+| Dialog | 움직임 | 확대 없음. 아래에서 떠오르며(40ms 시점 75 남음) 페이드, 약 0.3s에 멈춤 | 0.96에서 커지며 페이드 | 고침(80에서 시작은 근사) |
+| Toast | 위치 | 기본은 화면 위 가운데, 위 46에 멈춤, 좌우 18, 위에서 내려오며 페이드(약 0.25s) [실측: https://tossmini-docs.toss.im/tds-mobile/components/toast/] | PC 오른쪽 아래, 휴대폰 아래 가운데, 아래에서 올라옴 | 고침 |
+| Toast | 모양 | 흰 알약, 안쪽 12·16, 15/22.5 600, 0 2px 30px 그림자 | 어두운 알약, 성공·오류는 색 면 | 고침(면 `--color-surface`, 상태는 아이콘 색) |
+| Tooltip | 모양 | medium: 흰 면, r16, 안쪽 13·16, 15/22.5 700, 0 16px 60px 0.18 그림자, 꼬리 있음 [실측: https://tossmini-docs.toss.im/tds-mobile/components/tooltip/ Default Open] | 어두운 면, r8, 6·12, 13px 400 | 고침(꼬리는 한계) |
+| Skeleton | 모양 | 제목 30 r11, 줄 22 r9, 카드 61 r18, 동그라미 38 | 24·16 r4, 카드 r12 | 고침 |
+| Skeleton | 움직임 | 불투명도 1~0.2, 크기 1~0.96을 약 2.4s에 한 번, 줄마다 조금씩 늦게 [실측: https://tossmini-docs.toss.im/tds-mobile/components/skeleton/ 75ms 간격 3초] | 불투명도 1~0.5, 1.2s | 고침 |
+| 공통 | 터치 기기 누르는 영역 | 따로 늘리지 않음(small 버튼도 32) | 버튼·탭·스위치·세그먼트·입력칸·체크박스 44 이상 | 고침(되돌림). iOS 확대 방지 16px 글자만 유지 |
+| Chip | | TDS Mobile에 칩 문서 없음(목록에 없음) | 우리 ChoiceChips | 비교 대상 없음 |
+
+로딩 UI·스피너 (AIWITH-561, 같은 날 추가 요청):
+
+| 컴포넌트 | 항목 | TDS 실측 | 우리 (바꾸기 전) | 판정 |
+|-|-|-|-|-|
+| Loader(Spinner) | 모양 | SVG 지름 66 기준 원 반지름 30, 선 6, 둥근 끝, dasharray 180 [실측: https://tossmini-docs.toss.im/tds-mobile/components/loader/] | 테두리 2px 원의 한쪽만 투명 | 고침 |
+| Loader(Spinner) | 움직임 | 그림 1.8s linear 한 바퀴 + 호 dashoffset 180→45→180(1.8s ease-in-out, 중간 108도) | 0.8s 회전 | 고침 |
+| Loader(Spinner) | 나타남 | 0.7s 기다렸다 0.3s 페이드 | 바로 보임 | 고침 |
+| Loader(Spinner) | 크기 | small 24·medium 36·large 48(둘레 12·12·16, 상자 48·60·80) | 16·24·32 | 고침(md 24·lg 36·xl 48, sm 16은 글줄 안 전용으로 남김 [추론]) |
+| Loader(Spinner) | 색 | 브랜드 파랑 | 회색 | 예외 ①(강조색) |
+| Loader + label | 문구 | 아래 15/22.5 400, 위 2, 진한 회색, 가운데 정렬 | 없음 | 새로 만듦(`Loader`) |
+| Button loading | 표시 | 글자 자리에 8 점 3개 사이 7, 글자색, 불투명도 1~0.2·크기 1~0.8, 약 0.6s 주기, 점마다 약 0.1s 늦게 [실측: 버튼 문서 loading 예시 50ms 간격] | 16 스피너 | 고침 |
+| Skeleton | 모듈 | title 50%×30 r11(아래 12), subtitle 33%×22 r9(아래 12), list 100%×64 r18(아래 16), listWithIcon 40 원 + 14 + 42 r13(아래 32), card 100%×240 r38(아래 20), 상자 안쪽 24 24 0 [실측: https://tossmini-docs.toss.im/tds-mobile/components/skeleton/ 예시 0~4] | 제목 + 글줄만, 목록은 원 + 두 줄 | 고침(모듈 그대로, 상자 안쪽은 우리 카드 여백을 따름) |
+| Skeleton | 패턴 | topList, topListWithIcon, amountTopList, subtitleList, listOnly, listWithIconOnly, cardOnly + custom(title·subtitle·list·listWithIcon·card·spacer) | lines·list·card | 고침: lines(제목 + 부제 줄), list(=listWithIconOnly), card(=cardOnly), detail(=topList), table(TDS에 없음, 표 줄 높이 40에 글줄 조각 셋) |
+| Skeleton | 움직임 | 불투명도 1~0.2, 크기 1~0.96, 약 2.4s, 조각마다 늦게 | 같음(이번 작업 앞부분) | 같음 |
+| 움직임 줄이기 | | 문서에 언급 없음 | 전환 0.01ms | 회전·반짝임·점 깜빡임을 멈추고 모양만 보임 [추론] |
+
+TDS에는 화면 전체 로딩 전용 컴포넌트가 따로 없고 Loader에 label을 붙인 형태가 그 자리다. 이를 `Loader`(fill이면 영역 가운데)로 만들어 앱 첫 로그인 확인, 번호 인증·초대·온보딩 확인, 에디터 지연 로딩(Suspense fallback)에 썼다. 표·목록·상세처럼 모양을 아는 자리는 스켈레톤(LoadingState pattern)을 쓴다.
+
+남은 [추론]과 이유:
+- 시트·다이얼로그·토스트 곡선(`--ease-sheet`)과 다이얼로그 시작 거리 80: TDS는 CSS transition이 아니라 JS 애니메이션이라 곡선 값이 없다. 40ms 간격 측정값과 비슷한 곡선을 골랐다.
+- 스위치 손잡이 전환 시간: 문서 예시가 외부 상태로 묶여 있어 눌러도 바뀌지 않았다. 켜짐·꺼짐 두 상태의 크기·위치만 쟀다.
+- TextField 지우기 버튼: 값을 넣어도 예시에서 버튼이 그려지지 않아 크기를 못 쟀다. 우리 16 원형 버튼 그대로.
+- Tooltip small·large, 꼬리 크기: hover로 열리는 예시가 헤드리스에서 열리지 않았다. medium(Default Open)만 쟀다.
+- Tab 아래 1px 구분선: 컨테이너 가상 요소가 1px로 있지만 색이 투명으로 읽혀 보이는지 판단할 수 없어 우리 구분선을 유지했다.
+- 바텀시트 본문 아래 여백: TDS는 본문 바로 아래가 시트 끝이고 기기 안전 영역이 여백을 맡는다. 안전 영역이 0인 PC·브라우저에서 글자가 모서리에 붙지 않게 24를 유지했다.
+
+한계:
+- 세그먼트·탭의 고름 표시가 옆으로 미끄러지는 움직임은 TDS가 JS로 위치를 계산해 옮긴다. 우리는 CSS만 바꾸는 범위라 색·막대가 제자리에서 바뀐다.
+- Tooltip 꼬리, 토스트 뒤 흐림(blur 30px, 흰 면 아래라 보이지 않음)은 넣지 않았다.
+- 버튼 눌림 덧칠은 TDS는 검정 층을 겹치고 우리는 밝기 0.74로 낸다. 불투명한 면에서는 같고, 투명한 ghost 버튼에서는 뒤 바탕이 어두워지지 않는다.
+- 배경 어두움(검정 0.2 대 우리 overlay 0.4)은 색 토큰이라 바꾸지 않았다(예외 ①).
+
+비교 캡처: `.agent_work/scratch/087/vs-toss/*-vs.png`(왼쪽 토스 문서 예시, 오른쪽 우리 `/dev/ui`). 전후 대표 화면 `.agent_work/scratch/087/{before,after}/`.

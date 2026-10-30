@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { IconButton, LoadingState } from "../ui";
+import { IconButton, Loader } from "../ui";
 import { useMe } from "../lib/me";
 import { Sidebar } from "./Sidebar";
 import { NotificationBell } from "./NotificationBell";
@@ -20,7 +20,7 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  if (loading) return <div className="shell-loading"><LoadingState /></div>;
+  if (loading) return <div className="shell-loading"><Loader fill label="화면을 여는 중이에요" /></div>;
   const next = encodeURIComponent(location.pathname + location.search);
   if (!me) return <Navigate to={`/login?next=${next}`} replace />;
   // 휴대폰 인증은 필수

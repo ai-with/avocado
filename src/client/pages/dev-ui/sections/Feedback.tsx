@@ -1,4 +1,4 @@
-import { Avatar, Badge, Disclosure, IconButton, ListRow, LoadingState, ProgressBar, Spinner, Switch, Tooltip } from "../../../ui";
+import { Avatar, Badge, Disclosure, IconButton, ListRow, Loader, LoadingState, ProgressBar, Skeleton, Spinner, Switch, Tooltip } from "../../../ui";
 import { Group, Specimen } from "../Showcase";
 
 function Rows() {
@@ -28,7 +28,8 @@ function Progress() {
     <Group title="ProgressBar, Spinner, Tooltip">
       <Specimen label="ProgressBar 값 표시"><ProgressBar label="업로드" value={0.42} showValue /></Specimen>
       <Specimen label="ProgressBar sm, 톤"><div className="stack-tight"><ProgressBar label="완료" size="sm" tone="success" value={1} /><ProgressBar label="실패" size="sm" tone="danger" value={0.3} /></div></Specimen>
-      <Specimen label="Spinner sm · md · lg"><div className="row"><Spinner size="sm" /><Spinner label="불러오는 중" /><Spinner size="lg" /></div></Specimen>
+      <Specimen label="Spinner sm · md · lg · xl (TDS Loader, 0.7초 뒤 나타남)"><div className="row"><Spinner size="sm" /><Spinner label="불러오는 중" /><Spinner size="lg" /><Spinner size="xl" /></div></Specimen>
+      <Specimen label="Loader 문구 (화면 전체 기다림)"><Loader label="김토스님의 카드를 불러오고 있어요" /></Specimen>
       <Specimen label="Tooltip(올리거나 Tab)">
         <div className="row">
           <Tooltip content="전환율은 가입 수를 클릭 수로 나눈 값이에요."><IconButton icon="circle-help" label="전환율 설명" /></Tooltip>
@@ -41,9 +42,12 @@ function Progress() {
 
 function Skeletons() {
   return (
-    <Group title="LoadingState 패턴" note="lines(기본), list, card">
+    <Group title="LoadingState 패턴" note="TDS Skeleton 모듈 조합: lines(기본), list(아이콘 줄), card, table(표 줄), detail(제목·부제 + 큰 줄). 불투명도 1~0.2·크기 1~0.96 2.4초">
       <Specimen label="list"><LoadingState pattern="list" /></Specimen>
-      <Specimen label="card"><LoadingState pattern="card" lines={2} /></Specimen>
+      <Specimen label="card"><LoadingState pattern="card" lines={1} /></Specimen>
+      <Specimen label="table" wide><LoadingState pattern="table" lines={4} /></Specimen>
+      <Specimen label="detail"><LoadingState pattern="detail" lines={2} /></Specimen>
+      <Specimen label="Skeleton 조각: title · text · circle · rect"><div className="stack-tight"><Skeleton shape="title" /><Skeleton /><Skeleton shape="circle" /><Skeleton shape="rect" width={160} /></div></Specimen>
     </Group>
   );
 }

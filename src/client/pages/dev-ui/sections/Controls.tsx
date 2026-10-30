@@ -14,7 +14,7 @@ const VIEWS = [{ value: "table", label: "표" }, { value: "card", label: "카드
 function Radios() {
   const [pay, setPay] = useState<Pay | null>("fixed");
   return (
-    <Group title="RadioGroup" note="화살표 키로 이동·선택(네이티브)">
+    <Group title="RadioGroup" note="화살표 키로 이동·선택(네이티브). 모양은 TDS Checkbox.Circle(24, 원 22)">
       <Specimen label="세로, 설명, 비활성 항목"><RadioGroup label="보상 방식" options={[...PAY]} value={pay} onChange={setPay} /></Specimen>
       <Specimen label="가로, 오류"><RadioGroup label="성별 공개" direction="row" required options={[{ value: "y", label: "공개" }, { value: "n", label: "비공개" }]} value={null} onChange={() => {}} error="하나를 골라 주세요." /></Specimen>
       <Specimen label="전체 비활성"><RadioGroup label="언어" disabled options={[{ value: "ko", label: "한국어" }, { value: "en", label: "영어" }]} value="ko" onChange={() => {}} /></Specimen>
@@ -26,7 +26,7 @@ function Toggles() {
   const [notify, setNotify] = useState(true);
   const [publicLink, setPublicLink] = useState(false);
   return (
-    <Group title="Switch, Checkbox 확장" note="Switch 는 Space 로 토글">
+    <Group title="Switch, Checkbox 확장" note="Switch 는 Space 로 토글. 꺼짐 손잡이 16, 켜짐 24(TDS 실측)">
       <Specimen label="Switch 켜짐·꺼짐">
         <div className="stack-tight">
           <Switch label="새 업로드 알림" checked={notify} onChange={setNotify} />

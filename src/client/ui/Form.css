@@ -1,50 +1,71 @@
 .field { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; } /* 라벨 아래 6px */
 /* 라벨·도움말: TDS TextField 실측(13px 보통 굵기, 칸과 6px) */
-.field-label { font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--weight-regular); color: var(--color-text-secondary); }
+/* 글자는 칸 가장자리보다 4 안쪽에서 시작한다 (TDS 실측) */
+.field-label { padding-inline: var(--field-text-inset); font-size: var(--text-label-size); line-height: var(--text-help-lh); font-weight: var(--weight-regular); color: var(--color-text-secondary); }
 .field-required { margin-left: var(--space-3); font-size: var(--text-caption-size); color: var(--color-text-tertiary); font-weight: var(--weight-regular); }
-.field-hint { font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); }
-.field-error { font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-danger); }
+.field-hint { padding-inline: var(--field-text-inset); font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); }
+.field-error { padding-inline: var(--field-text-inset); font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-danger); }
+/* TDS: 오류면 라벨도 오류 색 */
+.field:has([aria-invalid="true"]) > .field-label { color: var(--color-danger); }
 .control {
-  width: 100%; height: var(--control-height); padding: 0 var(--control-padding-x);
-  /* 채움형(TDS box): 옅은 면, 그림자 없음. 테두리는 3:1 대비 규칙 때문에 진하게 유지 (docs/13 2.3) */
+  /* TDS TextField box: 높이 56, 좌우 16, 모서리 14, 채움 면 + 아주 옅은 테두리, 그림자 없음, 17px/400 */
+  width: 100%; height: var(--input-height); padding: 0 var(--control-padding-x);
   background-color: var(--color-surface-subtle); border: var(--border-control); border-radius: var(--radius-input);
-  font-size: var(--text-control-size); line-height: var(--text-control-lh);
+  font-size: var(--text-control-lg-size); line-height: var(--text-input-lh); font-weight: var(--weight-regular);
   transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
-.control:hover:not(:disabled):not(:focus) { border-color: var(--color-text-tertiary); }
 .control::placeholder { color: var(--color-text-tertiary); opacity: 0.85; }
-.control:focus { outline: none; background-color: var(--color-surface); border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+/* 포커스: 면은 그대로(TDS), 테두리만 브랜드 색 + 같은 색 1px 링. 마우스 클릭에도 보인다 */
+.control:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring-control); caret-color: var(--color-accent); }
 .control:disabled { background-color: var(--color-surface-muted); color: var(--color-text-tertiary); cursor: not-allowed; }
 .control[aria-invalid="true"] { border-color: var(--color-danger); }
-.control[aria-invalid="true"]:focus { box-shadow: var(--focus-ring-danger); }
-.control-textarea { height: auto; min-height: 96px; padding: var(--space-4) var(--control-padding-x); resize: vertical; line-height: var(--text-body-lh); }
+.control[aria-invalid="true"]:focus { border-color: var(--color-danger); box-shadow: var(--focus-ring-control-danger); }
+.control-textarea { height: auto; min-height: 96px; padding: var(--control-padding-y) var(--control-padding-x); resize: vertical; }
 /* 네이티브 select 유지, 화살표만 chevron 아이콘(Lucide chevron-down)으로 */
 select.control {
   appearance: none; padding-right: var(--space-9);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2378756f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right var(--space-6) center; background-size: 16px;
 }
+/* 작은 크기(32): 표 안·필터 줄·툴바. 버튼 sm과 같은 높이·모서리·글자 */
+.control.control-sm { height: var(--control-height-sm); padding: 0 var(--control-padding-x-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); }
 /* 작은 크기: 오른쪽 여백 = 왼쪽 여백 + 화살표 폭 + 간격. 글자와 화살표가 겹치지 않는다 */
 .field-fit { width: fit-content; max-width: 100%; }
 select.control-sm {
-  width: auto; min-width: 72px; height: var(--control-height-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size);
+  width: auto; min-width: 72px; height: var(--control-height-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh);
   padding-left: var(--control-padding-x-sm); padding-right: calc(var(--space-4) + var(--icon-size-sm) + var(--space-3));
   background-position: right var(--space-4) center; background-size: var(--icon-size-sm);
 }
 select.control[multiple] { background-image: none; padding-right: var(--space-5); }
-/* 크게: 공개 화면 주 입력, TextField·Select 공용 (TDS box 56, 모서리 14) */
-.control-lg { height: var(--control-height-xl); border-radius: var(--radius-control-lg); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+/* lg: 기본(md)과 같은 TDS box 56. Select lg는 시스템 목록 대신 직접 그린 목록으로 열린다 */
+.control-lg { height: var(--input-height); }
 /* 글자 수: 도움말·오류 줄 오른쪽 */
 .field-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); }
 .field-count { flex: none; font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
 .field-count-over { color: var(--color-danger); }
 .control-autogrow { resize: none; overflow: hidden; }
 .checkbox { display: inline-flex; align-items: center; gap: var(--space-4); font-size: var(--text-control-size); line-height: var(--text-control-lh); cursor: pointer; min-height: var(--control-check-size); }
-.checkbox input { width: var(--control-check-size); height: var(--control-check-size); margin: 0; flex-shrink: 0; accent-color: var(--color-accent); }
+/* TDS Checkbox.Circle: 24 칸 안 지름 22 원. 안 고름은 옅은 2px 테두리 + 옅은 체크, 고름은 강조색 원 + 흰 체크. 라디오도 같은 모양 */
+.checkbox input, .radio {
+  appearance: none; position: relative; width: var(--control-check-size); height: var(--control-check-size); margin: 0; flex-shrink: 0;
+  border: 1px solid transparent; border-radius: var(--radius-full); background: var(--color-surface); background-clip: padding-box;
+  box-shadow: inset 0 0 0 var(--check-ring) var(--color-border); transition: background-color var(--duration-press) var(--ease-in-out), box-shadow var(--duration-press) var(--ease-in-out);
+}
+.checkbox input::after, .radio::after {
+  content: ""; position: absolute; inset: -1px; background: var(--color-border);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.2 10.2L11.6 15.8C11.4 16 11.2 16.1 10.9 16.1C10.6 16.1 10.4 16 10.2 15.8L6.8 12.4C6.4 12 6.4 11.4 6.8 11C7.2 10.6 7.8 10.6 8.2 11L10.9 13.7L15.8 8.8C16.2 8.4 16.8 8.4 17.2 8.8C17.6 9.2 17.6 9.8 17.2 10.2Z'/%3E%3C/svg%3E") center / 100% no-repeat;
+}
+.checkbox input:checked, .radio:checked { background: var(--color-accent); background-clip: padding-box; box-shadow: none; }
+.checkbox input:checked::after, .radio:checked::after { background: var(--color-on-accent); }
+/* 일부만 고름(전체 선택 칸): 강조색 원 + 흰 가로줄. TDS에 없는 상태라 고름 모양에 맞췄다 */
+.checkbox input[type="checkbox"]:indeterminate { background: var(--color-accent); background-clip: padding-box; box-shadow: none; }
+.checkbox input[type="checkbox"]:indeterminate::after { background: var(--color-on-accent); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7' y='11' width='10' height='2' rx='1'/%3E%3C/svg%3E"); }
+.checkbox input:disabled, .radio:disabled { opacity: var(--opacity-check-disabled); }
+.checkbox input:focus-visible, .radio:focus-visible { outline: none; box-shadow: inset 0 0 0 var(--check-ring) var(--color-border), var(--focus-ring); }
+.checkbox input:checked:focus-visible, .radio:checked:focus-visible { box-shadow: var(--focus-ring); }
 /* 설명이 붙은 체크박스: 네모는 첫 줄에 맞춘다 */
 .checkbox-described { align-items: flex-start; }
 .checkbox-described input { margin-top: var(--space-1); }
 .checkbox-text { display: flex; flex-direction: column; gap: var(--space-1); }
 .checkbox-desc { font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); }
-@media (max-width: 599px) { .control, select.control-sm { font-size: var(--text-input-min-size); } }
-@media (pointer: coarse) { .control, select.control-sm { min-height: var(--touch-target); } .checkbox { min-height: var(--touch-target); } }
+@media (max-width: 599px) { select.control-sm { font-size: var(--text-input-min-size); } }

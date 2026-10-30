@@ -1,16 +1,16 @@
 .toasts {
-  position: fixed; bottom: calc(var(--space-8) + env(safe-area-inset-bottom)); right: var(--space-8);
-  display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-4); z-index: var(--z-toast);
-  width: max-content; max-width: calc(100vw - 2 * var(--space-6)); pointer-events: none;
+  /* TDS 기본 토스트: 화면 위 가운데, 위에서 내려온다 (실측 top 46, 좌우 18) */
+  position: fixed; top: calc(var(--toast-top) + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-4); z-index: var(--z-toast);
+  width: max-content; max-width: calc(100vw - 2 * var(--toast-margin-x)); pointer-events: none;
 }
-/* TDS Toast: 알약 모양, 12·20, 15px 굵게 */
+/* TDS Toast 실측: 흰 알약, 안쪽 12·16, 15/22.5 600, 옅고 큰 그림자. 상태는 아이콘 색으로만 */
 .toast {
-  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-7) var(--space-5) var(--space-6); border-radius: var(--radius-full);
-  background: var(--color-surface-inverted); color: var(--color-text-inverted);
-  font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-semibold); box-shadow: var(--shadow-popover); animation: rise-in var(--duration-base) var(--ease-out);
+  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-radius: var(--radius-full);
+  background: var(--color-surface); color: var(--color-text-primary);
+  font-size: var(--text-control-size); line-height: var(--text-float-lh); font-weight: var(--weight-semibold); box-shadow: var(--shadow-toast); animation: drop-in var(--duration-sheet) var(--ease-sheet);
 }
-.toast-success { background: var(--color-success); }
-.toast-danger { background: var(--color-danger); }
+.toast-success svg { color: var(--color-success); }
+.toast-danger svg { color: var(--color-danger); }
 .toast svg { flex-shrink: 0; }
-@media (max-width: 599px) { .toasts { right: 50%; transform: translateX(50%); align-items: center; } }
-@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-100%); } }

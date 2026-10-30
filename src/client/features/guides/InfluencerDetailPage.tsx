@@ -91,7 +91,7 @@ export function InfluencerDetailPage() {
   const { me } = useMe();
   const canEdit = me?.role === "owner" || me?.role === "editor";
   const data = useInfluencerDetail(id);
-  if (!data) return <LoadingState label="인플루언서를 불러오는 중" />;
+  if (!data) return <LoadingState pattern="detail" label="인플루언서를 불러오는 중" />;
   const { influencer: i, participations } = data;
   return (
     <>

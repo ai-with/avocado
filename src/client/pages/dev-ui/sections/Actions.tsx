@@ -13,7 +13,7 @@ const MENU_ITEMS: DropdownItem[] = [
 
 function ButtonSpecimens() {
   return (
-    <Group title="Button" note="변형 4종, 비활성, 로딩(폭 유지). 누르면 0.96으로 작아짐">
+    <Group title="Button" note="변형 4종, 비활성(불투명도 0.3), 로딩(폭 유지). 테두리 0, secondary는 TDS weak처럼 옅은 면. 마우스를 올려도 그대로, 누르면 0.96으로 작아지며 어두워짐(TDS 실측)">
       {VARIANTS.map((v) => (
         <Specimen key={v} label={v}>
           <div className="row row-wrap">
@@ -30,11 +30,11 @@ function ButtonSpecimens() {
 
 function ButtonSizes() {
   return (
-    <Group title="Button 크기 sm · md · lg · xl" note="TDS small·medium·large·xlarge 비율. md 40은 PC 정렬 때문에 유지, lg·xl은 공개 화면 휴대폰 주 동작">
-      <Specimen label="sm 32 / r8 / 13px"><div className="row"><Button size="sm">작게</Button></div></Specimen>
-      <Specimen label="md 40 / r10 / 15px"><div className="row"><Button>기본</Button></div></Specimen>
-      <Specimen label="lg 48 / r14 / 17px"><div className="row"><Button size="lg">크게</Button></div></Specimen>
-      <Specimen label="xl 56 / r16 / 17px"><div className="row"><Button size="xl">가장 크게</Button></div></Specimen>
+    <Group title="Button 크기 sm · md · lg · xl" note="TDS small·medium·large·xlarge 실측 그대로 (AIWITH-552). 표·필터 줄·툴바는 sm, 입력칸(56) 옆은 xl">
+      <Specimen label="sm 32 / 좌우 10 / r8 / 13px 600"><div className="row"><Button size="sm">작게</Button></div></Specimen>
+      <Specimen label="md 38 / 좌우 16 / r10 / 15px 600"><div className="row"><Button>기본</Button></div></Specimen>
+      <Specimen label="lg 48 / 좌우 16 / r14 / 17px 600"><div className="row"><Button size="lg">크게</Button></div></Specimen>
+      <Specimen label="xl 56 / 좌우 28 / r16 / 17px 600"><div className="row"><Button size="xl">가장 크게</Button></div></Specimen>
       <Specimen label="xl 폭 전체, 보조" wide><Button size="xl" variant="secondary" className="dev-full">공개 화면 아래 버튼</Button></Specimen>
     </Group>
   );

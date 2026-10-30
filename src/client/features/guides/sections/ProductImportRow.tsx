@@ -20,22 +20,16 @@ export function ProductImportRow({ form, set }: Props) {
       <div className="row row-start url-row">
         <Input
           aria-label="상품 페이지 주소"
-          type="url"
-          inputMode="url"
-          placeholder="https://"
-          value={p.url}
-          onChange={(e) => p.setUrl(e.target.value)}
-          onKeyDown={onKeyDown}
+          type="url" inputMode="url" placeholder="https://"
+          value={p.url} onChange={(e) => p.setUrl(e.target.value)} onKeyDown={onKeyDown}
           error={p.error}
           hint="공개된 상품 상세 페이지 주소를 넣으면 제품 이름, 효능, 사용법, 사진을 채워요."
           maxLength={2000}
         />
-        <Button variant="secondary" onClick={() => void p.run()} loading={p.busy}>가져오기</Button>
+        <Button size="xl" variant="secondary" onClick={() => void p.run()} loading={p.busy}>가져오기</Button>
       </div>
       {p.pending && (
-        <Modal
-          open
-          title="입력한 내용을 바꿀까요?"
+        <Modal open size="sm" title="입력한 내용을 바꿀까요?"
           description="가져온 값이 있는 칸(제품 이름, 효능, 사용법, 사진)은 새 값으로 바뀌어요. 영상 목적은 비어 있을 때만 채워요."
           onClose={p.cancel}
           footer={

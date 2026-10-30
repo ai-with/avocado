@@ -92,7 +92,7 @@ export function LinkAnalytics({ guideId, channels }: { guideId?: string; channel
         <SegmentedControl label="분석 기간" size="sm" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => setDays(Number(v))} />
       </div>
       {!data ? (
-        <LoadingState />
+        <LoadingState pattern="detail" />
       ) : data.total.clicks === 0 ? (
         <EmptyState title="아직 클릭이 없어요" description={`${ZERO_HINT}. 팀원이 로그인한 채로 누른 클릭과 미리보기 봇은 세지 않아요.`} />
       ) : (

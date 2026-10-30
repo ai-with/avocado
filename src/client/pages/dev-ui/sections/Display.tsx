@@ -1,13 +1,22 @@
-import { Badge, Button, Card, EmptyState, Icon, LoadingState, SectionCard, Stat, StatGrid, Table, type BadgeTone, type IconName } from "../../../ui";
+import { Badge, Button, Card, EmptyState, Icon, LoadingState, SectionCard, Stat, StatGrid, Table, type BadgeSize, type BadgeTone, type IconName } from "../../../ui";
 import { Group, Specimen } from "../Showcase";
 
 const TONES: BadgeTone[] = ["neutral", "accent", "success", "warn", "danger", "info"];
+const BADGE_SIZES: { size: BadgeSize; label: string }[] = [
+  { size: "xs", label: "xs 21 / 10px 600 / r9" },
+  { size: "sm", label: "sm 24 / 12px 700 / r11 (기본)" },
+  { size: "md", label: "md 25.5 / 13px 700 / r12" },
+  { size: "lg", label: "lg 29 / 14px 700 / r13" },
+];
 const SAMPLE_ICONS: IconName[] = ["house", "users", "link", "send", "search", "plus", "x", "globe"];
 const COLUMNS = [{ label: "이름", icon: "users" as const }, { label: "상태" }, { label: "건수", num: true }];
 
 function Badges() {
   return (
-    <Group title="Badge" note="톤 6종, 점 표시">
+    <Group title="Badge" note="톤 6종, 점 표시, 크기 4단(TDS xsmall·small·medium·large 실측)">
+      {BADGE_SIZES.map(({ size, label }) => (
+        <Specimen key={size} label={label}><div className="row"><Badge size={size} tone="accent">진행 중</Badge></div></Specimen>
+      ))}
       {TONES.map((tone) => (
         <Specimen key={tone} label={tone}>
           <div className="row">

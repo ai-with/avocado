@@ -70,7 +70,7 @@ export function BrandsSettingsPage() {
   return (
     <>
       <PageHeader title="브랜드" description="브랜드마다 캠페인을 만들어요. 인플루언서가 보는 가이드와 메일에는 캠페인의 브랜드 이름이 나와요." actions={canEdit && add} />
-      {brands === null ? <LoadingState /> : brands.length === 0 ? (
+      {brands === null ? <LoadingState pattern="table" /> : brands.length === 0 ? (
         <EmptyState title="브랜드가 없어요" description="브랜드를 추가하면 캠페인을 만들 수 있어요." action={canEdit && add} />
       ) : (
         <Table>

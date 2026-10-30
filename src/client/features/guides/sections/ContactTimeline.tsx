@@ -55,7 +55,7 @@ function NoteForm({ onAdd }: { onAdd: (body: string) => Promise<boolean> }) {
 export function ContactTimeline({ path, canEdit, reloadKey = 0 }: { path: string; canEdit: boolean; reloadKey?: number }) {
   const { logs, load, addNote } = useContactLogs(path);
   useEffect(() => void (reloadKey > 0 && load()), [reloadKey, load]);
-  if (logs === null) return <LoadingState lines={2} label="소통 이력을 불러오는 중" />;
+  if (logs === null) return <LoadingState pattern="list" lines={2} label="소통 이력을 불러오는 중" />;
   return (
     <div className="stack">
       {logs.length === 0 ? (

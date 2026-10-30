@@ -1,5 +1,5 @@
 /* 칩이 여러 줄로 늘어나면 칸 높이도 늘어난다 */
-.tag-input { height: auto; min-height: var(--control-height); flex-wrap: wrap; padding-block: var(--space-2); }
+.tag-input { height: auto; min-height: var(--input-height); flex-wrap: wrap; padding-block: var(--space-4); }
 .tag-list { display: contents; list-style: none; }
 .tag {
   display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%;
@@ -14,5 +14,5 @@
 }
 .tag-remove:hover { background: var(--color-border); color: var(--color-text-primary); }
 .tag-remove:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.tag-draft { flex: 1 0 var(--space-14); height: calc(var(--control-height) - var(--space-2) * 2); }
+.tag-draft { flex: 1 0 var(--space-14); height: var(--control-height); }
 .is-disabled .tag { color: var(--color-text-tertiary); }

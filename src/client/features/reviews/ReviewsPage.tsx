@@ -51,7 +51,7 @@ export function ReviewList({ guideId }: { guideId?: string }) {
 
   const guides = useMemo(() => uniq(rows?.map((r) => r.guide) ?? []), [rows]);
   const people = useMemo(() => uniq(rows?.map((r) => ({ id: r.influencer.id, name: r.influencer.displayName })) ?? []), [rows]);
-  if (!rows) return <LoadingState label="검수 목록을 불러오는 중" />;
+  if (!rows) return <LoadingState pattern="table" label="검수 목록을 불러오는 중" />;
   const shown = rows.filter((r) => (filter === "all" || r.state === filter) && (!guide || r.guide.id === guide) && (!influencer || r.influencer.id === influencer));
   const count = (s: Filter) => (s === "all" ? rows.length : rows.filter((r) => r.state === s).length);
 

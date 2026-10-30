@@ -2,27 +2,36 @@
   position: fixed; inset: 0; background: var(--color-overlay); display: grid; place-items: center;
   padding: var(--space-6); z-index: var(--z-modal); animation: fade-in var(--duration-base) var(--ease-out);
 }
+/* TDS Dialog 실측: 모서리 24, 그림자 없음, 안쪽 22, 제목 20/27 700, 설명 15/500 제목과 8, 버튼 48 모서리 14 사이 8. 아래에서 떠오르며 나타난다 */
 .modal {
   width: 100%; max-width: 480px; max-height: calc(100vh - 2 * var(--space-6)); display: flex; flex-direction: column;
-  background: var(--color-surface); border-radius: var(--radius-modal); box-shadow: var(--shadow-popover);
-  animation: rise-in var(--duration-base) var(--ease-out);
+  background: var(--color-surface); border-radius: var(--radius-modal);
+  animation: dialog-in var(--duration-sheet) var(--ease-sheet);
 }
+.modal-sm { max-width: var(--dialog-width); } /* 확인·알림 다이얼로그 = TDS Dialog 폭 320 */
 .modal-lg { max-width: 720px; }
-.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding: var(--space-8) var(--space-8) 0; }
-/* TDS Dialog 제목 20px 굵게 */
-.modal-head h4 { font-size: var(--text-title-size); line-height: var(--text-title-lh); font-weight: var(--weight-semibold); }
-.modal-description { margin-top: var(--space-2); font-size: var(--text-label-size); line-height: var(--text-label-lh); color: var(--color-text-secondary); }
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding: var(--dialog-padding) var(--dialog-padding) 0; }
+.modal-head h4 { font-size: var(--text-title-size); line-height: var(--text-dialog-title-lh); font-weight: var(--weight-bold); }
+.modal-description { margin-top: var(--space-4); font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-medium); color: var(--color-text-secondary); }
 /* 내용이 긴 모달(자료 설정, 링크 상세)은 본문만 스크롤 (TASK-019) */
-.modal-body { padding: var(--space-6) var(--space-8) var(--space-8); overflow-y: auto; }
-.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border); }
-/* 휴대폰에서는 아래에서 올라오는 시트로: 엄지가 닿는 곳에 버튼이 온다 */
+.modal-body { padding: var(--space-6) var(--dialog-padding) var(--dialog-padding); overflow-y: auto; }
+.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-6) var(--dialog-padding) var(--dialog-padding); border-top: 1px solid var(--color-border); }
+/* 아래 버튼 줄은 TDS Dialog 버튼(48, 모서리 14, 17px)으로 */
+.modal-foot > .btn { height: var(--control-height-lg); padding: 0 var(--space-6); border-radius: var(--radius-control-lg); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+.modal-body:empty { display: none; }
+/* 확인 다이얼로그 아래 버튼 줄: 위 20, 좌우·아래 16 (TDS 실측) */
+.modal-sm .modal-foot { border-top: 0; padding: var(--space-7) var(--space-6) var(--space-6); }
+.modal-sm .modal-foot > .btn { flex: 1; }
+/* 휴대폰에서 폼 모달(md·lg)은 아래에서 올라오는 떠 있는 시트로: 엄지가 닿는 곳에 버튼이 온다.
+ * 확인 다이얼로그(sm)는 TDS Dialog처럼 휴대폰에서도 가운데 320 그대로 */
 @media (max-width: 599px) {
-  .modal-backdrop { place-items: end stretch; padding: 0; }
-  .modal { max-width: none; max-height: 92vh; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; }
-  .modal-head { padding: var(--space-6) var(--space-6) 0; }
-  .modal-body { padding: var(--space-6); }
-  .modal-foot { padding: var(--space-5) var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom)); }
+  .modal-backdrop:has(.modal:not(.modal-sm)) { place-items: end stretch; padding: var(--sheet-inset) var(--sheet-inset) calc(var(--sheet-inset) + env(safe-area-inset-bottom)); animation-duration: var(--duration-sheet); }
+  .modal:not(.modal-sm) { max-width: none; max-height: 92vh; border-radius: var(--radius-sheet); animation: sheet-up var(--duration-sheet) var(--ease-sheet); }
+  .modal:not(.modal-sm) .modal-head { padding: var(--sheet-padding-x) var(--sheet-padding-x) 0; }
+  .modal:not(.modal-sm) .modal-body { padding: var(--space-6) var(--sheet-padding-x); }
+  .modal:not(.modal-sm) .modal-foot { padding: var(--space-5) var(--sheet-padding-x) var(--sheet-padding-x); }
   .modal-foot > .btn { flex: 1; }
 }
 @keyframes fade-in { from { opacity: 0; } }
-@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(var(--offset-dialog-rise)); } }
+@keyframes sheet-up { from { opacity: 0; transform: translateY(calc(100% + var(--sheet-inset))); } }

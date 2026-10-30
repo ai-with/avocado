@@ -105,7 +105,11 @@
   --text-control-size: 15px; --text-control-lh: 22px;
   --text-control-sm-size: 13px; --text-control-sm-lh: 18px;
   --text-control-lg-size: 17px; --text-control-lg-lh: 24px;
-  --text-help-size: 13px; --text-help-lh: 20px; /* 입력칸 라벨 아래 도움말·오류 */
+  --text-help-size: 13px; --text-help-lh: 19.5px; /* 입력칸 라벨·도움말·오류 (TDS t7 13/19.5 실측) */
+  --text-input-lh: 25.5px; /* TDS TextField 입력 글자 17/25.5 실측 */
+  --text-row-title-lh: 22.95px; --text-row-desc-lh: 20.25px; /* TDS ListRow 제목 17·부제 15, 줄높이 1.35 실측 */
+  --text-dialog-title-lh: 27px; --text-sheet-title-lh: 29px; /* TDS Dialog·Bottom Sheet 제목 20px 줄높이 실측 */
+  --text-float-lh: 22.5px; /* TDS Toast·Tooltip·시트 부제 15/22.5 실측 */
   --text-input-min-size: 16px; /* 터치 기기 입력 글자 하한. 이보다 작으면 iOS가 확대한다 */
 
   /* spacing */
@@ -137,10 +141,11 @@
   --radius-control-lg: 14px;
   --radius-control-xl: 16px;
   --radius-button: var(--radius-control);
-  --radius-input: var(--radius-control);
+  --radius-input: var(--radius-control-lg); /* 기본 입력칸(TDS box 56)은 모서리 14 */
+  --radius-badge-xs: 9px; --radius-badge-sm: 11px; --radius-badge-md: 12px; --radius-badge-lg: 13px; /* TDS Badge 실측 */
   --radius-card: var(--radius-md);
   --radius-modal: var(--radius-2xl); /* TDS Dialog 24 */
-  --radius-sheet: 28px; /* 바텀시트 위 모서리 (TDS Bottom Sheet 28) */
+  --radius-sheet: 28px; /* 바텀시트 네 모서리 (TDS Bottom Sheet 28, 화면 가장자리에서 떠 있음) */
   --radius-popover: var(--radius-md);
 
   /* shadow */
@@ -153,48 +158,99 @@
   --shadow-scroll-edge: rgba(0, 0, 0, 0.12);
   --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
-  --shadow-button-primary: inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  --border-control: 1px solid var(--color-border-strong); /* 입력 테두리 3:1 대비 (docs/13 2.3) */
+  --shadow-segment: 0 1px 2px rgba(0, 0, 0, 0.09); /* 고른 세그먼트 칸 (TDS 실측 0 1px 2px) */
+  --shadow-toast: 0 2px 30px rgba(0, 0, 0, 0.1); /* TDS Toast 옅고 큰 그림자 */
+  --shadow-tooltip: 0 16px 60px rgba(0, 0, 0, 0.18); /* TDS Tooltip 실측 */
+  /* 입력 테두리: TDS box처럼 아주 옅게. 칸은 채움 면 + 라벨로 구분된다 (AIWITH-552, 8.3 타협 걷어냄) */
+  --border-control: 1px solid var(--color-border);
 
   /* interaction (TASK-026) */
   --touch-target: 44px;
-  --control-height: 40px;
+  /* 컨트롤 높이: TDS Button small·medium·large·xlarge 실측 그대로 (AIWITH-552) */
+  --control-height: 38px;
   --control-height-sm: 32px;
-  --control-height-lg: 48px; /* 큰 버튼 */
-  --control-height-xl: 56px; /* 공개 화면 주 버튼, 큰 입력칸·선택칸 (TDS xlarge·box) */
+  --control-height-lg: 48px;
+  --control-height-xl: 56px;
+  --input-height: var(--control-height-xl); /* 기본 입력칸 = TDS TextField box 56 */
+  --table-row-height: 40px; /* 표 한 줄. 안에 작은 컨트롤(32)이 들어간다 */
   --control-padding-x: var(--space-6); /* 입력칸 좌우 */
   --control-padding-x-sm: var(--space-4);
-  --control-check-size: 20px; /* 체크박스·라디오 네모·동그라미 */
-  --switch-width: 40px;
-  --switch-height: 24px;
-  --switch-thumb: 20px;
+  --control-padding-y: 14px; /* TDS box 위아래 안쪽 (여러 줄 입력칸) */
+  --button-padding-x-sm: 10px; /* TDS Button small 좌우 */
+  --button-padding-x-xl: 28px; /* TDS Button xlarge 좌우 */
+  --control-check-size: 24px; /* 체크박스·라디오 (TDS Checkbox 24) */
+  --switch-width: 50px; /* TDS Switch 50×30, 손잡이 24 */
+  --switch-height: 30px;
+  --switch-thumb: 24px;
+  --switch-inset: 3px; /* 손잡이와 홈 가장자리 사이 = (30 - 24) / 2 */
+  --segmented-height: 48px; /* TDS Segmented 홈 48, 칸 40 */
+  --segmented-height-sm: 39px; /* TDS Segmented small 홈 39, 칸 33 실측 */
+  --segmented-inset-x: 5px; --segmented-inset-sm: 3px; /* TDS 홈 안쪽: large 위아래 4·좌우 5, small 3 */
+  --segment-padding-x-sm: 14px; /* TDS small 칸 좌우 14 (large는 12) */
+  /* 배지 4단 (TDS Badge xsmall·small·medium·large 실측) */
+  --badge-height-xs: 21px;
   --badge-height: 24px;
+  --badge-height-md: 25.5px;
+  --badge-height-lg: 29px;
+  --badge-padding-x: 7px;
+  --text-badge-xs-size: 10px; --text-badge-xs-lh: 15px;
+  --text-badge-lg-size: 14px; --text-badge-lg-lh: 21px;
+  --search-padding-x: 10px; /* TDS Search Field 좌우 */
+  --radius-search: var(--radius-md); /* TDS Search Field 12 */
+  --list-row-padding-x: var(--space-8); /* TDS ListRow 좌우 24 */
+  --dialog-width: 320px; /* TDS Dialog 폭 */
+  --dialog-padding: 22px; /* TDS Dialog 안쪽 */
+  --sheet-inset: 10px; /* 바텀시트가 화면 좌우·아래 가장자리에서 떨어진 거리 (TDS 실측 10) */
+  --sheet-handle-area: var(--space-6); --sheet-handle-top: var(--space-5); /* 시트 위 손잡이 자리 16, 손잡이 위 12 (TDS 실측) */
+  --sheet-head-padding-top: 25px; --sheet-head-padding-bottom: 13px; /* 손잡이 자리 아래 제목까지 21 + 4, 제목 아래 13 (TDS 실측) */
+  --sheet-padding-x: var(--space-8); /* 바텀시트 본문 좌우 24 */
   --count-badge-size: 16px; /* 아이콘 위 숫자 배지(알림 개수). 32px 아이콘 버튼을 가리지 않는 크기 */
-  --tab-height: 44px;
+  --tab-height: 47px; /* TDS Tab 47: 위 12, 아래 14 */
+  --tab-padding-bottom: 14px;
+  --tab-padding-x: var(--space-5); /* TDS fluid 탭 좌우 12 */
+  --tab-indicator-inset: 10px; --tab-indicator-height: 2px; /* 아래 막대는 탭 양옆에서 10 안쪽, 높이 2, 모서리 1 (TDS 실측) */
+  --tab-indicator: inset 0 -2px 0 var(--color-text-primary); /* 고른 탭 아래 막대 */
   --floating-bar-height: 0px; /* 하단 고정 줄 높이. FloatingActionBar 가 떠 있으면 실제 높이로 바꿔 넣는다 */
-  --sheet-handle-width: 36px;
+  --sheet-handle-width: 48px; /* TDS 손잡이 48×4 실측 */
   --sheet-handle-height: 4px;
-  --select-menu-max-height: 320px; /* 선택 드롭다운 목록 최대 높이 */
-  --select-menu-min-width: 200px;
-  --progress-height: 6px;
-  --progress-height-sm: 4px;
-  --avatar-size-sm: 24px;
-  --avatar-size-md: 32px;
-  --avatar-size-lg: 40px;
-  --spinner-size-sm: 16px;
-  --spinner-size-md: 24px;
-  --spinner-size-lg: 32px;
+  --select-menu-max-height: 320px; --select-menu-min-width: 200px; /* 선택 드롭다운 목록 최대 높이·최소 폭 */
+  --progress-height: 6px; --progress-height-sm: 4px;
+  --avatar-size-sm: 24px; --avatar-size-md: 32px; --avatar-size-lg: 40px;
+  /* 스피너 = TDS Loader(지름 66 기준 선 6, 둥근 끝): md 24·lg 36·xl 48 = TDS small·medium·large, sm 16은 글줄 안 전용 [추론] */
+  --spinner-size-sm: 16px; --spinner-size-md: 24px; --spinner-size-lg: 36px; --spinner-size-xl: 48px;
+  --loader-gap: var(--space-5); --loader-gap-xl: var(--space-6); /* Loader 둘레 여백 12·12·16 (TDS 실측) */
+  --dot-size: 8px; --dot-gap: 7px; /* 버튼 로딩 점 3개 (TDS 실측) */
   --tooltip-max: 240px;
+  --tooltip-padding-y: 13px; /* TDS Tooltip 안쪽 13·16 실측 */
+  --toast-top: 46px; --toast-margin-x: 18px; /* TDS 기본 토스트는 화면 위 46에 멈추고 좌우 18 (실측) */
+  --field-text-inset: var(--space-2); /* 라벨·도움말 글자는 칸 가장자리보다 4 안쪽 (TDS 24 대 20 실측) */
+  --check-ring: 2px; /* TDS Checkbox 원 테두리 두께 (안 고름) */
+  --switch-thumb-off-scale: 0.6667; /* TDS Switch 꺼짐 손잡이 16 = 24 x 0.6667 */
+  --opacity-disabled: 0.3; --opacity-check-disabled: 0.4; /* TDS 비활성: Button·Switch 0.3, Checkbox 0.4 실측 */
+  --press-dim: 0.74; /* TDS 눌림 검정 덧칠 0.26 = 밝기 0.74 */
   /* 포커스: TDS식 이중 링(1px 진한 선 + 바깥 옅은 번짐). 색은 기존 값(border-focus·danger와 같은 원시 색) */
-  --focus-ring: 0 0 0 1px var(--neutral-900), 0 0 0 4px rgba(30, 29, 28, 0.18);
-  --focus-ring-danger: 0 0 0 1px var(--red-700), 0 0 0 4px var(--red-50);
+  --focus-ring: 0 0 0 1px var(--neutral-900), 0 0 0 3px rgba(30, 29, 28, 0.18); /* TDS 키보드 포커스 1px + 3px 실측 */
+  --focus-ring-danger: 0 0 0 1px var(--red-700), 0 0 0 3px var(--red-50);
+  /* 입력칸 포커스: 테두리가 브랜드 색이 되고 같은 색 1px 링을 더해 2px처럼 보인다. 마우스 클릭에도 보인다 */
+  --focus-ring-control: 0 0 0 1px var(--color-accent);
+  --focus-ring-control-danger: 0 0 0 1px var(--color-danger);
   --duration-press: 100ms; /* 눌림 (TDS 0.1s) */
   --duration-fast: 150ms;
   --duration-base: 200ms;
-  --duration-loop: 1200ms; /* 스켈레톤 깜빡임 한 바퀴 */
+  --duration-sheet: 300ms; /* 바텀시트 올라옴·배경 흐림 */
+  --duration-loop: 2400ms; /* 스켈레톤 한 바퀴 (TDS 실측 약 2.4s, 불투명도 1~0.2, 크기 1~0.96) */
+  --duration-loader: 1800ms; --delay-loader: 700ms; --duration-dots: 600ms; /* TDS Loader 1.8s 회전, 0.7s 뒤 0.3s 페이드로 나타남. 버튼 점 0.6s */
+  --duration-tab: 300ms; /* TDS 탭 글자색 전환 0.3s 실측 */
   --duration-spin: 800ms; /* 스피너 한 바퀴 */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: ease-in-out;
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* 시트: 빠르게 올라와 부드럽게 멈춤 */
+  --offset-dialog-rise: 80px; /* 다이얼로그가 아래에서 떠오르는 거리 (TDS 40ms 시점 75 남음, 근사) */
+  --opacity-skeleton-min: 0.2; --scale-skeleton-min: 0.96;
+  --radius-skeleton-sm: 9px; --radius-skeleton-md: 11px; --radius-skeleton-lg: 18px; /* TDS Skeleton 줄 22·제목 30·카드 61 모서리 실측 */
+  --skeleton-line: 22px; --skeleton-title: 30px; --skeleton-bar: 42px; --skeleton-row: 64px; --skeleton-card: 240px; --skeleton-icon: 40px;
+  --radius-skeleton-bar: 13px; --radius-skeleton-card: 38px; /* TDS Skeleton: list 64 r18, 아이콘 줄 40 원 + 42 r13, card 240 r38 */
+  --offset-rise: 16px; /* 아래에서 올라오는 짧은 거리 */
   --scale-press: 0.96; /* 눌린 버튼 크기 (TDS) */
   --z-sticky: 20;
   --z-popover: 45;

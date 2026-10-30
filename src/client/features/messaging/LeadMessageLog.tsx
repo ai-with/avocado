@@ -14,7 +14,7 @@ export function LeadMessageLog({ leadId }: { leadId: string }) {
   return (
     <section className="stack-tight">
       <h4>발송 기록</h4>
-      {!logs && <LoadingState lines={1} />}
+      {!logs && <LoadingState pattern="list" lines={2} />}
       {logs?.length === 0 && <p className="text-secondary">아직 보낸 메시지가 없어요.</p>}
       {logs?.map((l) => (
         <div key={l.id} className="text-secondary">

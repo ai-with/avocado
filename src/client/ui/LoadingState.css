@@ -1,18 +1,28 @@
-.loading { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) 0; }
-.loading-line {
-  display: block; height: 16px; border-radius: var(--radius-xs); background: var(--color-surface-muted);
-  animation: loading-pulse 1.2s ease-in-out infinite;
+/* TDS Skeleton 실측: title 30 r11 폭 50%, subtitle 22 r9 폭 33%, list 64 r18, 아이콘 줄 40 원 + 42 r13(사이 14), card 240 r38.
+ * 면은 옅은 회색. 불투명도 1~0.2와 크기 1~0.96을 약 2.4초에 한 번 오가고 조각마다 조금씩 늦게 */
+.loading { padding: var(--space-6) 0; }
+.loading-body { display: flex; flex-direction: column; gap: var(--space-5); }
+.skeleton {
+  display: block; flex: none; width: 100%; height: var(--skeleton-line); border-radius: var(--radius-skeleton-sm); background: var(--color-surface-muted);
+  animation: loading-pulse var(--duration-loop) ease-in-out infinite;
 }
-.loading-line:first-of-type { width: 40%; height: 24px; }
-.loading-line:nth-of-type(3n) { width: 72%; }
-@keyframes loading-pulse { 50% { opacity: 0.5; } }
-/* list·card 패턴(토스 Skeleton 패턴 참고). 색·깜빡임은 lines 와 같다 */
-.loading-pattern-list { gap: var(--space-6); }
-.loading-row { display: flex; align-items: center; gap: var(--space-5); }
-.loading-row-lines { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
-.loading-dot, .loading-bar, .loading-card { display: block; background: var(--color-surface-muted); animation: loading-pulse var(--duration-loop) ease-in-out infinite; }
-.loading-dot { flex: none; width: var(--avatar-size-lg); height: var(--avatar-size-lg); border-radius: var(--radius-full); }
-.loading-bar { height: var(--space-6); width: 60%; border-radius: var(--radius-xs); }
-.loading-bar-short { height: var(--space-5); width: 36%; }
-.loading-card { height: var(--space-14); border-radius: var(--radius-card); }
-.loading-card { width: 100%; }
+.skeleton-text { width: 33%; }
+.loading .skeleton-text { width: 100%; }
+.loading .skeleton-short { width: 72%; }
+.skeleton-title { width: 50%; height: var(--skeleton-title); border-radius: var(--radius-skeleton-md); }
+.skeleton-circle { width: var(--skeleton-icon); height: var(--skeleton-icon); border-radius: var(--radius-full); }
+.skeleton-rect { height: var(--skeleton-row); border-radius: var(--radius-skeleton-lg); }
+.skeleton-bar { flex: 1; height: var(--skeleton-bar); border-radius: var(--radius-skeleton-bar); }
+.skeleton-card { height: var(--skeleton-card); border-radius: var(--radius-skeleton-card); }
+.loading-body > :nth-child(3n + 2), .loading-row:nth-child(3n + 2) > .skeleton { animation-delay: calc(var(--duration-loop) / -12); }
+.loading-body > :nth-child(3n), .loading-row:nth-child(3n) > .skeleton { animation-delay: calc(var(--duration-loop) / -6); }
+@keyframes loading-pulse { 50% { opacity: var(--opacity-skeleton-min); transform: scale(var(--scale-skeleton-min)); } }
+/* 목록(아이콘 줄): 원과 줄 사이 14, 줄 사이 32 */
+.loading-pattern-list .loading-body { gap: var(--space-9); }
+.loading-row { display: flex; align-items: center; gap: var(--control-padding-y); }
+.loading-pattern-card .loading-body { gap: var(--space-7); }
+.loading-pattern-detail .loading-spacer { height: var(--space-5); } /* 부제와 첫 줄 사이 36 = 12 + 12 + 12 (TDS 12 + spacer 24) */
+.loading-pattern-detail .skeleton-rect { margin-bottom: var(--space-2); } /* 줄 사이 16 = 12 + 4 */
+/* 표 줄: 한 줄 높이(40)마다 글줄 조각 셋. 표가 아닌 자리에서도 표 모양이 보이게 줄 사이 옅은 선 */
+.loading-pattern-table .loading-body { gap: 0; }
+.loading-table-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); min-height: var(--table-row-height); border-bottom: 1px solid var(--color-border); }

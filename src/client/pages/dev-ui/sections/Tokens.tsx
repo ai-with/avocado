@@ -85,6 +85,20 @@ function ShapeTokens() {
   );
 }
 
+// 컴포넌트 크기·움직임 토큰 (AIWITH-552, TDS 실측 값)
+// AIWITH-557: 정밀 대조로 더한 토스트·툴팁·체크·비활성·스켈레톤 토큰도 함께 보인다
+const COMPONENT_PREFIXES = ["--control-", "--input-", "--button-", "--switch-", "--segmented-", "--segment-", "--badge-", "--tab-", "--list-row-", "--search-", "--dialog-", "--sheet-", "--toast-", "--tooltip-", "--check-", "--field-", "--skeleton-", "--opacity-", "--press-"];
+const MOTION_PREFIXES = ["--duration-", "--ease-", "--scale-", "--offset-"];
+
+function TokenList({ title, prefixes }: { title: string; prefixes: string[] }) {
+  const tokens = useTokens("--").filter((t) => prefixes.some((p) => t.name.startsWith(p)));
+  return (
+    <Group title={title}>
+      {tokens.map((t) => <div key={t.name} className="dev-token dev-token-wide"><TokenLabel {...t} /></div>)}
+    </Group>
+  );
+}
+
 export function Tokens() {
   return (
     <>
@@ -92,6 +106,8 @@ export function Tokens() {
       <TypeTokens />
       <SpaceTokens />
       <ShapeTokens />
+      <TokenList title="컴포넌트 크기 (TDS 실측)" prefixes={COMPONENT_PREFIXES} />
+      <TokenList title="움직임" prefixes={MOTION_PREFIXES} />
     </>
   );
 }

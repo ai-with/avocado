@@ -16,7 +16,7 @@ export function FormsPage() {
   return (
     <>
       <PageHeader title="신청 폼" description="자료가 없어도 체험·샘플·출시 알림 신청을 받아요. 리드 링크의 목적지로 쓰면 어느 인플루언서에게서 왔는지 남아요." actions={create} />
-      {!forms && <LoadingState />}
+      {!forms && <LoadingState pattern="table" />}
       {forms && forms.length === 0 && <EmptyState title="아직 만든 폼이 없어요" description="폼을 만들고 가이드의 '리드 링크' 탭에서 목적지로 고르면 신청이 리드로 쌓여요." action={create} />}
       {forms && forms.length > 0 && <FormTable forms={forms} />}
     </>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
-import { LoadingState } from "../../ui";
+import { Loader } from "../../ui";
 import { api } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import { BRAND } from "../../pages/landing/copy";
@@ -30,7 +30,7 @@ export function OnboardingPage() {
   const next = safeNext(params.get("next"));
   const here = encodeURIComponent(location.pathname + location.search);
 
-  if (loading) return <div className="onboarding"><LoadingState /></div>;
+  if (loading) return <div className="onboarding"><Loader fill /></div>;
   if (!me) return <Navigate to={`/login?next=${here}`} replace />;
   if (!me.phoneVerified) return <Navigate to={`/verify-phone?next=${here}`} replace />;
   const needsWorkspace = me.workspaces.length === 0;

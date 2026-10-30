@@ -59,7 +59,7 @@ export function GuidePublicPage() {
   };
 
   if (error) return <PublicShell {...shell}><p className="pub-error">{t("link_expired")}</p></PublicShell>;
-  if (!data) return <PublicShell {...shell}><LoadingState label={t("loading")} /></PublicShell>;
+  if (!data) return <PublicShell {...shell}><LoadingState pattern="detail" label={t("loading")} /></PublicShell>;
   if (data.mode === "shared") return <PublicShell {...shell}><JoinForm slug={token} lang={lang} title={data.guide.name} /></PublicShell>;
   if (view === "consent" && !data.consent)
     return (

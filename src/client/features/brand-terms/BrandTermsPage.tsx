@@ -21,7 +21,7 @@ export function BrandTermsPage() {
   const back = { to: "/dashboard/settings/brands", label: "브랜드" };
 
   if (error) return <><PageHeader title="검수 사전" back={back} /><EmptyState title="사전을 열 수 없어요" description={error} /></>;
-  if (!data) return <><PageHeader title="검수 사전" back={back} /><LoadingState label="검수 사전을 불러오는 중" /></>;
+  if (!data) return <><PageHeader title="검수 사전" back={back} /><LoadingState pattern="table" label="검수 사전을 불러오는 중" /></>;
   const count = (k: TermKind) => data.terms.filter((t) => t.kind === k).length;
   const tabs = [...TERM_KINDS.map((k) => ({ value: k as Tab, label: `${TERM_KIND_LABELS[k]} ${count(k)}` })), { value: "legal" as Tab, label: "법규 기본 목록" }];
   const edit = (t: BrandTerm) => setEditing(t);

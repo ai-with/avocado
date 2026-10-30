@@ -1,41 +1,44 @@
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3);
-  border: 1px solid transparent; border-radius: var(--radius-button);
+  border: 0; border-radius: var(--radius-button); /* TDS: 모든 variant 테두리 0 */
   font-size: var(--text-control-size); line-height: var(--text-control-lh); font-weight: var(--weight-semibold);
   white-space: nowrap; text-decoration: none;
-  transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-in-out);
+  /* TDS 실측: 색·면·테두리·그림자·불투명도 0.1s ease-in-out, 마우스를 올려도 모양은 그대로 */
+  transition: color var(--duration-press) var(--ease-in-out), background-color var(--duration-press) var(--ease-in-out), box-shadow var(--duration-press) var(--ease-in-out), opacity var(--duration-press) var(--ease-in-out), transform var(--duration-press) var(--ease-in-out), filter var(--duration-press) var(--ease-in-out);
 }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-/* 눌림: TDS처럼 살짝 작아진다 */
-.btn:active:not(:disabled) { transform: scale(var(--scale-press)); }
+.btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+/* 눌림: TDS처럼 0.96으로 작아지고 검정 0.26을 덧칠한 만큼 어두워진다 */
+.btn:active:not(:disabled) { transform: scale(var(--scale-press)); filter: brightness(var(--press-dim)); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 /* 크기 4단 (TDS small·medium·large·xlarge, findings 8절). 모서리는 높이에 따라 커진다 */
-.btn-sm { height: var(--control-height-sm); padding: 0 var(--space-5); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); }
+.btn-sm { height: var(--control-height-sm); padding: 0 var(--button-padding-x-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); }
 .btn-md { height: var(--control-height); padding: 0 var(--space-6); }
-.btn-lg { height: var(--control-height-lg); padding: 0 var(--space-7); border-radius: var(--radius-control-lg); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
-.btn-xl { height: var(--control-height-xl); padding: 0 var(--space-8); border-radius: var(--radius-control-xl); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+.btn-lg { height: var(--control-height-lg); padding: 0 var(--space-6); border-radius: var(--radius-control-lg); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
+.btn-xl { height: var(--control-height-xl); padding: 0 var(--button-padding-x-xl); border-radius: var(--radius-control-xl); font-size: var(--text-control-lg-size); line-height: var(--text-control-lg-lh); }
 .btn svg { width: var(--icon-size-sm); height: var(--icon-size-sm); flex-shrink: 0; }
-.btn-primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--shadow-button-primary), var(--shadow-control); }
-/* base.css의 a:hover 글자색이 ButtonLink를 덮지 않도록 hover에도 자기 글자색을 적는다 */
-.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); color: var(--color-on-accent); }
-.btn-secondary { background: var(--color-surface); border-color: var(--color-border-strong); color: var(--color-text-primary); box-shadow: var(--shadow-control); }
-.btn-secondary:hover:not(:disabled) { background: var(--color-surface-subtle); color: var(--color-text-primary); }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+/* base.css의 a:hover 글자색이 ButtonLink를 덮지 않도록 hover에도 자기 글자색을 적는다. 면은 TDS처럼 바뀌지 않는다 */
+.btn-primary:hover:not(:disabled) { color: var(--color-on-accent); }
+/* TDS weak: 테두리 없이 옅은 면. 색 토큰을 늘리지 않으려고 반투명 대신 기존 muted 면을 쓴다 */
+.btn-secondary { background: var(--color-surface-muted); color: var(--color-text-primary); }
+.btn-secondary:hover:not(:disabled) { color: var(--color-text-primary); }
 .btn-ghost { background: transparent; color: var(--color-text-secondary); }
 .btn-ghost:hover:not(:disabled) { background: var(--color-surface-muted); color: var(--color-text-primary); }
 .btn-danger { background: var(--color-danger); color: var(--color-on-accent); }
-.btn-danger:hover:not(:disabled) { filter: brightness(0.92); color: var(--color-on-accent); }
+.btn-danger:hover:not(:disabled) { color: var(--color-on-accent); }
 /* 로딩: 글자는 자리만 지키고 스피너가 가운데. 반투명 대신 그대로 진하게 둬서 "기다리는 중"이 보이게 */
 .btn-loading { position: relative; }
 .btn-loading:disabled { opacity: 1; cursor: progress; }
 .btn-loading .btn-label { visibility: hidden; display: contents; }
-.btn-loading .spinner { position: absolute; inset: 0; margin: auto; }
+.btn-loading .btn-dots { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: var(--dot-gap); }
+/* TDS 버튼 로딩 실측: 8 점 3개 사이 7, 글자색, 불투명도 1~0.2·크기 1~0.8을 0.6s에 한 번, 점마다 0.1s 늦게 */
+.btn-dots > span { width: var(--dot-size); height: var(--dot-size); border-radius: var(--radius-full); background: currentColor; animation: btn-dot var(--duration-dots) var(--ease-in-out) infinite; }
+.btn-dots > span:nth-child(2) { animation-delay: calc(var(--duration-dots) / 6); }
+.btn-dots > span:nth-child(3) { animation-delay: calc(var(--duration-dots) / 3); }
+@keyframes btn-dot { 50% { opacity: var(--opacity-skeleton-min); transform: scale(0.8); } }
 /* 아이콘만 있는 버튼은 정사각형 */
 .btn-icon.btn-md { width: var(--control-height); padding: 0; }
 .btn-icon.btn-sm { width: var(--control-height-sm); padding: 0; }
 .btn-icon.btn-lg { width: var(--control-height-lg); padding: 0; }
 .btn-icon.btn-xl { width: var(--control-height-xl); padding: 0; }
 .btn-lg svg, .btn-xl svg { width: var(--spinner-size-md); height: var(--spinner-size-md); }
-/* 손가락으로 누르는 기기에서는 보이는 크기와 상관없이 누르는 영역을 44px 이상으로 */
-@media (pointer: coarse) {
-  .btn { position: relative; }
-  .btn::after { content: ""; position: absolute; inset: 50% auto auto 50%; width: max(100%, var(--touch-target)); height: max(100%, var(--touch-target)); transform: translate(-50%, -50%); }
-}

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { JSONContent } from "@tiptap/react";
-import { Badge, Button, Card, Input, LoadingState } from "../../../ui";
+import { Badge, Button, Card, Input, Loader } from "../../../ui";
 import { DOC_SOURCE_LABELS } from "../../../../shared/leads";
 import { dateTime, type DocumentDetail } from "../../links/common";
 import type { DocumentEditState } from "../useDocumentEdit";
@@ -35,7 +35,7 @@ export function DocSourcePanel({ doc, s }: { doc: DocumentDetail; s: DocumentEdi
       <Input label="제목" defaultValue={doc.title} onBlur={(e) => void s.saveTitle(e.target.value)} />
       {doc.sourceType === "editor" && (
         <Card>
-          <Suspense fallback={<LoadingState label="에디터를 여는 중" />}>
+          <Suspense fallback={<Loader label="에디터를 여는 중이에요" />}>
             <BlockEditor content={(doc.contentJson ?? { type: "doc" }) as JSONContent} onChange={s.onContent} />
           </Suspense>
         </Card>

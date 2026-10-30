@@ -13,7 +13,7 @@ import "./lead-tools.css";
 export function GuideLinksTab({ guideId }: { guideId: string }) {
   const s = useGuideLinks(guideId);
   const { data, docs } = s;
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState pattern="table" />;
   const guideDocs = docs.filter((d) => d.guideId === guideId || data.links.some((l) => l.destinationType === "document" && l.destinationId === d.id));
   const reload = () => void s.load();
 

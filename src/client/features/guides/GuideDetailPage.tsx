@@ -72,7 +72,7 @@ export function GuideDetailPage() {
   const { data, load, publish, toggleArchive, sendOpen, closeSend } = useGuideDetail(id);
   const [editOpen, setEditOpen] = useState(false);
   const { tab, setTab, addRequest, startEmail } = useDetailTabs(closeSend);
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState pattern="detail" />;
   const { guide, campaign } = data;
   const published = guide.status === "published";
   const archived = campaign?.status === "archived";

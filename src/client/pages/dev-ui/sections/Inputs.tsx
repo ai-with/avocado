@@ -5,7 +5,7 @@ import { Group, Specimen } from "../Showcase";
 function TextFieldStates() {
   const [name, setName] = useState("달밤툰");
   return (
-    <Group title="TextField" note="Input 확장. 포커스 칸은 카탈로그에서 포커스 모양을 흉내 낸 것">
+    <Group title="TextField" note="Input 확장. TDS box: 56, 채움 면 + 옅은 테두리, 17px. 포커스(클릭 포함)면 테두리가 브랜드 색, 오류 칸은 오류 색 유지">
       <Specimen label="기본, 지우기"><TextField label="채널 이름" clearable value={name} onChange={(e) => setName(e.target.value)} /></Specimen>
       <Specimen label="포커스(흉내)"><div className="dev-force-focus"><TextField label="채널 이름" defaultValue="입력 중" /></div></Specimen>
       <Specimen label="도움말, 필수"><TextField label="이메일" type="email" required hint="가입에 쓴 주소를 넣어 주세요." /></Specimen>
@@ -19,13 +19,26 @@ function TextFieldStates() {
   );
 }
 
+function SelectLgControlled() {
+  const [v, setV] = useState("kr");
+  return (
+    <Select label="국가(제어)" size="lg" value={v} onChange={(e) => setV(e.target.value)} hint={`고른 값: ${v}`}>
+      <optgroup label="국내"><option value="kr">한국</option></optgroup>
+      <optgroup label="해외"><option value="jp">일본</option><option value="us">미국</option></optgroup>
+    </Select>
+  );
+}
+
 function Sizes() {
   return (
-    <Group title="크기 sm · md · lg" note="TextField, Select, SelectMenu 공용. 채움형(옅은 면), 기본 md 40. lg는 TDS box 56">
+    <Group title="크기 sm · md · lg" note="TextField, Select, SelectMenu 공용. 기본 md = TDS box 56 / r14 / 17px. sm 32는 표 안·필터 줄·툴바. lg는 md와 같은 모양(Select lg만 직접 그린 목록)">
       <Specimen label="sm 32px"><TextField label="작게" size="sm" placeholder="표 안 입력" /></Specimen>
-      <Specimen label="md 40px"><TextField label="기본" placeholder="대부분의 폼" /></Specimen>
+      <Specimen label="md 56px (기본)"><TextField label="기본" placeholder="대부분의 폼" /></Specimen>
       <Specimen label="lg 56px"><TextField label="크게" size="lg" placeholder="공개 화면 주 입력" /></Specimen>
-      <Specimen label="Select lg"><Select label="크게" size="lg" defaultValue="a"><option value="a">첫째</option></Select></Specimen>
+      <Specimen label="Select lg"><Select label="크게" size="lg" defaultValue="a"><option value="a">첫째</option><option value="b">둘째</option><option value="c" disabled>셋째(마감)</option></Select></Specimen>
+      <Specimen label="Select lg 제어"><SelectLgControlled /></Specimen>
+      <Specimen label="Select lg 비활성"><Select label="크게" size="lg" disabled defaultValue="a"><option value="a">첫째</option></Select></Specimen>
+      <Specimen label="Select lg 오류"><Select label="크게" size="lg" error="하나를 골라 주세요." defaultValue=""><option value="">선택해 주세요</option><option value="a">첫째</option></Select></Specimen>
     </Group>
   );
 }
@@ -42,7 +55,7 @@ function SpecialFields() {
       <Specimen label="NumberField 소수(decimal)"><NumberField label="참여 조건 금액" suffix="만 원" decimal value={ratio} onChange={setRatio} hint={`값: ${ratio ?? "비어 있음"}. "12." 같은 중간 상태 유지`} /></Specimen>
       <Specimen label="NumberField 소수 2자리(maxDecimals)"><NumberField label="환율" maxDecimals={2} value={rate} onChange={setRate} hint={`값: ${rate ?? "비어 있음"}`} /></Specimen>
       <Specimen label="NumberField 오류"><NumberField label="수량" suffix="개" value={0} onChange={() => {}} error="1개 이상으로 입력해 주세요." /></Specimen>
-      <Specimen label="SearchField"><SearchField label="인플루언서 검색" placeholder="이름, 핸들" value={query} onChange={(e) => setQuery(e.target.value)} /></Specimen>
+      <Specimen label="SearchField 44 / r12"><SearchField label="인플루언서 검색" placeholder="이름, 핸들" value={query} onChange={(e) => setQuery(e.target.value)} /></Specimen>
       <Specimen label="SearchField sm, 라벨 보임"><SearchField label="검색" showLabel size="sm" placeholder="검색" /></Specimen>
       <Specimen label="Textarea 자동 높이, 글자 수" wide>
         <Textarea label="촬영 메모" autoGrow showCount maxLength={200} value={memo} onChange={(e) => setMemo(e.target.value)} />

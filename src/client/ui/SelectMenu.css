@@ -1,6 +1,7 @@
 /* SelectMenu: 칸은 TextField 와 같은 .control-group 모양, 목록은 body 에 fixed 로 뜬다 */
 .select-menu { position: relative; padding-right: var(--space-5); cursor: pointer; }
-.select-menu.is-open { background-color: var(--color-surface); border-color: var(--color-border-focus); }
+.select-menu.is-open { border-color: var(--color-accent); box-shadow: var(--focus-ring-control); }
+.select-menu.is-open.is-invalid { border-color: var(--color-danger); box-shadow: var(--focus-ring-control-danger); }
 .select-menu.is-disabled { cursor: not-allowed; }
 .select-menu-trigger {
   flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding: 0; border: 0; background: transparent;

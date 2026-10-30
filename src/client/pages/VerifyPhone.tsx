@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { Button, Input, LoadingState } from "../ui";
+import { Button, Input, Loader } from "../ui";
 import { api, ApiError, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { AuthCard, FormError } from "./AuthCard";
@@ -110,7 +110,7 @@ export function VerifyPhonePage() {
   const { me, loading, refresh } = useMe();
   const next = params.get("next") || "/dashboard";
 
-  if (loading) return <AuthCard><LoadingState /></AuthCard>;
+  if (loading) return <AuthCard><Loader fill /></AuthCard>;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   // 인증을 마치면 온보딩(워크스페이스 이름·설문)으로. 초대 링크로 가는 중이면 바로 초대로 간다
   if (me.phoneVerified) return <Navigate to={next.startsWith("/invite/") ? next : `/onboarding?next=${encodeURIComponent(next)}`} replace />;

@@ -73,7 +73,7 @@ export function LeadDrawer({ id, lk, onClose, onChanged }: DrawerProps) {
   const [d, setD] = useState<LeadDetail | null>(null);
   const load = () => void api.get<LeadDetail>(`/leads/${id}`).then(setD);
   useEffect(load, [id]);
-  if (!d) return <Drawer title="리드 상세" onClose={onClose}><LoadingState /></Drawer>;
+  if (!d) return <Drawer title="리드 상세" onClose={onClose}><LoadingState pattern="detail" /></Drawer>;
   const l = d.lead;
   const status = (on: boolean) => (l.unsubscribedAt ? "수신 거부" : l.bouncedAt ? "반송" : on ? "동의" : "동의 없음");
   const remove = async () => {

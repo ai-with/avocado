@@ -55,7 +55,7 @@ export function WorkspaceSettingsPage() {
               <div className="grow settings-name-field">
                 <Input label="워크스페이스 이름" autoComplete="organization" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
-              <Button type="submit" variant="secondary">이름 저장</Button>
+              <Button type="submit" size="xl" variant="secondary">이름 저장</Button>
             </form>
           </Card>
         )}

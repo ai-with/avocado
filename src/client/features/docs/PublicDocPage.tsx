@@ -18,7 +18,7 @@ function DocStatusScreen({ error }: { error: string }) {
             <div><ButtonAnchor variant="secondary" href={location.pathname}>자료 다시 열기</ButtonAnchor></div>
           </>
         ) : (
-          <LoadingState label="자료를 불러오는 중" />
+          <LoadingState pattern="detail" label="자료를 불러오는 중" />
         )}
       </div>
     </div>

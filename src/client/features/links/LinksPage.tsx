@@ -25,7 +25,7 @@ export function LinksPage() {
         actions={<ButtonLink variant="primary" to="/dashboard/documents/new">자료 만들기</ButtonLink>}
       />
       <Tabs<Tab> tabs={TABS} value={tab} onChange={setTab} label="리드 링크 보기" />
-      {!loaded && tab !== "analytics" && <LoadingState />}
+      {!loaded && tab !== "analytics" && <LoadingState pattern="table" />}
       {loaded && tab === "links" && <LinksTable links={links} channels={channels} docs={docs} onOpen={setOpen} />}
       {loaded && tab === "documents" && <DocumentList docs={docs} channels={channels} onRemove={(d) => void removeDoc(d)} />}
       {tab === "analytics" && <LinkAnalytics channels={channels} />}

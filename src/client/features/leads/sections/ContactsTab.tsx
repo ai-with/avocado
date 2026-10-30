@@ -30,7 +30,7 @@ export function ContactsTab({ leads, lk, groups, filters, onFilters, selected, o
 }
 
 function LeadList({ leads, lk, filters, onFilters, selected, onSelect, onOpen }: Omit<Props, "groups" | "act">) {
-  if (!leads) return <LoadingState />;
+  if (!leads) return <LoadingState pattern="table" />;
   if (leads.length > 0) return <LeadsTable leads={leads} lk={lk} selected={selected} onSelect={onSelect} onOpen={onOpen} />;
   if (Object.values(filters).some(Boolean)) {
     return <EmptyState title="조건에 맞는 리드가 없어요" description="필터를 지우거나 다른 조건으로 찾아 보세요." action={<Button variant="secondary" onClick={() => onFilters(NO_FILTERS)}>필터 지우기</Button>} />;

@@ -12,7 +12,8 @@ export function LangCopyButton({ url, defaultLang, label = "복사", size = "sm"
   return (
     <span className={`lang-copy lang-copy-${size}`}>
       <SelectMenu size={size} aria-label="링크 언어" options={LANG_OPTIONS} value={lang} onChange={(v) => v && setLang(v as GuideLang)} disabled={disabled} />
-      <CopyButton text={withLangParam(url, lang)} label={label} size={size} disabled={disabled} doneMessage={lang === "en" ? "영어 링크를 복사했어요." : "한국어 링크를 복사했어요."} />
+      {/* md 입력칸(56) 옆이라 버튼도 같은 높이(xl) */}
+      <CopyButton text={withLangParam(url, lang)} label={label} size={size === "md" ? "xl" : "sm"} disabled={disabled} doneMessage={lang === "en" ? "영어 링크를 복사했어요." : "한국어 링크를 복사했어요."} />
     </span>
   );
 }

@@ -24,7 +24,7 @@ export function MessagesSettingsPage() {
       <div className="stack">
         <Tabs<Tab> label="메시지 템플릿 보기" tabs={TABS} value={tab} onChange={setTab} />
         {variables === null ? (
-          <LoadingState />
+          <LoadingState pattern="table" />
         ) : tab === "templates" ? (
           <TemplatesTab templates={templates} variables={variables} canEdit={canEdit} reload={reloadTemplates} />
         ) : (

@@ -14,7 +14,7 @@ export function AutomationsPage() {
   const [editing, setEditing] = useState<Automation | "new" | null>(null);
   const load = () => void api.get<ListResponse>("/automations").then(setData);
   useEffect(load, []);
-  if (!data) return <LoadingState />;
+  if (!data) return <LoadingState pattern="table" />;
 
   const toggle = async (a: Automation) => {
     try {

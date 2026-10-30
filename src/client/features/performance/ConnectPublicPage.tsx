@@ -62,7 +62,7 @@ export function ConnectPublicPage() {
 
   return (
     <PublicShell brand={info?.brandName} langLabel={t.toggle} onToggleLang={() => setLang(lang === "ko" ? "en" : "ko")}>
-      {error ? <p className="pub-error">{t.notFound}</p> : !info ? <LoadingState /> : <ConnectBody info={info} token={token} t={t} />}
+      {error ? <p className="pub-error">{t.notFound}</p> : !info ? <LoadingState pattern="detail" /> : <ConnectBody info={info} token={token} t={t} />}
     </PublicShell>
   );
 }

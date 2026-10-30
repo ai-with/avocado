@@ -107,7 +107,7 @@ export function InfluencersPage() {
   return (
     <>
       <PageHeader title="인플루언서" description="한 번 등록하면 여러 캠페인에서 다시 쓸 수 있어요." actions={canEdit && add} />
-      {rows === null ? <LoadingState /> : rows.length === 0 ? (
+      {rows === null ? <LoadingState pattern="table" /> : rows.length === 0 ? (
         <EmptyState title="등록한 인플루언서가 없어요" description="캠페인 상세에서 바로 추가해도 여기에 쌓여요." action={canEdit && add} />
       ) : (
         <InfluencerTable rows={rows} canEdit={canEdit} onEdit={(r) => setEditing({ id: r.id, draft: toDraft(r) })} onRemove={remove} />

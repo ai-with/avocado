@@ -16,7 +16,7 @@ export function BroadcastsPage() {
   const [editing, setEditing] = useState<Broadcast | "new" | null>(null);
   const load = () => void api.get<ListResponse>("/broadcasts").then(setList);
   useEffect(load, []);
-  if (!list) return <LoadingState />;
+  if (!list) return <LoadingState pattern="table" />;
   if (editing) return <BroadcastEditor initial={editing === "new" ? null : editing} connected={list.alimtalkConnected} onDone={() => (setEditing(null), load())} />;
 
   const create = canEdit && <Button onClick={() => setEditing("new")}>새 발송 만들기</Button>;

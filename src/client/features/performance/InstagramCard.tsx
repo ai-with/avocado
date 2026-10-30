@@ -94,7 +94,7 @@ function ClientRequests({ clients, canEdit, act }: { clients: Conn[]; canEdit: b
       {canEdit && (
         <div className="row row-bottom">
           <Input aria-label="고객사 이름" placeholder="고객사 이름" value={label} onChange={(e) => setLabel(e.target.value)} />
-          <Button variant="secondary" onClick={() => void requestClient()} disabled={!label.trim()}>연결 링크 만들기</Button>
+          <Button size="xl" variant="secondary" onClick={() => void requestClient()} disabled={!label.trim()}>연결 링크 만들기</Button>
         </div>
       )}
       {clients.length > 0 && <ClientTable clients={clients} canEdit={canEdit} act={act} />}
@@ -111,7 +111,7 @@ export function InstagramCard() {
   useEffect(() => void load(), [load]);
   useOAuthResultToast();
   const act = useAction(load);
-  if (!data) return <SectionCard title={CARD_TITLE}><LoadingState lines={2} /></SectionCard>;
+  if (!data) return <SectionCard title={CARD_TITLE}><LoadingState pattern="table" lines={2} /></SectionCard>;
 
   const sender = data.connections.find((c) => c.target === "brand_sender" && !c.revokedAt);
   const clients = data.connections.filter((c) => c.target === "client_brand" && !c.revokedAt);

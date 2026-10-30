@@ -3,8 +3,9 @@ import { IconButton } from "./Button";
 import { useDialog } from "./useDialog";
 import "./Modal.css";
 
-type Props = { open: boolean; title: string; description?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: "md" | "lg" };
+type Props = { open: boolean; title: string; description?: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" };
 
+// size: sm = 확인·알림 다이얼로그(TDS Dialog 320), md = 폼(480), lg = 넓은 내용(720)
 export function Modal({ open, title, description, onClose, children, footer, size = "md" }: Props) {
   const ref = useDialog<HTMLDivElement>(open, onClose);
   if (!open) return null;

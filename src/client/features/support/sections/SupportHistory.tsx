@@ -9,7 +9,7 @@ export function SupportHistory({ requests }: { requests: SupportRequestItem[] | 
   return (
     <SectionCard title="내가 보낸 문의" description={`최근 ${SUPPORT_LIST_LIMIT}개까지 보여요.`}>
       {requests === null ? (
-        <LoadingState lines={2} label="보낸 문의를 불러오는 중" />
+        <LoadingState pattern="table" lines={2} label="보낸 문의를 불러오는 중" />
       ) : requests.length === 0 ? (
         <EmptyState compact title="아직 보낸 문의가 없어요" description="막히는 곳이 있으면 위 양식으로 알려 주세요." />
       ) : (

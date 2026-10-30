@@ -1,7 +1,7 @@
 export { Button, IconButton, ButtonLink, ButtonAnchor } from "./Button";
 export { CopyButton } from "./CopyButton";
 export { Input, Textarea, Select, Checkbox } from "./Form";
-export { Badge, type BadgeTone } from "./Badge";
+export { Badge, type BadgeTone, type BadgeSize } from "./Badge";
 export { Card, SectionCard } from "./Card";
 export { Stat, StatGrid } from "./Stat";
 export { Table, type TableColumn } from "./Table";
@@ -28,7 +28,8 @@ export { ListRow } from "./ListRow";
 export { Tooltip } from "./Tooltip";
 export { Avatar } from "./Avatar";
 export { ProgressBar } from "./ProgressBar";
-export { Spinner } from "./Spinner";
+export { Loader, Spinner } from "./Spinner";
+export { Skeleton } from "./Skeleton";
 export { formatNumberInput, parseNumberInput, countChars } from "./format";
 export { TagInput } from "./TagInput";
 export { Disclosure } from "./Disclosure";

@@ -60,7 +60,7 @@ export function GuideLeadsTab({ guideId }: { guideId: string }) {
 }
 
 function GuideLeadList({ leads, lk, onOpen }: { leads: LeadRow[] | null; lk: Lookups; onOpen: (id: string) => void }) {
-  if (!leads) return <LoadingState />;
+  if (!leads) return <LoadingState pattern="table" />;
   if (leads.length === 0) return <EmptyState title="아직 리드가 없어요" description={`${ZERO_HINT}. 자료 게이트나 신청 폼을 목적지로 쓰면 이메일이 모여요.`} />;
   return <LeadsTable leads={leads} lk={lk} onOpen={onOpen} />;
 }

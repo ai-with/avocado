@@ -65,7 +65,7 @@ export function InfluencersTab({ guideId, canEdit, published, openAdd = false }:
   const [consentOf, setConsentOf] = useState<GuideInfluencerRow | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
-  if (rows === null) return <LoadingState />;
+  if (rows === null) return <LoadingState pattern="table" />;
   const shown = filter === "all" ? rows : rows.filter((r) => r.participationStatus === filter);
   const open = rows.find((r) => r.id === openId) ?? null;
   return (

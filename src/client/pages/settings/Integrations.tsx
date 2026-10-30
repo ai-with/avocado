@@ -66,7 +66,7 @@ export function IntegrationsPage() {
           <SenderCard s={s} setS={setS} />
         </div>
       ) : (
-        <LoadingState />
+        <LoadingState pattern="card" />
       )}
     </>
   );

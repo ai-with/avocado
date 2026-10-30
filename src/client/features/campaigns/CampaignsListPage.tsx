@@ -37,7 +37,7 @@ export function CampaignsListPage() {
             <SelectMenu aria-label="브랜드" options={[{ value: "", label: "모든 브랜드" }, ...(brands ?? []).map((b) => ({ value: b.id, label: b.name }))]} value={brandId} onChange={(v) => setBrandId(v ?? "")} />
           </FilterBar>
         )}
-        {rows === null ? <LoadingState /> : rows.length === 0 ? (
+        {rows === null ? <LoadingState pattern="table" /> : rows.length === 0 ? (
           <EmptyState title="아직 캠페인이 없어요" description="브랜드를 고르고 캠페인을 만들면 브랜드 가이드를 바로 쓸 수 있어요." action={create} />
         ) : (
           <Table>

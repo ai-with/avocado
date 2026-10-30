@@ -23,7 +23,7 @@ export function KeywordDmPage() {
   const load = useCallback(async () => setData(await api.get<KdmData>("/keyword-dm")), []);
   useEffect(() => void load(), [load]);
   const act = useAction(load);
-  if (!data) return <><PageHeader title={TITLE} description={DESCRIPTION} /><LoadingState /></>;
+  if (!data) return <><PageHeader title={TITLE} description={DESCRIPTION} /><LoadingState pattern="table" /></>;
 
   return (
     <>

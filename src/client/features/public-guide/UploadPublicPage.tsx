@@ -68,7 +68,7 @@ export function UploadPublicPage() {
 
   return (
     <PublicShell centerBrand brand={nav?.brand} tabs={tabs} langLabel={t("lang_toggle")} onToggleLang={() => setLang(lang === "ko" ? "en" : "ko")}>
-      {error ? <p className="pub-error">{t("link_expired")}</p> : !data ? <LoadingState label={t("loading")} /> : <UploadBody data={data} token={token} t={t} lang={lang} onDone={load} />}
+      {error ? <p className="pub-error">{t("link_expired")}</p> : !data ? <LoadingState pattern="detail" label={t("loading")} /> : <UploadBody data={data} token={token} t={t} lang={lang} onDone={load} />}
     </PublicShell>
   );
 }
