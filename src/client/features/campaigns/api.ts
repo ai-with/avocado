@@ -13,6 +13,8 @@ export type CampaignRow = {
   brandName: string;
   guideStatus: "draft" | "published";
   createdAt: number;
+  endsAt: number | null;
+  archivedAt: number | null;
   influencerCount: number;
 };
 

@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { frames, guideInfluencers, guides, influencers, submissions } from "./guides";
 import { users } from "./users";
 import type {
@@ -140,6 +141,10 @@ export const contents = sqliteTable(
     guideInfluencerId: text("guide_influencer_id").notNull().unique().references(() => guideInfluencers.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     igMediaId: text("ig_media_id"),
+    thumbnailUrl: text("thumbnail_url"),
+    thumbnailKey: text("thumbnail_key"),
+    thumbnailFetchedAt: integer("thumbnail_fetched_at"),
+    collectionRevision: integer("collection_revision").notNull().default(0),
     format: text("format").$type<ContentFormat>().notNull(),
     postedAt: integer("posted_at"),
     postedAtSource: text("posted_at_source").$type<"api" | "manual">(),
@@ -148,7 +153,7 @@ export const contents = sqliteTable(
     conflictUrl: text("conflict_url"),
     deletedAt: integer("deleted_at"),
   },
-  (t) => [index("contents_guide_idx").on(t.guideId)],
+  (t) => [index("contents_guide_idx").on(t.guideId), index("contents_thumbnail_key_idx").on(t.thumbnailKey).where(sql`${t.thumbnailKey} IS NOT NULL`)],
 );
 
 export type ProcessingJob = typeof processingJobs.$inferSelect;

@@ -1,7 +1,7 @@
 // 인스타그램 Graph API 어댑터 (v26.0). SDK 없이 fetch 만 쓴다.
 // 인스타그램 로그인 경로: graph.instagram.com / 미연결 경로(business_discovery): graph.facebook.com (페이스북 로그인 경로 기능, C5)
 // IG_FAKE=1 이면 네트워크 없이 고정 응답을 돌려준다 (로컬 흐름 확인용)
-import type { Metric, MissingReason } from "../../shared/performance";
+import { parsePostUrl, type Metric, type MissingReason } from "../../shared/performance";
 import { hmacHex, safeEqual } from "./crypto";
 
 const V = "v26.0";
@@ -33,14 +33,16 @@ function failOf(status: number, body: GraphError): IgFail {
 }
 
 async function call<T>(url: string, init?: RequestInit): Promise<IgResult<T>> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    const res = await fetch(url, init);
+    const res = await fetch(url, { ...init, signal: init?.signal ?? controller.signal });
     const body = (await res.json().catch(() => ({}))) as T & GraphError;
     if (!res.ok || body.error) return failOf(res.status, body);
     return { ok: true, data: body };
   } catch (e) {
     return { ok: false, reason: "api_error", message: e instanceof Error ? e.message : String(e) };
-  }
+  } finally { clearTimeout(timeout); }
 }
 
 const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
@@ -88,6 +90,16 @@ export async function mediaInsights(env: Env, token: string, mediaId: string): P
   return { ok: true, data: out };
 }
 
+// Meta v26 IGMedia fields: facebook/facebook-python-business-sdk/adobjects/igmedia.py.
+// 기본 미디어 읽기 권한(instagram_business_basic)으로 받은 메타데이터에서 영상 표지/이미지를 고른다.
+export async function mediaMetadata(env: Env, token: string, mediaId: string): Promise<IgResult<DiscoveredMedia>> {
+  if (isFake(env)) return { ok: true, data: { id: mediaId, permalink: `https://www.instagram.com/reel/${mediaId}/`, timestamp: new Date().toISOString(), media_type: "VIDEO" } };
+  return call<DiscoveredMedia>(`${IG}/${encodeURIComponent(mediaId)}?${q({ fields: "id,permalink,timestamp,media_type,thumbnail_url,media_url", access_token: token })}`);
+}
+
+export const mediaThumbnailUrl = (media: Pick<DiscoveredMedia, "media_type" | "thumbnail_url" | "media_url">): string | null =>
+  media.thumbnail_url || (media.media_type === "IMAGE" || media.media_type === "CAROUSEL_ALBUM" ? media.media_url ?? null : null);
+
 // --- 미연결 경로 (C5) ---
 export type DiscoveredMedia = {
   id: string;
@@ -114,7 +126,7 @@ export async function discoverMedia(env: Env, sys: { token: string; igUserId: st
   const r = await call<{ business_discovery?: { media?: { data: DiscoveredMedia[] } } }>(`${sys.host === "fb" ? FB : IG}/${sys.igUserId}?${q({ fields, access_token: sys.token })}`);
   if (!r.ok) return r;
   const list = r.data.business_discovery?.media?.data ?? [];
-  return { ok: true, data: list.find((m) => m.permalink.includes(`/${shortcode}`)) ?? null };
+  return { ok: true, data: list.find((m) => parsePostUrl(m.permalink)?.shortcode === shortcode) ?? null };
 }
 
 // --- 브랜드 계정 (F-64) ---

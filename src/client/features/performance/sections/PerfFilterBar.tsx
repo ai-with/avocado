@@ -1,4 +1,5 @@
-import { Button, FilterBar, Select, ButtonAnchor, SelectMenu } from "../../../ui";
+import { FilterBar, Select, ButtonAnchor, SelectMenu } from "../../../ui";
+import { SheetsExportControl } from "../../google-sheets/SheetsExportControl";
 import { FORMAT_LABELS } from "../../../../shared/performance";
 import type { Filters, PerfQuery } from "../perfTypes";
 
@@ -11,7 +12,7 @@ export function PerfFilterBar({ f, setF, filters, qs, showGuide }: Props) {
   const actions = (
     <>
       <ButtonAnchor className="perf-export" href={`/api/performance/export${qs ? `?${qs}` : ""}`} download>CSV 내보내기</ButtonAnchor>
-      <Button variant="ghost" disabled title="2단계에서 제공해요">구글 시트 (준비 중)</Button>
+      <SheetsExportControl kind="performance" query={qs} />
     </>
   );
   return (

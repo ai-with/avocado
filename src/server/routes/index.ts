@@ -24,6 +24,7 @@ import { brandRoutes, brandTermRoutes, campaignRoutes, reviewPresetRoutes } from
 import { campaignInfluencerRoutes } from "./campaign-influencers";
 import { messageTemplateRoutes, messageVariableRoutes } from "./messages";
 import { resendWebhookRoutes } from "./resend-webhook";
+import { googleSheetsRoutes } from "./google-sheets";
 
 // 라우트는 한 줄씩 추가한다. 공개 경로(/l/*, /webhooks/*)도 여기서 등록한다
 export function registerRoutes(app: Hono<AppEnv>) {
@@ -57,6 +58,7 @@ export function registerRoutes(app: Hono<AppEnv>) {
   app.route("/webhooks", igWebhookRoutes);
   app.route("/webhooks", resendWebhookRoutes);
   app.route("/api/performance", performanceRoutes);
+  app.route("/api/google-sheets", googleSheetsRoutes);
   app.route("/api/keyword-dm", keywordDmRoutes);
   app.route("/api/reviews", reviewRoutes);
   app.route("/api/files", fileRoutes);

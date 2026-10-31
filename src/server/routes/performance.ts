@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { AppEnv } from "../types";
 import type { Db } from "../db";
-import { contents, guides, igConnections, influencers, metricSnapshots, shortLinks } from "../db/schema";
+import { campaigns, contents, guides, igConnections, influencers, metricSnapshots, shortLinks } from "../db/schema";
 import { ApiError, parse } from "../lib/errors";
 import { logEvent } from "../lib/events";
 import { csvResponse } from "../lib/http";
@@ -13,6 +13,8 @@ import { statsByLink } from "../lib/link-stats";
 import { toCsv } from "../../shared/csv";
 import { MAIN_METRICS, OFFSET_LABELS, SNAPSHOT_OFFSETS, METRIC_LABELS, type MissingReason, type OffsetH } from "../../shared/performance";
 import type { ContentFormat } from "../../shared/review";
+import { collectionAllowed, collectionContent, collectionState, type CollectionStoppedReason } from "../lib/content-collection";
+import { ownedThumbnailKey, THUMBNAIL_MAX_BYTES } from "../lib/content-thumbnail";
 
 type Snap = typeof metricSnapshots.$inferSelect;
 export type PerfRow = {
@@ -31,6 +33,10 @@ export type PerfRow = {
   snapshots: Partial<Record<OffsetH, Pick<Snap, "status" | "scheduledAt" | "capturedAt" | "path" | "views" | "likes" | "saved" | "shares" | "comments" | "missing" | "delayed">>>;
   clicks: number;
   leads: number;
+  thumbnailUrl: string | null;
+  thumbnailFetchedAt: number | null;
+  collectionEndsAt: number | null;
+  collectionStoppedReason: CollectionStoppedReason | null;
 };
 
 const filterSchema = z.object({ guideId: z.string().optional(), influencerId: z.string().optional(), format: z.string().optional() });
@@ -41,12 +47,13 @@ type Totals = Map<string, { clicks: number; leads: number }>;
 const IN_CHUNK = 90;
 const pairKey = (guideId: string | null, influencerId: string | null) => `${guideId}|${influencerId}`;
 
-function contentRows(db: Db, workspaceId: string, f: Filter) {
-  return db
-    .select({ c: contents, guideName: guides.name, influencerName: influencers.displayName, igHandle: influencers.igHandle })
+function contentRows(db: Db, workspaceId: string, f: Filter, maxRows?: number) {
+  const query = db
+    .select({ c: contents, guideName: guides.name, influencerName: influencers.displayName, igHandle: influencers.igHandle, campaignStatus: campaigns.status, campaignEndsAt: campaigns.endsAt })
     .from(contents)
     .innerJoin(guides, eq(guides.id, contents.guideId))
     .innerJoin(influencers, eq(influencers.id, contents.influencerId))
+    .leftJoin(campaigns, and(eq(campaigns.id, guides.campaignId), eq(campaigns.workspaceId, guides.workspaceId)))
     .where(
       and(
         eq(guides.workspaceId, workspaceId),
@@ -57,6 +64,7 @@ function contentRows(db: Db, workspaceId: string, f: Filter) {
       ),
     )
     .orderBy(asc(contents.registeredAt));
+  return maxRows === undefined ? query : query.limit(maxRows + 1);
 }
 
 async function snapshotsOf(db: Db, ids: string[]) {
@@ -103,14 +111,16 @@ function snapshotCells(mine: Snap[]) {
   return snapshots;
 }
 
-export async function performanceRows(db: Db, workspaceId: string, f: Filter): Promise<PerfRow[]> {
-  const rows = await contentRows(db, workspaceId, f);
+export async function performanceRows(db: Db, workspaceId: string, f: Filter, maxRows?: number): Promise<PerfRow[]> {
+  const rows = await contentRows(db, workspaceId, f, maxRows);
+  if (maxRows !== undefined && rows.length > maxRows) throw new ApiError(413, "export_too_many_rows", `필터를 좁혀 ${maxRows}행 이하로 내보내 주세요.`);
   if (rows.length === 0) return [];
   const snaps = await snapshotsOf(db, rows.map((r) => r.c.id));
   const totals = await linkTotals(db, workspaceId);
   const connected = await connectedInfluencers(db, workspaceId);
-  return rows.map(({ c, guideName, influencerName, igHandle }) => {
+  return rows.map(({ c, guideName, influencerName, igHandle, campaignStatus, campaignEndsAt }) => {
     const sum = totals.get(pairKey(c.guideId, c.influencerId));
+    const state = collectionState(campaignStatus ? { status: campaignStatus, endsAt: campaignEndsAt } : null);
     return {
       contentId: c.id,
       guideId: c.guideId,
@@ -127,6 +137,10 @@ export async function performanceRows(db: Db, workspaceId: string, f: Filter): P
       snapshots: snapshotCells(snaps.filter((s) => s.contentId === c.id)),
       clicks: sum?.clicks ?? 0,
       leads: sum?.leads ?? 0,
+      thumbnailUrl: c.thumbnailKey && ownedThumbnailKey(c.thumbnailKey, workspaceId, c.id) ? `/api/performance/contents/${encodeURIComponent(c.id)}/thumbnail` : null,
+      thumbnailFetchedAt: c.thumbnailFetchedAt,
+      collectionEndsAt: state.endsAt,
+      collectionStoppedReason: state.stoppedReason,
     };
   });
 }
@@ -139,7 +153,7 @@ function cellReason(s: PerfRow["snapshots"][OffsetH], metric: string): MissingRe
 
 const iso = (t: number | null) => (t ? new Date(t).toISOString() : "");
 
-export function performanceCsv(rows: PerfRow[]): string {
+export function performanceCells(rows: PerfRow[]): (string | number)[][] {
   const head = ["가이드", "인플루언서", "인스타그램", "형식", "게시물 URL", "게시 시각", "게시 시각 출처"];
   for (const o of SNAPSHOT_OFFSETS) {
     head.push(`${OFFSET_LABELS[o]} 조회 시각`, `${OFFSET_LABELS[o]} 수집 경로`);
@@ -154,12 +168,24 @@ export function performanceCsv(rows: PerfRow[]): string {
       for (const m of MAIN_METRICS) line.push(s?.[m] ?? "", cellReason(s, m));
     }
     line.push(r.clicks, r.leads);
-    return line.map(String);
+    return line;
   });
-  return toCsv([head, ...body]);
+  return [head, ...body];
 }
 
+export const performanceCsv = (rows: PerfRow[]): string => toCsv(performanceCells(rows));
+
 export const performanceRoutes = new Hono<AppEnv>()
+  .get("/contents/:id/thumbnail", async (c) => {
+    const { workspace } = workspaceCtx(c);
+    const current = await collectionContent(c.var.db, c.req.param("id"));
+    if (!current || current.workspaceId !== workspace.id || !current.content.thumbnailKey || !ownedThumbnailKey(current.content.thumbnailKey, workspace.id, current.content.id))
+      throw new ApiError(404, "thumbnail_not_found", "썸네일을 찾을 수 없어요.");
+    const object = await c.env.FILES.get(current.content.thumbnailKey);
+    const type = object?.httpMetadata?.contentType ?? "";
+    if (!object || object.size > THUMBNAIL_MAX_BYTES || !/^image\/(jpeg|png|webp|gif)$/.test(type)) throw new ApiError(404, "thumbnail_not_found", "썸네일을 찾을 수 없어요.");
+    return new Response(object.body, { headers: { "Content-Type": type, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+  })
   .get("/", async (c) => {
     const { workspace } = workspaceCtx(c);
     const f = parse(filterSchema, c.req.query());
@@ -175,19 +201,27 @@ export const performanceRoutes = new Hono<AppEnv>()
     await logEvent(c.var.db, workspace.id, "performance_exported", { format: "csv" });
     return csvResponse(performanceCsv(rows), "performance.csv");
   })
+  .post("/contents/:id/retry", editorsOnly, async (c) => {
+    const { workspace } = workspaceCtx(c);
+    const current = await collectionContent(c.var.db, c.req.param("id"));
+    if (!current || current.workspaceId !== workspace.id) throw new ApiError(404, "content_not_found", "게시물을 찾을 수 없어요.");
+    if (current.state.stoppedReason) throw new ApiError(409, "collection_stopped", "수집이 종료됐거나 캠페인 종료 시각 확인이 필요해요.");
+    await scheduleSnapshots(c.var.db, c.env, current.content.id, { retry: true, expectedRevision: current.content.collectionRevision });
+    const due = await c.var.db.select({ id: metricSnapshots.id }).from(metricSnapshots)
+      .where(and(eq(metricSnapshots.contentId, current.content.id), eq(metricSnapshots.status, "scheduled"), sql`${metricSnapshots.scheduledAt}<=${Date.now()}`, collectionAllowed(current.content, workspace.id))).limit(3);
+    if (due.length) await c.env.PIPELINE.sendBatch(due.map((item) => ({ body: { type: "collect_snapshot", payload: { snapshotId: item.id } } })));
+    return c.json({ ok: true, queued: due.length });
+  })
   // 게시 시각을 못 읽었을 때 브랜드가 직접 입력 (F-48 '수동' 표시). 스냅샷을 다시 계산한다
   .patch("/contents/:id/posted-at", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);
     const { postedAt } = parse(z.object({ postedAt: z.number().int().positive() }), await c.req.json());
     if (postedAt > Date.now() + 60_000) throw new ApiError(400, "future_time", "게시 시각은 지금보다 늦을 수 없어요.");
-    const row = await c.var.db
-      .select({ id: contents.id })
-      .from(contents)
-      .innerJoin(guides, eq(guides.id, contents.guideId))
-      .where(and(eq(contents.id, c.req.param("id")), eq(guides.workspaceId, workspace.id)))
-      .get();
-    if (!row) throw new ApiError(404, "content_not_found", "게시물을 찾을 수 없어요.");
-    await c.var.db.update(contents).set({ postedAt, postedAtSource: "manual" }).where(eq(contents.id, row.id));
-    await scheduleSnapshots(c.var.db, c.env, row.id);
+    const row = await collectionContent(c.var.db, c.req.param("id"));
+    if (!row || row.workspaceId !== workspace.id) throw new ApiError(404, "content_not_found", "게시물을 찾을 수 없어요.");
+    if (row.state.stoppedReason) throw new ApiError(409, "collection_stopped", "수집이 종료됐거나 캠페인 종료 시각 확인이 필요해요.");
+    const changed = await c.var.db.update(contents).set({ postedAt, postedAtSource: "manual" }).where(and(eq(contents.id, row.content.id), collectionAllowed(row.content, workspace.id))).returning({ id: contents.id });
+    if (!changed.length) throw new ApiError(409, "content_changed", "게시물이나 캠페인이 바뀌었어요. 새로고침해 주세요.");
+    await scheduleSnapshots(c.var.db, c.env, row.content.id, { expectedRevision: row.content.collectionRevision });
     return c.json({ ok: true });
   });

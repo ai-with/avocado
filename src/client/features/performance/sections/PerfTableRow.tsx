@@ -2,6 +2,7 @@ import { Badge } from "../../../ui";
 import { fmtDateTime } from "../../guides/types";
 import { FORMAT_LABELS, MAIN_METRICS, REASON_LABELS, SNAPSHOT_OFFSETS, type SnapshotPath } from "../../../../shared/performance";
 import type { PerfRow, Snap } from "../perfTypes";
+import { ContentThumbnail } from "./ContentThumbnail";
 
 const PATH_LABELS: Record<SnapshotPath, string> = { connected: "연결", discovery: "미연결" };
 
@@ -38,18 +39,23 @@ function PathCell({ r }: { r: PerfRow }) {
       {paths.size === 0 ? <span className="text-caption">{r.connected ? "연결" : "미연결"}</span> : [...paths].map((p) => <Badge key={p} tone={p === "connected" ? "success" : "neutral"}>{PATH_LABELS[p]}</Badge>)}
       {paths.size > 1 && <div className="text-caption">경로 바뀜</div>}
       {SNAPSHOT_OFFSETS.some((o) => r.snapshots[o]?.delayed) && <div className="text-caption">지연 수집 있음</div>}
+      {r.collectionStoppedReason && <div className="perf-collection-note"><Badge tone="warn">수집 중지</Badge><div className="text-caption">{r.collectionStoppedReason === "campaign_ended" ? "캠페인 종료 후 7일이 지났어요." : r.collectionStoppedReason === "campaign_end_unknown" ? "캠페인 종료 시각을 확인해 주세요." : "연결된 캠페인을 확인해 주세요."}</div></div>}
+      {!r.collectionStoppedReason && r.collectionEndsAt !== null && <div className="text-caption">{fmtDateTime(r.collectionEndsAt)} 수집 종료</div>}
     </td>
   );
 }
 
 // 게시물 한 줄. onEdit 이 있으면(편집 권한) 게시 시각 입력 버튼을 보인다
-export function PerfTableRow({ r, showGuide, onEdit }: { r: PerfRow; showGuide: boolean; onEdit?: () => void }) {
+export function PerfTableRow({ r, showGuide, onEdit, onRetry, retrying }: { r: PerfRow; showGuide: boolean; onEdit?: () => void; onRetry?: () => void; retrying?: boolean }) {
   return (
     <tr>
       <td>
-        <div>{r.influencerName}</div>
-        <a className="text-caption" href={r.url} target="_blank" rel="noreferrer">게시물 보기</a>
-        {showGuide && <div className="text-caption">{r.guideName}</div>}
+        <div className="row">
+          <ContentThumbnail src={r.thumbnailUrl} fetchedAt={r.thumbnailFetchedAt} />
+          <div><div>{r.influencerName}</div><a className="text-caption" href={r.url} target="_blank" rel="noreferrer">게시물 보기</a>{showGuide && <div className="text-caption">{r.guideName}</div>}
+            {onRetry && <div><button type="button" className="link-button text-caption" onClick={onRetry} disabled={retrying || Boolean(r.collectionStoppedReason)}>{retrying ? "수집 예약 중" : "다시 수집"}</button></div>}
+          </div>
+        </div>
       </td>
       <td>{FORMAT_LABELS[r.format]}</td>
       <PostedAtCell r={r} onEdit={onEdit} />

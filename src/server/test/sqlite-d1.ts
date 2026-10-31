@@ -35,31 +35,46 @@ export async function createSqliteD1(options: { migrateThrough?: number } = {}) 
   const db = new sqlite.DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   for (const file of fs.readdirSync("migrations").filter((f) => f.endsWith(".sql") && Number(f.slice(0, 4)) <= (options.migrateThrough ?? Infinity)).sort()) db.exec(fs.readFileSync(`migrations/${file}`, "utf8"));
+  let serial = Promise.resolve();
+  const atomic = <T>(work: () => T): Promise<T> => {
+    const next = serial.then(work);
+    serial = next.then(() => {}, () => {});
+    return next;
+  };
+  const prepared = Symbol("test-d1-statement");
+  type StatementData = { sql: string; params: SqlValue[] };
+  const execute = ({ sql, params }: StatementData) => {
+    const results = db.prepare(sql).all(...params);
+    const changes = Number(db.prepare("SELECT changes() AS n").all()[0]?.n ?? 0);
+    return { success: true, results, meta: { changes } };
+  };
   const prepare = (sql: string, params: SqlValue[] = []): unknown => {
-    const all = async () => {
-      const results = db.prepare(sql).all(...params);
-      const changes = Number(db.prepare("SELECT changes() AS n").all()[0]?.n ?? 0);
-      return { success: true, results, meta: { changes } };
-    };
+    const statement = { sql, params };
+    const all = () => atomic(() => execute(statement));
     return {
+      [prepared]: statement,
       bind: (...values: SqlValue[]) => prepare(sql, values),
       run: all,
       all,
       first: async (column?: string) => { const row = (await all()).results[0]; return column ? row?.[column] ?? null : row ?? null; },
-      raw: async () => db.prepare(arraySql(sql)).all(...params).map((row) => Object.values(row)),
+      raw: () => atomic(() => db.prepare(arraySql(sql)).all(...params).map((row) => Object.values(row))),
     };
   };
   const d1 = {
     prepare,
-    batch: async (statements: { run(): Promise<unknown> }[]) => {
+    // 실제 D1처럼 API 호출을 직렬화하고 batch 중에는 다른 문장이 끼어들지 않는다.
+    batch: (statements: D1PreparedStatement[]) => atomic(() => {
       db.exec("BEGIN");
       try {
-        const results = [];
-        for (const statement of statements) results.push(await statement.run());
+        const results = statements.map((statement) => {
+          const data = Reflect.get(statement, prepared) as StatementData | undefined;
+          if (!data) throw new Error("test_d1_statement_unknown");
+          return execute(data);
+        });
         db.exec("COMMIT");
         return results;
       } catch (error) { db.exec("ROLLBACK"); throw error; }
-    },
+    }),
   } as unknown as D1Database;
   return { db, sqlite: db, d1, close: () => db.close() };
 }

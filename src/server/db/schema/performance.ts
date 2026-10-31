@@ -35,6 +35,8 @@ export const metricSnapshots = sqliteTable(
     contentId: text("content_id").notNull(),
     offsetH: integer("offset_h").$type<OffsetH>().notNull(),
     scheduledAt: integer("scheduled_at").notNull(),
+    collectionToken: text("collection_token"),
+    collectionStartedAt: integer("collection_started_at"),
     capturedAt: integer("captured_at"),
     path: text("path").$type<SnapshotPath>(),
     views: integer("views"),

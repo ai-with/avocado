@@ -48,7 +48,7 @@ export const campaignInsert = (db: Db, v: { id: string; workspaceId: string; bra
 export async function campaignOf(db: Db, campaignId: string | null) {
   if (!campaignId) return null;
   const row = await db
-    .select({ id: campaigns.id, name: campaigns.name, status: campaigns.status, brandId: campaigns.brandId, brandName: brands.name })
+    .select({ id: campaigns.id, name: campaigns.name, status: campaigns.status, brandId: campaigns.brandId, brandName: brands.name, endsAt: campaigns.endsAt, archivedAt: campaigns.archivedAt })
     .from(campaigns)
     .innerJoin(brands, eq(brands.id, campaigns.brandId))
     .where(eq(campaigns.id, campaignId))

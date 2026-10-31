@@ -27,6 +27,10 @@ export type PerfRow = {
   postedAtSource: "api" | "manual" | null;
   registeredAt: number;
   connected: boolean;
+  thumbnailUrl: string | null;
+  thumbnailFetchedAt: number | null;
+  collectionEndsAt: number | null;
+  collectionStoppedReason: "campaign_ended" | "campaign_end_unknown" | "campaign_missing" | null;
   snapshots: Partial<Record<OffsetH, Snap>>;
   clicks: number;
   leads: number;

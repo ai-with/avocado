@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Button, LoadingState, PageHeader, Tabs, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
-import type { GuideResponse } from "./types";
+import { fmtDateTime, type GuideResponse } from "./types";
 import { GuideUrlSection } from "./sections/GuideUrlSection";
 import { InfluencersTab } from "./sections/InfluencersTab";
 import { EditCampaignModal } from "./sections/EditCampaignModal";
@@ -70,7 +70,7 @@ export function GuideDetailPage() {
   const { me } = useMe();
   const canEdit = me?.role === "owner" || me?.role === "editor";
   const { data, load, publish, toggleArchive, sendOpen, closeSend } = useGuideDetail(id);
-  const [editOpen, setEditOpen] = useState(false);
+  const [editMode, setEditMode] = useState<"info" | "archive" | null>(null);
   const { tab, setTab, addRequest, startEmail } = useDetailTabs(closeSend);
   if (!data) return <LoadingState pattern="detail" />;
   const { guide, campaign } = data;
@@ -78,8 +78,8 @@ export function GuideDetailPage() {
   const archived = campaign?.status === "archived";
   const actions = canEdit && (
     <>
-      {campaign && <Button variant="secondary" onClick={() => setEditOpen(true)}>캠페인 정보 수정</Button>}
-      {campaign && <Button variant="secondary" onClick={() => void toggleArchive()}>{archived ? "다시 열기" : "보관하기"}</Button>}
+      {campaign && <Button variant="secondary" onClick={() => setEditMode("info")}>캠페인 정보 수정</Button>}
+      {campaign && <Button variant="secondary" onClick={() => { if (!archived && campaign.endsAt === null) setEditMode("archive"); else void toggleArchive(); }}>{archived ? "다시 열기" : "보관하기"}</Button>}
       {!published && <Button onClick={() => void publish()}>공개하기</Button>}
     </>
   );
@@ -88,6 +88,7 @@ export function GuideDetailPage() {
   return (
     <>
       <PageHeader title={campaign?.name ?? guide.name} description={description} actions={actions} back={BACK} />
+      {campaign && <p className="text-caption">{campaign.endsAt !== null ? `캠페인 종료: ${fmtDateTime(campaign.endsAt)} · 성과는 종료 후 7일까지 수집해요.` : archived ? "캠페인 종료 시각이 없어 성과 수집을 멈춘 상태예요. 캠페인 정보에서 종료 시각을 입력해 주세요." : "캠페인 종료 시각을 지정하면 그 시각으로부터 7일 뒤 성과 수집을 멈춰요."}</p>}
       <div className="stack-loose">
         <GuideUrlSection data={data} editTo={canEdit ? `/dashboard/campaigns/${id}/edit` : undefined} />
         <div>
@@ -99,7 +100,7 @@ export function GuideDetailPage() {
           {tab === "leads" && <GuideLeadsTab guideId={id} />}
         </div>
       </div>
-      {editOpen && campaign && <EditCampaignModal campaign={campaign} onSaved={load} onClose={() => setEditOpen(false)} />}
+      {editMode && campaign && <EditCampaignModal campaign={campaign} archiveOnSave={editMode === "archive"} onSaved={load} onClose={() => setEditMode(null)} />}
       {sendOpen && <SendGuideModal data={data} onEmail={startEmail} onClose={closeSend} />}
     </>
   );

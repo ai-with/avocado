@@ -37,18 +37,25 @@ describe("개인정보 Queue 실행", () => {
     db.exec("INSERT INTO workspaces(id,name,created_at) VALUES('w','team',1)");
     db.prepare("INSERT INTO leads(id,workspace_id,email,answers,unsubscribe_token,first_source,last_source,created_at,deleted_at) VALUES('old','w','old@example.com','{}','old','{}','{}',1,?)").run(NOW - 7 * 86_400_000);
     expect((await scheduled(env)).every((result) => result.status === "fulfilled")).toBe(true);
-    expect(sendBatch).toHaveBeenCalledTimes(1);
-    expect(messages.map((message) => message.body)).toEqual(["leads", "sites", "media"].map((kind) => ({ type: "privacy_purge", payload: { kind, scheduledTime: NOW, cron: controller.cron } })));
+    expect(sendBatch.mock.calls.filter(([batch]) => [...batch].some((message) => message.body.type === "privacy_purge"))).toHaveLength(1);
+    const privacy = messages.filter((message) => message.body.type === "privacy_purge");
+    expect(privacy.map((message) => message.body)).toEqual(["leads", "sites", "media"].map((kind) => ({ type: "privacy_purge", payload: { kind, scheduledTime: NOW, cron: controller.cron } })));
+    expect(messages.filter((message) => message.body.type === "cleanup_google_sheets")).toHaveLength(1);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
     expect(counted.getCalls()).toBe(10); // 기존 조회 7회 + 03시 인증 정리 2회 + NULL 해시 보완 1회
     const expectedCalls = [5, 4, 4];
-    for (const [i, message] of messages.entries()) {
+    for (const [i, message] of privacy.entries()) {
       counted.reset();
       const result = await queued(env, message.body);
       expect(result.ack).toHaveBeenCalledTimes(1);
       expect(result.retry).not.toHaveBeenCalled();
       expect(counted.getCalls()).toBe(expectedCalls[i]);
     }
+    counted.reset();
+    const cleanup = await queued(env, { type: "cleanup_google_sheets", payload: {} });
+    expect(cleanup.ack).toHaveBeenCalledTimes(1);
+    expect(cleanup.retry).not.toHaveBeenCalled();
+    expect(counted.getCalls()).toBe(1);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(0);
     expect(db.prepare("SELECT count(*) AS n FROM events WHERE name IN ('lead_privacy_cleanup_completed','site_privacy_cleanup_completed','media_purge_run')").all()[0]?.n).toBe(3);
   });
@@ -59,9 +66,10 @@ describe("개인정보 Queue 실행", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     sendBatch.mockRejectedValueOnce(new Error("queue unavailable"));
     expect((await scheduled(env)).some((result) => result.status === "rejected")).toBe(true);
-    expect(messages).toHaveLength(0);
+    expect(messages.filter((message) => message.body.type === "privacy_purge")).toHaveLength(0);
     expect((await scheduled(env)).every((result) => result.status === "fulfilled")).toBe(true);
-    expect(messages).toHaveLength(3);
+    expect(messages.filter((message) => message.body.type === "privacy_purge")).toHaveLength(3);
+    expect(messages.filter((message) => message.body.type === "cleanup_google_sheets")).toHaveLength(2);
   });
 
   it("실행 실패는 ack하지 않고 기존 consumer가 retry하며 같은 메시지로 복구한다", async () => {

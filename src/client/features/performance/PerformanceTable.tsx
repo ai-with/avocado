@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { EmptyState, LoadingState, Table, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
@@ -14,7 +15,8 @@ export type { PerfRow } from "./perfTypes";
 function usePerformance(guideId: string | undefined) {
   const [rows, setRows] = useState<PerfRow[] | null>(null);
   const [filters, setFilters] = useState<Filters>({ guides: [], influencers: [] });
-  const [f, setF] = useState<PerfQuery>({ guideId: guideId ?? "", influencerId: "", format: "" });
+  const [params] = useSearchParams();
+  const [f, setF] = useState<PerfQuery>(() => ({ guideId: guideId ?? params.get("guideId") ?? "", influencerId: params.get("influencerId") ?? "", format: params.get("format") ?? "" }));
   const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
   const load = useCallback(async () => {
     const d = await api.get<{ rows: PerfRow[]; filters: Filters }>(`/performance${qs ? `?${qs}` : ""}`);
@@ -29,7 +31,7 @@ function PerfTableHead() {
   return (
     <thead>
       <tr>
-        <th rowSpan={2}>인플루언서</th>
+        <th rowSpan={2}>게시물 · 인플루언서</th>
         <th rowSpan={2}>형식</th>
         <th rowSpan={2}>게시 시각</th>
         {SNAPSHOT_OFFSETS.map((o) => <th key={o} colSpan={4} className="perf-group">{OFFSET_LABELS[o]}{o === 24 && <span className="text-caption"> (조회 시각 값)</span>}</th>)}
@@ -49,7 +51,15 @@ export function PerformanceTable({ guideId }: { guideId?: string }) {
   const canEdit = me?.role === "owner" || me?.role === "editor";
   const { rows, filters, f, setF, qs, load } = usePerformance(guideId);
   const [editing, setEditing] = useState<PerfRow | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const onSaved = async () => { setEditing(null); toast("게시 시각을 저장하고 스냅샷을 다시 예약했어요.", "success"); await load(); };
+  const retry = async (row: PerfRow) => {
+    if (retrying) return;
+    setRetrying(row.contentId);
+    try { await api.post(`/performance/contents/${encodeURIComponent(row.contentId)}/retry`); toast("성과 수집을 예약했어요.", "success"); await load(); }
+    catch (cause) { toast(errorMessage(cause), "danger"); }
+    finally { setRetrying(null); }
+  };
 
   return (
     <div className="stack">
@@ -61,7 +71,7 @@ export function PerformanceTable({ guideId }: { guideId?: string }) {
         <Table className="perf-table">
           <PerfTableHead />
           <tbody>
-            {rows.map((r) => <PerfTableRow key={r.contentId} r={r} showGuide={!guideId} onEdit={canEdit ? () => setEditing(r) : undefined} />)}
+            {rows.map((r) => <PerfTableRow key={r.contentId} r={r} showGuide={!guideId} onEdit={canEdit ? () => setEditing(r) : undefined} onRetry={canEdit ? () => void retry(r) : undefined} retrying={retrying === r.contentId} />)}
           </tbody>
         </Table>
       )}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import type { GroupRules } from "../../../shared/leads";
@@ -15,7 +16,8 @@ export function useLeads() {
   const [leads, setLeads] = useState<LeadRow[] | null>(null);
   const [lk, setLk] = useState<Lookups>(EMPTY_LOOKUPS);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [params] = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() => Object.fromEntries(Object.keys(NO_FILTERS).map((key) => [key, params.get(key) ?? ""])) as Filters);
 
   const query = useMemo(() => new URLSearchParams(Object.entries(filters).filter(([, v]) => v)).toString(), [filters]);
   const load = useCallback(async () => {

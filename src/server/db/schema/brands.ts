@@ -31,6 +31,9 @@ export const campaigns = sqliteTable(
     brandId: text("brand_id").notNull().references(() => brands.id),
     name: text("name").notNull(),
     status: text("status").$type<CampaignStatus>().notNull().default("active"),
+    // 성과 수집 종료 기준. 업로드 마감과 별도로 사용자가 지정한다.
+    endsAt: integer("ends_at"),
+    archivedAt: integer("archived_at"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

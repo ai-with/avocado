@@ -303,7 +303,8 @@ describe("동의 철회 미디어 파기", () => {
     await worker.scheduled({ scheduledTime: at, cron: "*/15 * * * *", noRetry() {} }, env, { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } } as unknown as ExecutionContext);
     await Promise.all(pending);
     expect(counted.getCalls()).toBe(9); // 03:00 KST의 기존 빈 태스크만 실행되고 개인정보 D1은 소비하지 않는다.
-    expect(enqueued).toHaveLength(3);
+    expect(enqueued.filter((message) => message.type === "privacy_purge")).toHaveLength(3);
+    expect(enqueued.filter((message) => message.type === "cleanup_google_sheets")).toHaveLength(1);
     if (failCommit) db.exec("CREATE TRIGGER fail_purge_commit BEFORE UPDATE OF media_purged_at ON submissions BEGIN SELECT RAISE(ABORT,'test'); END");
     const list = vi.spyOn(r2, "list"), remove = vi.spyOn(r2, "delete"), multipart = vi.spyOn(r2, "resumeMultipartUpload");
     const ack = vi.fn(), retry = vi.fn();

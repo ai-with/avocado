@@ -6,6 +6,7 @@ import { HelpHeader } from "../links/HelpHeader";
 import { LeadDrawer, LeadsTable } from "./common";
 import { EMPTY_LOOKUPS, type LeadRow, type Lookups } from "./types";
 import "./leads.css";
+import { SheetsExportControl } from "../google-sheets/SheetsExportControl";
 
 type FunnelRow = DocumentViewStats & {
   influencerId: string | null;
@@ -51,7 +52,7 @@ export function GuideLeadsTab({ guideId }: { guideId: string }) {
         )}
       </section>
       <section className="stack">
-        <h4>이 가이드로 들어온 리드</h4>
+        <div className="row row-between row-wrap"><h4>이 가이드로 들어온 리드</h4><SheetsExportControl kind="leads" query={new URLSearchParams({ guideId }).toString()} /></div>
         <GuideLeadList leads={leads} lk={lk} onOpen={setDrawer} />
       </section>
       {drawer && <LeadDrawer id={drawer} lk={lk} onClose={() => setDrawer(null)} onChanged={() => void load()} />}

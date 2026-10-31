@@ -10,12 +10,12 @@ export class ApiError extends Error {
 }
 
 type ErrorBody = { error?: { code?: string; message?: string; fields?: Record<string, string> } };
-type Options = { redirectOn401?: boolean };
+type Options = { redirectOn401?: boolean; headers?: Record<string, string> };
 
 async function request<T>(method: string, path: string, body?: unknown, opts: Options = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined && !opts.headers ? undefined : { ...(body !== undefined && { "Content-Type": "application/json" }), ...opts.headers },
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "same-origin",
   });

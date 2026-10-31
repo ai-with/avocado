@@ -110,10 +110,10 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 | `SMS_PROVIDER` | `solapi`로 두면 문자 발송 | 문자 미발송. 운영에서는 인증번호를 받을 수 없어 가입이 막힌다 (필수) |
 | `SOLAPI_API_KEY`, `SOLAPI_API_SECRET` | Solapi 인증 | 위와 같음 |
 | `SMS_FROM` | Solapi에 등록한 발신 번호 | 위와 같음 |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 구글 로그인 (둘 다 있어야 켜짐) | 로그인·가입 화면의 구글 버튼이 "준비 중"으로 비활성 |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 구글 로그인 및 별도 Google Sheets 추가 동의 (둘 다 필요) | 로그인·가입과 시트 연결이 준비 중으로 표시됨 |
 | `META_APP_ID`, `META_APP_SECRET` | 인스타그램 연결 OAuth, 웹훅 서명 검증 (필수) | 인스타그램 연결, 키워드 DM이 "연결 준비 중" |
 | `META_VERIFY_TOKEN` | 웹훅 등록 확인용 임의 문자열 (필수) | 웹훅 등록 불가 |
-| `TOKEN_ENC_KEY` | 인스타그램 토큰 암호화 키, 32바이트 이상 임의 문자열 (필수, 바꾸면 기존 연결이 모두 끊김) | 인스타그램 연결 꺼짐 |
+| `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰과 임시 내보내기 자료 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램과 시트 연결 꺼짐 |
 | `CF_API_TOKEN_AE` | Analytics Engine SQL API 조회용 토큰 (선택, 아직 읽는 화면 없음) | 영향 없음. 사이트 분석 화면은 D1 집계만 쓴다 |
 | `IG_SYSTEM_TOKEN`, `IG_SYSTEM_USER_ID` | 연결하지 않은 인플루언서 게시물 지표(business_discovery)를 읽을 운영 계정 (선택) | 미연결 게시물은 게시 시각을 못 읽어 등록 시각 기준으로 예약 |
 
@@ -162,6 +162,45 @@ R2 multipart 생성 직후 Worker가 종료되어 `upload_id`를 저장하지 �
 각 정리 결과는 개인정보 없이 Workers 로그와 `events`에 기록한다. 오류나 배치 상한으로 남은 기한 초과 작업을 확인해야 한다. Queue에 넣기 실패하면 Cron이 실패하고, 실행 실패하면 기존 Queue consumer가 오류를 기록하고 메시지를 재시도한다. 재시도 한도를 지나도 다음 15분 Cron이 영속 작업을 다시 확인하게 한다. Queue 지연·실패도 감시해야 한다. `media_purges.last_error`, `completed_at`, `next_attempt_at`과 미확인 multipart 원장도 함께 점검한다. 정상 캠페인의 원본 90일·전사 및 피드백 1년 보존 정책 자동 정리는 이번 철회 파기 범위에 포함되지 않는다.
 
 **Analytics Engine 제한:** `avc_events`의 기존 원본은 Cloudflare가 [3개월 보관](https://developers.cloudflare.com/analytics/analytics-engine/limits/)하며, 공개 [SQL API는 DELETE를 지원하지 않는다](https://developers.cloudflare.com/analytics/sql-api/sql-reference/). 사이트 삭제 후 30일에 이 원본까지 물리 파기했다고 보장할 수 없다. D1 삭제나 조회 제외는 AE 원본 삭제를 대신하지 않는다. 별도 저장소·정책 결정 또는 Cloudflare 지원 확인 전까지 AIWITH-357의 이 조건과 부모 AIWITH-283은 미해결이다.
+
+## 성과 수집과 Google Sheets 내보내기
+
+`0025_performance_exports.sql`을 적용하고 배포한다. 기존 캠페인의 종료·보관 시각은 업로드 마감이나 `updated_at`으로 추정하지 않는다.
+
+### 캠페인 종료와 썸네일
+
+캠페인 정보의 **캠페인 종료 시각**(`ends_at`)은 영상 업로드 마감과 별개다. 그 시각으로부터 7일이 되는 순간부터 Cron·수동 재수집·진행 중 결과 저장을 막는다. 진행 중 캠페인에 종료 시각이 없으면 계속 수집하며, 과거 보관 캠페인에 종료 시각이 없으면 보수적으로 수집을 중지하고 입력 안내를 표시한다. 새 보관은 명시한 종료 시각이 필요하고, 실제 보관 전이는 서버의 `archived_at`에 기록한다. 보관 시각을 종료일로 대신 쓰지 않는다.
+
+성과 Cron은 예약 스냅샷을 기존 PIPELINE Queue에 넣고, `max_batch_size=1` 소비자가 한 건씩 수집한다. 중복 메시지는 lease로 선점하며 URL 교체는 `collection_revision`으로 구분한다. 오래된 URL 등록 hook이나 늦은 Meta·R2 응답이 새 세대의 예약·이미지·성과를 덮지 않도록 최종 SQL에서도 현재 세대와 수집 기한을 확인한다. 성과표의 기존 클릭·리드는 유지하며 썸네일과 수집 중지 사유를 같은 행에 표시한다.
+
+썸네일은 HTTPS의 Instagram/Meta CDN 주소만 허용하고, 모든 이미지를 R2 사본으로 보관해 CDN 만료와 분리한다. 다운로드는 총 8초, 2MiB, 리디렉션 2회까지이며 각 경유 주소와 PNG/JPEG/WebP/GIF 선언·시그니처를 확인한다. 읽기는 인증된 워크스페이스와 정확한 키 범위를 확인한 앱 API로만 제공한다.
+
+R2 put 전에 FK cascade가 없는 `content_thumbnail_objects`에 키·워크스페이스·콘텐츠를 기록한다. 삭제·응답 손실로 남은 사본은 쓰기 시작 후 30분이 지나면 기존 Queue의 별도 정리가 한 번에 최대 100개씩 현재 참조 여부를 확인하고 원자적으로 retire한 다음 파기한다. 명시적인 URL 교체의 옛 사본 보상은 즉시 수행한다. 실패와 늦은 put을 회수하도록 원장·완료 표시를 남기며, 현재 사용 중인 키는 보호한다. soft 삭제된 콘텐츠의 참조도 정리하고, 새 클라우드 리소스는 만들지 않는다.
+
+Meta 필드 계약은 공식 SDK의 고정 버전 [v26 설정](https://github.com/facebook/facebook-python-business-sdk/blob/efd8423a2e595ea8d4c04eb824ce113f2f1d68cd/facebook_business/apiconfig.py)과 [IGMedia 필드](https://github.com/facebook/facebook-python-business-sdk/blob/efd8423a2e595ea8d4c04eb824ce113f2f1d68cd/facebook_business/adobjects/igmedia.py), [Meta 공식 Instagram Login 문서](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api#instagram-api-with-instagram-login)를 기준으로 확인했다. 기존 권한 요청은 유지한다. 실계정별 endpoint·권한 승인과 실제 CDN 응답은 별도 운영 QA 대상이다.
+
+### Google Cloud 설정
+
+앱 자체 OAuth 클라이언트를 사용한다. ChatGPT Drive 연결의 자격증명은 제품에 사용하지 않는다. 기존 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENC_KEY`를 유지하고, 해당 Google Cloud 프로젝트에서 **Google Sheets API와 Google Drive API**를 활성화한다. OAuth 클라이언트의 승인된 리디렉션 URI에는 기존 로그인 콜백과 다음 추가 콜백을 각각 등록한다.
+
+```text
+${APP_URL}/api/auth/google/callback
+${APP_URL}/api/google-sheets/callback
+```
+
+시트 연결은 일반 로그인과 별도인 추가 동의이며 `https://www.googleapis.com/auth/drive.file`만 요청한다. [시트 생성](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/create), [값 저장](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.values/update), [연결된 계정 표시](https://developers.google.com/workspace/drive/api/reference/rest/v3/about/get)에 이 범위를 사용한다. 기존 로그인의 `openid` 범위를 전체 Drive 권한으로 넓히지 않는다. state는 현재 사용자·세션·연결 세대·일회용 nonce·PKCE·10분 만료에 묶으며, 토큰은 기존 암호화 키로 저장한다.
+
+성과표·리드의 **구글 시트 내보내기**에서 연결된 Google 계정을 확인하고 명시적으로 시트 만들기를 누른다. 연결만으로 자료를 자동 전송하지 않는다. 사용자가 확인한 연결 세대가 달라지면 전송을 거절한다. 파일은 해당 계정 Drive의 기본 비공개 새 파일이며 앱이 공유 권한을 추가하지 않는다. 값은 `RAW`로 기록해 `=...` 같은 사용자 입력이 수식으로 실행되지 않게 한다.
+
+연결 해제는 앱에 저장한 토큰을 파기한다. Google의 revoke는 [같은 프로젝트의 OAuth 범위에 함께 영향을 줄 수 있으므로](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke) 일반 로그인을 보존하기 위해 여기서 자동 호출하지 않는다. Google 쪽 권한까지 제거하려면 Google 계정의 연결 관리에서 확인한다.
+
+### 내보내기 한도와 재시도
+
+CSV와 같은 워크스페이스·권한·필터의 행을 재사용한다. 선택 결과는 최대 1,000행, 셀은 50,000자, 암호화 전 자료는 512KiB까지다. 행 선택에 필요한 입력 원장·조회 목록도 각 5,000행, 출처·태그 연결은 각 20,000행, 합산 텍스트 8MiB, 선택 그룹 규칙 128KiB까지로 제한한다. 초과하면 잘라내지 않고 오류를 반환한다. 입력 원장 상한은 최종 필터 결과와 별개이므로 큰 워크스페이스에는 원장 정리나 별도 규모 대응이 필요할 수 있다.
+
+사용자·워크스페이스·확인한 연결 세대·필터에 묶인 요청 ID를 사용한다. 브라우저 세션에는 해시 처리한 필터 키와 요청 ID만 보관해 응답 손실·새로고침에도 같은 요청을 재사용하고, 실제 행이나 토큰은 보관하지 않는다. 생성 ID를 받은 뒤의 값 쓰기는 같은 파일에 다시 할 수 있다. 반면 Google Workspace 파일은 [미리 발급한 파일 ID로 생성할 수 없으므로](https://developers.google.com/workspace/drive/api/guides/manage-uploads#use_a_pre-generated_id_to_upload_files) 생성 응답을 잃으면 `unknown`으로 남겨 새 파일을 자동 생성하지 않는다. 이때는 연결된 Google Drive에서 파일을 확인해야 한다. 새 요청 ID나 새 연결로 명시적으로 다시 생성하면 별도 파일이 생길 수 있다.
+
+완료하면 임시 행 자료를 지운다. 24시간이 지난 미완료 자료는 정리 대상으로 삼아 다음 정리 Queue에서 파기한다. 15분 넘게 중단된 생성도 정리 시 미확정 상태로 닫는다. 실제 Google 권한 부여·Drive 파일 소유/비공개 상태·Meta 실계정 수집은 운영 키와 콜백 설정 뒤 별도 실계정 QA가 필요하다.
 
 ## 자료 열람과 퍼널 집계
 
@@ -235,7 +274,7 @@ npm run sdk:size    # gzip 크기 확인 (한도 10KB)
 - 서버에 ffmpeg가 없다. 프레임·오디오는 업로드하는 브라우저가 뽑는다. 브라우저가 뽑지 못한 영상은 전사·시각 판정 없이 검수함에 들어간다
 - AI는 Workers AI 바인딩을 쓴다. 로컬 dev에서도 실제 호출은 Cloudflare 계정으로 원격 실행된다 (`AI_FAKE=1`이면 고정 응답)
 - 카카오 알림톡은 어댑터 자리만 있다. 연결 전까지 알림톡 규칙은 저장 단계에서 막힌다
-- 구글 시트 내보내기는 구현하지 않았다 (CSV 내보내기만)
+- Google Sheets 내보내기는 앱 OAuth의 추가 콜백과 Google Sheets/Drive API 활성화가 필요하다. 운영 설정 전에는 준비 중으로 표시하며 실제 권한 부여 검증은 설정 후 진행한다
 - 반송 반영에는 Resend 웹훅 구독과 `RESEND_WEBHOOK_SECRET` 등록이 필요하다. Resend ID를 저장하지 않았던 이전 발송은 반송과 자동으로 연결하지 않는다
 - `npm audit`의 moderate 4건은 drizzle-kit이 쓰는 옛 esbuild(개발 도구 전용)라 배포되는 Worker와 무관하다
 - `wrangler.jsonc`의 `"minify": true`는 Vite 빌드에서 무시된다는 경고가 뜬다. 실제 압축은 `vite.config.ts`에서 켜져 있다

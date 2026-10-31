@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge, ButtonLink, EmptyState, FilterBar, LoadingState, PageHeader, Table, SelectMenu } from "../../ui";
-import { fmtDate } from "../guides/types";
+import { fmtDate, fmtDateTime } from "../guides/types";
 import { CAMPAIGN_STATUS_LABEL, campaignPath, useBrands, useCampaigns, type CampaignRow } from "./api";
 
 function CampaignTableRow({ c }: { c: CampaignRow }) {
@@ -13,6 +13,7 @@ function CampaignTableRow({ c }: { c: CampaignRow }) {
       <td className="nowrap"><Badge tone={c.status === "active" ? "accent" : "neutral"}>{CAMPAIGN_STATUS_LABEL[c.status]}</Badge></td>
       <td className="nowrap"><Badge tone={published ? "success" : "neutral"}>{published ? "공개" : "작성 중"}</Badge></td>
       <td className="num">{c.influencerCount}</td>
+      <td className="nowrap">{c.endsAt !== null ? fmtDateTime(c.endsAt) : <span className="text-caption">{c.status === "archived" ? "종료 시각 확인 필요" : "미지정"}</span>}</td>
       <td className="nowrap">{fmtDate(c.createdAt)}</td>
     </tr>
   );
@@ -42,7 +43,7 @@ export function CampaignsListPage() {
         ) : (
           <Table>
             <thead>
-              <tr><th>캠페인</th><th>브랜드</th><th>상태</th><th>브랜드 가이드</th><th className="num">인플루언서</th><th>만든 날짜</th></tr>
+              <tr><th>캠페인</th><th>브랜드</th><th>상태</th><th>브랜드 가이드</th><th className="num">인플루언서</th><th>캠페인 종료</th><th>만든 날짜</th></tr>
             </thead>
             <tbody>{rows.map((c) => <CampaignTableRow key={c.id} c={c} />)}</tbody>
           </Table>

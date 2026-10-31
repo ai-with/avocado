@@ -14,3 +14,5 @@ export * from "./brands";
 export * from "./contact-logs";
 export * from "./message-templates";
 export * from "./privacy";
+export * from "./google-sheets";
+export * from "./content-thumbnails";

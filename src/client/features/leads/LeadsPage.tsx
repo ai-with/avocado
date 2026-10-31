@@ -9,6 +9,7 @@ import { GroupModal } from "./sections/GroupModal";
 import { ImportModal } from "./sections/ImportModal";
 import { AddLeadModal } from "./sections/AddLeadModal";
 import "./leads.css";
+import { SheetsExportControl } from "../google-sheets/SheetsExportControl";
 
 type Tab = "contacts" | "groups" | "tags";
 const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연락처" }, { value: "groups", label: "그룹" }, { value: "tags", label: "태그" }];
@@ -47,6 +48,7 @@ function HeaderActions({ query, onImport, onAdd }: { query: string; onImport: ()
     <>
       <Button variant="secondary" onClick={onImport}>CSV 가져오기</Button>
       <ButtonAnchor href={`/api/leads/export?${query}`}>CSV 내보내기</ButtonAnchor>
+      <SheetsExportControl kind="leads" query={query} />
       <Button onClick={onAdd}>리드 직접 추가</Button>
     </>
   );

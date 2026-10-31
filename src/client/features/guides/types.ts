@@ -24,7 +24,7 @@ export type Guide = {
   createdAt: number;
 };
 // 캠페인 = 브랜드 가이드 1:1 (TASK-070). 캠페인 id 는 가이드 id 와 같다
-export type GuideCampaign = { id: string; name: string; status: "active" | "archived"; brandId: string; brandName: string };
+export type GuideCampaign = { id: string; name: string; status: "active" | "archived"; brandId: string; brandName: string; endsAt: number | null; archivedAt: number | null };
 // 브랜드 검수 사전에서 들어오는 규칙 (TASK-079). rules 는 끄기 전 전체, excluded 는 이번 캠페인에서 끈 id
 export type GuideDictionary = { brandId: string | null; rules: DictRule[]; excluded: string[] };
 export type GuideResponse = { guide: Guide; campaign: GuideCampaign | null; rules: GuideRule[]; warnings: string[]; lineWarnings: string[]; dictionary: GuideDictionary; sharedUrl: string };

@@ -25,7 +25,11 @@ export type MissingReason =
   | "token_expired"
   | "api_error"
   | "not_supported"
-  | "registered_late";
+  | "registered_late"
+  | "campaign_ended"
+  | "campaign_end_unknown"
+  | "campaign_missing"
+  | "content_changed";
 export const REASON_LABELS: Record<MissingReason, string> = {
   not_connected: "연결 필요",
   hidden_by_owner: "좋아요 숨김",
@@ -35,6 +39,10 @@ export const REASON_LABELS: Record<MissingReason, string> = {
   api_error: "일시 오류",
   not_supported: "지원 안 함",
   registered_late: "등록 늦음",
+  campaign_ended: "캠페인 종료 후 수집 기간 지남",
+  campaign_end_unknown: "종료 시각 확인 필요",
+  campaign_missing: "캠페인 연결 확인 필요",
+  content_changed: "게시물 URL 변경됨",
 };
 
 export type SnapshotPath = "connected" | "discovery";

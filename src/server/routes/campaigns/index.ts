@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import { brands, campaigns, guidelineSets, guides } from "../../db/schema";
-import { parse } from "../../lib/errors";
+import { ApiError, parse } from "../../lib/errors";
 import { now } from "../../lib/ids";
 import { findOwned } from "../../lib/owned";
 import { findBrand } from "../../lib/brands";
@@ -18,7 +18,7 @@ export { brandTermRoutes, reviewPresetRoutes } from "./brand-terms";
 
 const campaignName = z.string().trim().min(1, "캠페인 이름을 입력해 주세요.").max(80);
 const createBody = z.object({ brandId: z.string().min(1, "브랜드를 골라 주세요."), name: campaignName });
-const patchBody = z.object({ brandId: z.string().min(1), name: campaignName, status: z.enum(["active", "archived"]) }).partial();
+const patchBody = z.object({ brandId: z.string().min(1), name: campaignName, status: z.enum(["active", "archived"]), endsAt: z.number().int().nonnegative().max(8_640_000_000_000_000 - 7 * 86_400_000).nullable() }).partial();
 const notFound = { code: "campaign_not_found", message: "캠페인을 찾을 수 없어요." };
 
 export const campaignRoutes = new Hono<AppEnv>()
@@ -34,6 +34,8 @@ export const campaignRoutes = new Hono<AppEnv>()
         brandName: brands.name,
         guideStatus: guides.status,
         createdAt: campaigns.createdAt,
+        endsAt: campaigns.endsAt,
+        archivedAt: campaigns.archivedAt,
         influencerCount: sql<number>`(SELECT count(*) FROM guide_influencers gi WHERE gi.guide_id = ${guides.id})`,
       })
       .from(campaigns)
@@ -59,6 +61,13 @@ export const campaignRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const campaign = await findOwned(db, campaigns, c.req.param("id"), workspace.id, notFound);
     if (body.brandId) await findBrand(db, workspace.id, body.brandId);
-    await db.update(campaigns).set({ ...body, updatedAt: now() }).where(eq(campaigns.id, campaign.id));
+    const status = body.status ?? campaign.status;
+    const endsAt = body.endsAt === undefined ? campaign.endsAt : body.endsAt;
+    if (status === "archived" && endsAt === null && (campaign.status !== "archived" || body.endsAt !== undefined))
+      throw new ApiError(400, "campaign_end_required", "캠페인을 보관하려면 실제 종료 시각을 먼저 입력해 주세요.");
+    const archivedAt = status === "archived" && campaign.status !== "archived" ? now() : campaign.archivedAt;
+    const changed = await db.update(campaigns).set({ ...body, archivedAt, updatedAt: Math.max(now(), campaign.updatedAt + 1) })
+      .where(and(eq(campaigns.id, campaign.id), eq(campaigns.updatedAt, campaign.updatedAt))).returning({ id: campaigns.id });
+    if (!changed.length) throw new ApiError(409, "campaign_changed", "캠페인이 바뀌었어요. 새로고침한 뒤 다시 저장해 주세요.");
     return c.json({ ok: true });
   });

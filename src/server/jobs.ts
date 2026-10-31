@@ -22,11 +22,12 @@ import { processSubmission } from "./pipeline";
 queueHandlers.process_submission = processSubmission;
 
 // TASK-022: 스냅샷 수집(F-48)과 댓글 키워드 DM 대기열 재시도(F-64). 게시물 URL 등록 시 스냅샷 예약
-import { runDueSnapshots, scheduleSnapshots } from "./lib/snapshots";
+import { processSnapshotCollection, runDueSnapshots, scheduleSnapshots } from "./lib/snapshots";
 import { retryQueuedDms } from "./lib/keyword-dm";
 import { contentHooks } from "./lib/contents";
 scheduledTasks.push(async (env) => void (await runDueSnapshots(env)), retryQueuedDms);
-contentHooks.onContentRegistered = (env, db, content) => scheduleSnapshots(db, env, content.id, { reset: true });
+contentHooks.onContentRegistered = (env, db, content) => scheduleSnapshots(db, env, content.id, { reset: true, expectedRevision: content.collectionRevision });
+queueHandlers.collect_snapshot = processSnapshotCollection;
 
 // AIWITH-303: 인증 보조 테이블 정리와 테이블별 삭제 건수 기록 (03:00 KST)
 import { cleanupAuthRecords } from "./lib/auth-cleanup";
@@ -42,3 +43,11 @@ scheduledTasks.push(pruneEventIds, backfillEmailHashes);
 import { enqueuePrivacyPurges, processPrivacyPurge } from "./lib/privacy-jobs";
 scheduledTasks.push(enqueuePrivacyPurges);
 queueHandlers.privacy_purge = processPrivacyPurge;
+
+// AIWITH-284: URL 세대 교체 중 실패한 썸네일 보상과 내보내기 임시 자료 정리도 별도 호출로 처리한다.
+import { enqueueThumbnailSweep, processThumbnailCleanup, processThumbnailSweep } from "./lib/content-thumbnail";
+import { cleanupGoogleSheetsJobs, enqueueGoogleSheetsCleanup } from "./lib/google-sheets-export";
+queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
+queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
+queueHandlers.cleanup_google_sheets = (_payload, env) => cleanupGoogleSheetsJobs(env);
+scheduledTasks.push(enqueueGoogleSheetsCleanup, enqueueThumbnailSweep);

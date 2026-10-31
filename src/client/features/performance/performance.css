@@ -3,6 +3,9 @@
 .perf-group { text-align: center; border-left: 1px solid var(--color-border); }
 .perf-missing { color: var(--color-text-tertiary); font-size: var(--text-caption-size); cursor: help; }
 .perf-export { text-decoration: none; display: inline-flex; align-items: center; }
+.perf-thumbnail { width: var(--control-height-lg); height: var(--control-height-lg); display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; background: var(--color-surface-muted); border-radius: var(--radius-sm); color: var(--color-text-tertiary); }
+.perf-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+.perf-collection-note { margin-top: var(--space-2); }
 .kdm-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: var(--radius-sm); background: var(--color-surface-muted); display: inline-block; }
 .kdm-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-4); }
 .kdm-media button { border: 2px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-3); cursor: pointer; text-align: left; font-size: var(--text-caption-size); }

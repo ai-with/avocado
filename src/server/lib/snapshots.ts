@@ -1,5 +1,5 @@
 // F-48 24시간·3일·7일 스냅샷 스케줄러. 예약은 contents 등록 훅에서, 수집은 15분 cron 에서
-import { and, asc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { getDb, type Db } from "../db";
 import { contents, guides, igConnections, influencers, metricSnapshots } from "../db/schema";
 import { afterApiError, delayInfo, MAIN_METRICS, METRICS, parsePostUrl, planSnapshots, type Metric, type MissingReason, type SnapshotPath } from "../../shared/performance";
@@ -9,12 +9,14 @@ import { logEvent } from "./events";
 import { sendEmail } from "./email";
 import { memberEmails } from "./members";
 import { newId, now } from "./ids";
+import { z } from "zod";
+import { COLLECTION_GRACE_MS, collectionAllowed, collectionContent } from "./content-collection";
+import { saveContentThumbnail } from "./content-thumbnail";
+import { mediaMetadata, mediaThumbnailUrl } from "./instagram";
 
 type ContentRow = typeof contents.$inferSelect;
-
-async function workspaceOfGuide(db: Db, guideId: string) {
-  return (await db.select({ ws: guides.workspaceId, name: guides.name }).from(guides).where(eq(guides.id, guideId)).get()) ?? null;
-}
+const stillCollectible = async (db: Db, content: ContentRow, workspaceId: string) =>
+  (await db.all<{ ok: number }>(sql`SELECT 1 AS ok WHERE ${collectionAllowed(content, workspaceId)}`)).length > 0;
 
 // 미연결 경로 조회용 토큰: 운영 계정(IG_SYSTEM_*, 페이스북 로그인 경로) 우선, 없으면 워크스페이스 브랜드 발송 계정
 // [검증 필요] 인스타그램 로그인 토큰으로 business_discovery 가 되는지 (C5 는 페이스북 로그인 경로 기능)
@@ -50,6 +52,7 @@ async function findMedia(db: Db, env: Env, workspaceId: string, content: Content
   if (!parsed || !username) return { ok: false, reason: "not_connected", message: "게시물 URL 또는 인스타그램 계정명 없음" };
   const auth = await discoveryAuth(db, env, workspaceId);
   if (!auth) return { ok: false, reason: "not_connected" };
+  if (!(await stillCollectible(db, content, workspaceId))) return { ok: false, reason: "campaign_ended" };
   const r = await discoverMedia(env, auth, username, parsed.shortcode);
   return r.ok ? { media: r.data } : r;
 }
@@ -57,19 +60,25 @@ async function findMedia(db: Db, env: Env, workspaceId: string, content: Content
 // 등록 훅 (TASK-020 registerContent → onContentRegistered). 게시 시각을 모르면 미연결 조회로 읽고,
 // 그래도 모르면 등록 시각을 기준으로 예약한다 [추론: 게시 직후 URL 을 붙여 넣는다고 본다]. 브랜드가 게시 시각을 고치면 다시 부른다
 // reset: URL 이 새로 등록·교체된 경우. 이전 URL 기준 스냅샷을 지우고 새로 예약한다
-export async function scheduleSnapshots(db: Db, env: Env, contentId: string, opts: { reset?: boolean } = {}): Promise<void> {
-  if (opts.reset) await db.delete(metricSnapshots).where(eq(metricSnapshots.contentId, contentId));
-  let content = await db.select().from(contents).where(eq(contents.id, contentId)).get();
-  if (!content || content.deletedAt) return;
-  const g = await workspaceOfGuide(db, content.guideId);
-  if (!g) return;
+export async function scheduleSnapshots(db: Db, env: Env, contentId: string, opts: { reset?: boolean; retry?: boolean; expectedRevision?: number } = {}): Promise<void> {
+  const current = await collectionContent(db, contentId);
+  if (!current || current.state.stoppedReason || (opts.expectedRevision !== undefined && current.content.collectionRevision !== opts.expectedRevision)) return;
+  let content = current.content;
+  const g = { ws: current.workspaceId };
+  if (opts.reset) await db.delete(metricSnapshots).where(and(eq(metricSnapshots.contentId, contentId), collectionAllowed(content, g.ws)));
 
   if (content.postedAt === null) {
     const inf = await db.select({ handle: influencers.igHandle }).from(influencers).where(eq(influencers.id, content.influencerId)).get();
     const found = await findMedia(db, env, g.ws, content, inf?.handle ?? null);
     if ("media" in found && found.media) {
-      await db.update(contents).set({ postedAt: Date.parse(found.media.timestamp), postedAtSource: "api", igMediaId: found.media.id }).where(eq(contents.id, contentId));
-      content = (await db.select().from(contents).where(eq(contents.id, contentId)).get())!;
+      const postedAt = Date.parse(found.media.timestamp);
+      if (Number.isFinite(postedAt)) {
+        const changed = await db.update(contents).set({ postedAt, postedAtSource: "api", igMediaId: found.media.id })
+          .where(and(eq(contents.id, contentId), collectionAllowed(content, g.ws))).returning();
+        if (!changed.length) return;
+        content = changed[0]!;
+      }
+      await cacheThumbnail(db, env, g.ws, content, found.media);
     }
   }
 
@@ -78,15 +87,20 @@ export async function scheduleSnapshots(db: Db, env: Env, contentId: string, opt
   for (const p of planSnapshots(base, content.registeredAt)) {
     const prev = existing.find((e) => e.offsetH === p.offsetH);
     // 이미 수집했거나 결측으로 닫힌 시점(등록 늦음 제외)은 그대로 둔다
-    if (prev && prev.status !== "scheduled" && !(prev.status === "missing" && prev.missing._ === "registered_late")) continue;
+    if (prev && prev.status !== "scheduled" && !(prev.status === "missing" && prev.missing._ === "registered_late") && !(opts.retry && prev.status !== "captured")) continue;
     const values = {
       scheduledAt: p.scheduledAt,
       status: p.status,
       missing: p.reason ? { _: p.reason } : {},
       attempts: 0,
+      collectionToken: null,
+      collectionStartedAt: null,
     };
-    if (prev) await db.update(metricSnapshots).set(values).where(eq(metricSnapshots.id, prev.id));
-    else await db.insert(metricSnapshots).values({ id: newId(), contentId, offsetH: p.offsetH, ...values });
+    const written = prev ? (await db.update(metricSnapshots).set(values).where(and(eq(metricSnapshots.id, prev.id), collectionAllowed(content, g.ws))).returning({ id: metricSnapshots.id })).length
+      : (await db.run(sql`INSERT INTO metric_snapshots (id,content_id,offset_h,scheduled_at,status,missing,attempts)
+        SELECT ${newId()},${contentId},${p.offsetH},${p.scheduledAt},${p.status},${JSON.stringify(values.missing)},0
+        WHERE ${collectionAllowed(content, g.ws)} ON CONFLICT(content_id,offset_h) DO NOTHING`)).meta.changes;
+    if (!written) return;
     if (prev) continue;
     if (p.status === "scheduled") await logEvent(db, g.ws, "snapshot_scheduled", { offset_h: p.offsetH, content_id: contentId });
     else await logEvent(db, g.ws, "snapshot_missing", { offset_h: p.offsetH, reason: p.reason, content_id: contentId });
@@ -95,14 +109,29 @@ export async function scheduleSnapshots(db: Db, env: Env, contentId: string, opt
 
 type Capture = { path: SnapshotPath; values: Partial<Record<Metric, number>>; missing: Partial<Record<Metric | "_", MissingReason>> };
 
+async function cacheThumbnail(db: Db, env: Env, workspaceId: string, content: ContentRow, media: DiscoveredMedia) {
+  const url = mediaThumbnailUrl(media);
+  if (!url) return;
+  try { await saveContentThumbnail(env, db, workspaceId, content, url); }
+  catch (error) {
+    if (!(error instanceof Error) || (!error.message.startsWith("thumbnail_") && error.name !== "AbortError")) throw error;
+    console.error("[content_thumbnail_failed]", JSON.stringify({ reason: "thumbnail_copy_failed" }));
+  }
+}
+
 // 한 시점 조회. 실패 사유는 Capture.missing 또는 IgFail 로 돌려준다
 async function capture(db: Db, env: Env, workspaceId: string, content: ContentRow): Promise<Capture | IgFail> {
   const conn = await influencerConnection(db, workspaceId, content.influencerId);
   const key = tokenKey(env);
   if (conn.state === "ok" && key && content.igMediaId) {
     const token = await decryptToken(key, conn.conn.tokenEnc!);
+    if (!(await stillCollectible(db, content, workspaceId))) return { ok: false, reason: "campaign_ended" };
     const r = await mediaInsights(env, token, content.igMediaId);
     if (r.ok) {
+      if (await stillCollectible(db, content, workspaceId)) {
+        const media = await mediaMetadata(env, token, content.igMediaId);
+        if (media.ok) await cacheThumbnail(db, env, workspaceId, content, media.data);
+      }
       const missing: Capture["missing"] = {};
       for (const m of METRICS) if (r.data[m] === undefined) missing[m] = "not_supported";
       return { path: "connected", values: r.data, missing };
@@ -119,7 +148,8 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
     return { ok: false, reason: content.igMediaId ? "deleted" : "private_or_unavailable" };
   }
   const m = found.media;
-  if (!content.igMediaId) await db.update(contents).set({ igMediaId: m.id }).where(eq(contents.id, content.id));
+  if (!content.igMediaId) await db.update(contents).set({ igMediaId: m.id }).where(and(eq(contents.id, content.id), collectionAllowed(content, workspaceId)));
+  await cacheThumbnail(db, env, workspaceId, content, m);
   const values: Capture["values"] = {};
   const missing: Capture["missing"] = { saved: noConn, shares: noConn, reach: noConn, reposts: noConn };
   if (m.view_count !== undefined) values.views = m.view_count;
@@ -146,52 +176,94 @@ async function notifyDeleted(db: Db, env: Env, workspaceId: string, content: Con
 
 const allMissing = (reason: MissingReason) => Object.fromEntries(MAIN_METRICS.map((m) => [m, reason])) as Capture["missing"];
 
-// cron: 예정 시각이 지난 scheduled 스냅샷을 수집한다
-// ponytail: 한 번에 50건. 게시물이 많아지면 Queue 로 나눠 보낸다
-export async function runDueSnapshots(env: Env): Promise<{ processed: number }> {
-  const db = getDb(env.DB);
-  const t = now();
-  const due = await db
-    .select({ snap: metricSnapshots, content: contents, ws: guides.workspaceId })
-    .from(metricSnapshots)
-    .innerJoin(contents, eq(contents.id, metricSnapshots.contentId))
-    .innerJoin(guides, eq(guides.id, contents.guideId))
-    .where(and(eq(metricSnapshots.status, "scheduled"), lte(metricSnapshots.scheduledAt, t)))
-    .orderBy(asc(metricSnapshots.scheduledAt))
-    .limit(50);
+const SNAPSHOT_LEASE_MS = 5 * 60 * 1000;
+const snapshotJob = z.object({ snapshotId: z.string().min(1).max(100) });
 
-  for (const item of due) await collectSnapshot(db, env, item);
+// Cron은 ID만 Queue에 넣는다. PIPELINE(max_batch_size=1)이 스냅샷마다 별도 호출 예산을 제공한다.
+export async function runDueSnapshots(env: Env): Promise<{ processed: number }> {
+  const t = now();
+  const result = await env.DB.batch([
+    env.DB.prepare(`UPDATE metric_snapshots SET status='cancelled', collection_token=NULL, collection_started_at=NULL,
+      missing=json_object('_',CASE
+        WHEN NOT EXISTS(SELECT 1 FROM contents c JOIN guides g ON g.id=c.guide_id WHERE c.id=metric_snapshots.content_id AND c.deleted_at IS NULL) THEN 'deleted'
+        WHEN NOT EXISTS(SELECT 1 FROM contents c JOIN guides g ON g.id=c.guide_id JOIN campaigns p ON p.id=g.campaign_id AND p.workspace_id=g.workspace_id WHERE c.id=metric_snapshots.content_id) THEN 'campaign_missing'
+        WHEN EXISTS(SELECT 1 FROM contents c JOIN guides g ON g.id=c.guide_id JOIN campaigns p ON p.id=g.campaign_id AND p.workspace_id=g.workspace_id WHERE c.id=metric_snapshots.content_id AND p.ends_at IS NULL) THEN 'campaign_end_unknown'
+        ELSE 'campaign_ended' END)
+      WHERE status='scheduled' AND NOT EXISTS(SELECT 1 FROM contents c JOIN guides g ON g.id=c.guide_id
+        JOIN campaigns p ON p.id=g.campaign_id AND p.workspace_id=g.workspace_id WHERE c.id=metric_snapshots.content_id AND c.deleted_at IS NULL
+        AND ((p.ends_at IS NULL AND p.status='active') OR (p.ends_at IS NOT NULL AND p.ends_at+?>?)))`)
+      .bind(COLLECTION_GRACE_MS, t),
+    env.DB.prepare(`SELECT ms.id FROM metric_snapshots ms JOIN contents c ON c.id=ms.content_id
+    JOIN guides g ON g.id=c.guide_id JOIN campaigns p ON p.id=g.campaign_id AND p.workspace_id=g.workspace_id
+    WHERE ms.status='scheduled' AND ms.scheduled_at<=? AND c.deleted_at IS NULL
+    AND (ms.collection_token IS NULL OR ms.collection_started_at<?)
+    AND ((p.ends_at IS NULL AND p.status='active') OR (p.ends_at IS NOT NULL AND p.ends_at+?>?))
+    ORDER BY ms.scheduled_at,ms.id LIMIT 50`).bind(t, t - SNAPSHOT_LEASE_MS, COLLECTION_GRACE_MS, t),
+  ]);
+  const due = result[1]!.results as { id: string }[];
+  if (due.length) await env.PIPELINE.sendBatch(due.map((item) => ({ body: { type: "collect_snapshot", payload: { snapshotId: item.id } } })));
   return { processed: due.length };
 }
 
 type DueItem = { snap: typeof metricSnapshots.$inferSelect; content: ContentRow; ws: string };
 
+export async function processSnapshotCollection(raw: unknown, env: Env): Promise<void> {
+  const { snapshotId } = snapshotJob.parse(raw);
+  const db = getDb(env.DB);
+  const snap = await db.select().from(metricSnapshots).where(eq(metricSnapshots.id, snapshotId)).get();
+  if (!snap || snap.status !== "scheduled" || snap.scheduledAt > now()) return;
+  const current = await collectionContent(db, snap.contentId);
+  if (!current || current.state.stoppedReason) {
+    await db.update(metricSnapshots).set({ status: "cancelled", missing: { _: current?.state.stoppedReason ?? "deleted" }, collectionToken: null, collectionStartedAt: null }).where(and(eq(metricSnapshots.id, snap.id), eq(metricSnapshots.status, "scheduled")));
+    return;
+  }
+  const token = newId();
+  const claimed = await db.update(metricSnapshots).set({ collectionToken: token, collectionStartedAt: now() })
+    .where(and(eq(metricSnapshots.id, snap.id), eq(metricSnapshots.status, "scheduled"),
+      sql`(${metricSnapshots.collectionToken} IS NULL OR ${metricSnapshots.collectionStartedAt}<${now() - SNAPSHOT_LEASE_MS})`, collectionAllowed(current.content, current.workspaceId))).returning({ id: metricSnapshots.id });
+  if (!claimed.length) return;
+  try { await collectSnapshot(db, env, { snap, content: current.content, ws: current.workspaceId }, token); }
+  catch (error) {
+    await db.update(metricSnapshots).set({ collectionToken: null, collectionStartedAt: null }).where(and(eq(metricSnapshots.id, snap.id), eq(metricSnapshots.collectionToken, token)));
+    throw error;
+  }
+}
+
+async function commitSnapshot(db: Db, item: DueItem, token: string, values: Partial<typeof metricSnapshots.$inferInsert>): Promise<boolean> {
+  const changed = await db.update(metricSnapshots).set({ ...values, collectionToken: null, collectionStartedAt: null })
+    .where(and(eq(metricSnapshots.id, item.snap.id), eq(metricSnapshots.collectionToken, token), collectionAllowed(item.content, item.ws))).returning({ id: metricSnapshots.id });
+  if (changed.length) return true;
+  const current = await collectionContent(db, item.content.id);
+  const reason = !current ? "deleted" : current.state.stoppedReason ?? (current.content.collectionRevision !== item.content.collectionRevision ? "content_changed" : "deleted");
+  await db.update(metricSnapshots).set({ status: "cancelled", missing: { _: reason }, collectionToken: null, collectionStartedAt: null })
+    .where(and(eq(metricSnapshots.id, item.snap.id), eq(metricSnapshots.collectionToken, token)));
+  return false;
+}
+
 // 스냅샷 한 건 수집. 값이 하나라도 있으면 captured, API 오류는 재시도, 그 밖은 missing (게시물 삭제면 남은 예약 취소)
-async function collectSnapshot(db: Db, env: Env, { snap, content, ws }: DueItem) {
+async function collectSnapshot(db: Db, env: Env, item: DueItem, token: string) {
+  const { snap, content, ws } = item;
   const attempts = snap.attempts + 1;
   const r = content.deletedAt ? ({ ok: false, reason: "deleted" } as IgFail) : await capture(db, env, ws, content);
   const capturedAt = now();
   const { delayed, delayMin } = delayInfo(snap.scheduledAt, capturedAt);
   if ("path" in r) {
     const hasValue = MAIN_METRICS.some((m) => r.values[m] !== undefined);
-    await db
-      .update(metricSnapshots)
-      .set({ ...r.values, path: r.path, missing: r.missing, capturedAt, delayed, attempts, status: hasValue ? "captured" : "missing" })
-      .where(eq(metricSnapshots.id, snap.id));
+    if (!(await commitSnapshot(db, item, token, { ...r.values, path: r.path, missing: r.missing, capturedAt, delayed, attempts, status: hasValue ? "captured" : "missing" }))) return;
     await logEvent(db, ws, hasValue ? "snapshot_captured" : "snapshot_missing", { offset_h: snap.offsetH, path: r.path, delay_min: delayMin, content_id: content.id });
     return;
   }
   if (r.reason === "api_error" && afterApiError(attempts) === "retry") {
-    await db.update(metricSnapshots).set({ attempts }).where(eq(metricSnapshots.id, snap.id));
+    await commitSnapshot(db, item, token, { attempts });
     return;
   }
   const reason: MissingReason = r.reason === "not_configured" ? "not_connected" : r.reason;
-  await db.update(metricSnapshots).set({ missing: allMissing(reason), capturedAt, delayed, attempts, status: "missing" }).where(eq(metricSnapshots.id, snap.id));
+  if (!(await commitSnapshot(db, item, token, { missing: allMissing(reason), capturedAt, delayed, attempts, status: "missing" }))) return;
   await logEvent(db, ws, "snapshot_missing", { offset_h: snap.offsetH, reason, content_id: content.id });
   if (reason !== "deleted") return;
   await db
     .update(metricSnapshots)
     .set({ status: "cancelled", missing: allMissing("deleted") })
-    .where(and(eq(metricSnapshots.contentId, content.id), eq(metricSnapshots.status, "scheduled")));
+    .where(and(eq(metricSnapshots.contentId, content.id), eq(metricSnapshots.status, "scheduled"), collectionAllowed(content, ws)));
   await notifyDeleted(db, env, ws, content);
 }
