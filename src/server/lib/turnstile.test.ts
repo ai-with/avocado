@@ -135,7 +135,7 @@ describe("Siteverify와 공개 join context 검증", () => {
     expect(await verifyPublicJoin(settings, "private-token", GUIDE, REQUEST_URL)).toBe("ok");
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = fetcher.mock.calls[0]!;
-    expect(url).toBe(SITEVERIFY_URL); expect(init?.method).toBe("POST"); expect(init?.redirect).toBe("error");
+    expect(url).toBe(SITEVERIFY_URL); expect(init?.method).toBe("POST"); expect(init?.redirect).toBe("manual");
     expect(new Headers(init?.headers).get("content-type")).toBe("application/x-www-form-urlencoded");
     const body = new URLSearchParams(String(init?.body));
     expect([...body.keys()].sort()).toEqual(["idempotency_key", "response", "secret"]);
@@ -209,7 +209,18 @@ describe("Siteverify와 공개 join context 검증", () => {
 });
 
 describe("Siteverify 장애·재시도·정보 비노출", () => {
-  it.each([400, 403, 429, 500, 503])("HTTP %i 는 body 내용과 관계없이 재시도하지 않는다", async (status) => {
+  it("Workers가 지원하는 redirect 모드로 검증하며 리다이렉트를 따라가지 않는다", async () => {
+    const fetcher = stubFetch();
+    fetcher.mockImplementation(async (_url, init) => {
+      if (init?.redirect === "error") throw new TypeError("Workers does not support redirect:error");
+      return Response.json(await success());
+    });
+    expect(await verifyPublicJoin(env(), "token", GUIDE, REQUEST_URL)).toBe("ok");
+    expect(fetcher.mock.calls[0]![1]?.redirect).toBe("manual");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([301, 302, 307, 308, 400, 403, 429, 500, 503])("HTTP %i 는 body 내용과 관계없이 재시도하지 않는다", async (status) => {
     const fetcher = stubFetch(); fetcher.mockResolvedValue(new Response("private raw provider body", { status }));
     expect(await verifyPublicJoin(env(), "private-token", GUIDE, REQUEST_URL)).toBe("unavailable"); expect(fetcher).toHaveBeenCalledTimes(1);
   });

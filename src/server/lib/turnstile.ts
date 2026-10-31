@@ -111,7 +111,8 @@ async function verifyAttempt(secret: string, token: string, idempotencyKey: stri
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ secret, response: token, idempotency_key: idempotencyKey }),
-        redirect: "error",
+        // Workers supports manual/follow only. Reject the returned 3xx below.
+        redirect: "manual",
         signal: controller.signal,
       });
     } catch {

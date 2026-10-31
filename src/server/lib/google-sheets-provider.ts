@@ -13,7 +13,9 @@ export function validSheetsScope(scope: string): boolean {
   return scopes.length === 1 && scopes[0] === SHEETS_SCOPE;
 }
 export async function sheetsFetch(url: string, init: RequestInit): Promise<Response> {
-  return fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS) });
+  // Workers rejects redirect:error before sending. manual keeps credentials at
+  // the intended provider; every caller rejects the returned non-2xx response.
+  return fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
 }
 
 export async function requestSheetsTokens(params: URLSearchParams, previousScope?: string): Promise<SheetsTokens> {
@@ -47,7 +49,7 @@ export async function createExportSpreadsheet(accessToken: string, title: string
       body: JSON.stringify({ properties: { title }, sheets: [{ properties: { title: "내보내기", gridProperties: { rowCount: Math.max(1, rows), columnCount: columns } } }] }),
     });
   } catch { throw new SheetsProviderError("create_unknown", true); }
-  if (!response.ok) throw new SheetsProviderError(response.status === 401 ? "reconnect_required" : "google_create_failed", response.status >= 500 || response.status === 408 || response.status === 429);
+  if (!response.ok) throw new SheetsProviderError(response.status === 401 ? "reconnect_required" : "google_create_failed", response.status >= 500 || response.status >= 300 && response.status < 400 || response.status === 408 || response.status === 429);
   try {
     const body = await response.json() as { spreadsheetId?: unknown };
     if (typeof body.spreadsheetId === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(body.spreadsheetId)) return body.spreadsheetId;

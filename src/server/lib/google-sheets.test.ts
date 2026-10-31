@@ -59,6 +59,7 @@ async function setup() {
 function provider() {
   const writes: { values: (string | number)[][] }[] = [];
   const mock = vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (init.redirect === "error") throw new TypeError("Workers does not support redirect:error");
     if (url === "https://oauth2.googleapis.com/token") return Response.json({ access_token: "fake-access", refresh_token: "fake-refresh", token_type: "Bearer", expires_in: 3600, scope: SHEETS_SCOPE });
     if (url.startsWith("https://www.googleapis.com/drive/v3/about")) return Response.json({ user: { emailAddress: "export@example.test" } });
     if (url.startsWith("https://sheets.googleapis.com/v4/spreadsheets?")) return Response.json({ spreadsheetId: "test-sheet" });
@@ -177,6 +178,16 @@ describe("필터와 권한을 보존한 Google Sheets 내보내기", () => {
     const first = await result(await call("/exports", request)); expect(first).toMatchObject({ status: "unknown", retryable: false, errorCode: "create_unknown" });
     expect(db.prepare("SELECT payload_enc FROM google_sheets_exports").all()[0]?.payload_enc).not.toContain("one@example.test");
     expect((await result(await call("/exports", request))).status).toBe("unknown"); expect(creates()).toHaveLength(1);
+  });
+
+  it.each([301, 302, 307, 308])("Google 생성 HTTP %i는 따라가지 않고 불명확 상태로 보존한다", async (status) => {
+    const { call, seedConnection } = await setup(); await seedConnection(); const { mock, creates } = provider();
+    mock.mockResolvedValueOnce(new Response("private redirect body", { status, headers: { Location: "https://untrusted.example/token" } }));
+    const request = { requestId: newId(), kind: "leads", filters: {} };
+    expect(await result(await call("/exports", request))).toMatchObject({ status: "unknown", retryable: false });
+    expect((await result(await call("/exports", request))).status).toBe("unknown");
+    expect(creates()).toHaveLength(1); expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0]![1]?.redirect).toBe("manual");
   });
 
   it("알려진 파일의 쓰기 실패만 같은 ID로 재시도해 추가 파일 없이 완료한다", async () => {
