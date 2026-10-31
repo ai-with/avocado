@@ -160,6 +160,32 @@ npm run sdk:size    # gzip 크기 확인 (한도 10KB)
 
 `public/sdk/`는 빌드 산출물이라 깃에 올리지 않는다. `npm run build`가 매번 다시 만든다.
 
+## 서비스명 바꾸기
+
+`src/shared/brand.ts`의 `SERVICE_NAME` 한 줄만 바꾸면 아래가 모두 따라 바뀐다.
+
+- 랜딩·로그인·가입·온보딩의 로고와 문구, 푸터, 브라우저 탭 제목(`index.html`은 빌드와 dev에서 vite 플러그인이 주입)
+- 인증번호 문자 머리말(`SMS_PREFIX`), 문의 접수 메일 제목
+- 문구 속 서비스명 뒤 조사(`withJosa`가 받침에 맞춰 고른다)
+
+이 파일 밖에 "avocado" 리터럴을 새로 쓰면 `src/shared/brand.test.ts`가 실패한다. 의도한 기술 식별자면 그 테스트의 허용 목록에 이유와 함께 추가한다.
+
+### 따로 바꿔야 하는 운영 설정
+
+- 도메인: `APP_URL`, `PUBLIC_SHORT_BASE`, Worker 라우트와 DNS
+- 메일: `EMAIL_FROM`의 표시 이름, Resend 도메인과 발신 주소 인증
+- 문자: 발신 프로필, 발신번호 등록 내용
+- 외부 콘솔의 앱 이름(OAuth 동의 화면 등)과 Cloudflare 프로젝트 표시 이름
+
+### 바꾸지 않는 기술 식별자
+
+| 식별자 | 이유 |
+| --- | --- |
+| 웹 SDK 전역 `window.avocado`, `avocado('conversion', ...)` 안내 문구, `sdk/`, 클래스 `AvocadoSdk` | 바꾸면 브랜드 사이트에 이미 설치된 스니펫이 깨진다 |
+| Queue `avocado-pipeline`, `avocado-collect`, D1 `avocado-db`, Worker 이름 | 바꾸면 새 리소스를 만들고 데이터를 옮겨야 한다 |
+| User-Agent `AvocadoSnapshot`, `AvocadoProductReader` | 외부 사이트 허용 목록, 로그 식별에 쓰인다 |
+| 개발용 `/dev/ui` 카탈로그 | 사용자에게 보이지 않는다 |
+
 ## 알려진 한계
 
 - 서버에 ffmpeg가 없다. 프레임·오디오는 업로드하는 브라우저가 뽑는다. 브라우저가 뽑지 못한 영상은 전사·시각 판정 없이 검수함에 들어간다

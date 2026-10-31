@@ -1,9 +1,12 @@
 // 랜딩 카피: docs/05-landing-copy.md 3장(v2) 원문을 뜻·순서·개수 그대로 두고 문장만 짧게 다듬었다
-// (2026-10-23 사용자 결정). [서비스명]은 avocado 로 채웠다
+// (2026-10-23 사용자 결정). [서비스명]은 shared/brand.ts 의 SERVICE_NAME 으로 채운다
 // B10 증거는 G-Proof(파일럿 브랜드 동의 + 실측) 전까지 숨기는 섹션이라 넣지 않는다
 
-export const BRAND = "avocado";
-export const PAGE_TITLE = "avocado: 인플루언서 협업 검수·리드 도구";
+import { PAGE_TITLE, SERVICE_NAME } from "../../../shared/brand";
+import { withJosa } from "../../../shared/josa";
+
+export { PAGE_TITLE };
+export const BRAND = SERVICE_NAME;
 
 export type Item = { title: string; body?: string };
 export type FeatureSection = { id: string; title: string; sub: string; chips?: string[]; items: Item[]; note?: string };
@@ -96,7 +99,7 @@ export const FEATURES: FeatureSection[] = [
   },
   {
     id: "candidates",
-    title: "찾는 일은 avocado가, 판단은 브랜드가",
+    title: `찾는 일은 ${withJosa(SERVICE_NAME, "이/가")}, 판단은 브랜드가`,
     sub: "등록한 규정과 다를 수 있는 장면을 먼저 찾아요. 근거 장면과 대사가 붙고 채택은 브랜드가 정해요.",
     chips: ["위반 후보", "확인 필요", "준수", "판단 불가"],
     items: [

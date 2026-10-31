@@ -2,6 +2,7 @@ import type { EmailMessage } from "./email";
 import { escapeHtml } from "./html";
 import { newId, now } from "./ids";
 import { supportTypeLabel, type SupportBody } from "../../shared/support";
+import { SERVICE_NAME } from "../../shared/brand";
 import type { supportRequests } from "../db/schema";
 
 type SupportRow = typeof supportRequests.$inferInsert;
@@ -26,7 +27,7 @@ export function supportEmail(body: SupportBody, ctx: MailContext): EmailMessage 
   ];
   return {
     to: ctx.to,
-    subject: `[avocado 문의] ${supportTypeLabel(body.type)} · ${ctx.workspaceName}`,
+    subject: `[${SERVICE_NAME} 문의] ${supportTypeLabel(body.type)} · ${ctx.workspaceName}`,
     text: lines.join("\n"),
     html: `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(lines.join("\n"))}</pre>`,
   };

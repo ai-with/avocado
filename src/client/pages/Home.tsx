@@ -58,7 +58,7 @@ function StepCard({ step, done }: { step: (typeof STEPS)[number]; done: boolean 
         <span className="step-card-title">{step.title}</span>
         <span className="text-caption">약 {step.minutes}분</span>
       </span>
-      {done ? <Badge tone="success" dot>완료</Badge> : <ButtonLink size="sm" to={step.to} aria-label={`${step.title} 시작`}>시작</ButtonLink>}
+      {done ? <Badge tone="accent" dot>완료</Badge> : <ButtonLink size="sm" to={step.to} aria-label={`${step.title} 시작`}>시작</ButtonLink>}
     </li>
   );
 }

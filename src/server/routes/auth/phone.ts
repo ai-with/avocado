@@ -7,6 +7,7 @@ import { phoneVerifications, users } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now, sha256Hex } from "../../lib/ids";
 import { sendSms } from "../../lib/sms";
+import { SMS_PREFIX } from "../../../shared/brand";
 import { CODE_TTL_MS, MAX_ATTEMPTS, judgeCode, maskPhone, newCode, normalizePhone } from "../../lib/phone";
 import { sessionCtx } from "../../middleware/auth";
 import { MIN, clientIp, phoneInUse, phoneOwnedByOther } from "./shared";
@@ -68,7 +69,7 @@ export const phoneRoutes = new Hono<AppEnv>()
     const id = newId();
     const code = newCode();
     await db.insert(phoneVerifications).values({ id, userId: auth.user.id, phoneE164: phone, codeHash: await sha256Hex(`${id}:${code}`), purpose: auth.phoneVerified ? "change" : "signup", expiresAt: now() + CODE_TTL_MS, ip, createdAt: now() });
-    const sms = await sendSms(c.env, phone, `[워크스페이스 서비스] 인증번호 ${code} (5분 안에 입력)`);
+    const sms = await sendSms(c.env, phone, `${SMS_PREFIX} 인증번호 ${code} (5분 안에 입력)`);
     if (!sms.delivered && sms.reason === "provider_error") throw new ApiError(502, "sms_failed", "문자를 보내지 못했어요. 잠시 후 다시 시도해 주세요.");
     const devCode = !sms.delivered && c.env.APP_ENV !== "production" ? code : undefined;
     return c.json({ phone: maskPhone(phone), expiresAt: now() + CODE_TTL_MS, resendAfterSec: RESEND_AFTER_S, devCode });
