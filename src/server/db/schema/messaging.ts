@@ -75,9 +75,13 @@ export const messageLogs = sqliteTable(
     channel: text("channel").$type<Channel>().notNull(),
     status: text("status").$type<"sent" | "skipped" | "failed" | "bounced">().notNull(),
     reason: text("reason"),
+    // AIWITH-307: Resend 응답 ID와 발송 당시 주소·리드 생성 시각. 삭제 후 복구된 리드에 옛 반송을 적용하지 않는다.
+    providerId: text("provider_id"),
+    recipientEmail: text("recipient_email"),
+    leadCreatedAt: integer("lead_created_at"),
     at: integer("at").notNull(),
   },
-  (t) => [index("message_logs_lead_idx").on(t.leadId, t.at), index("message_logs_source_idx").on(t.sourceId, t.at)],
+  (t) => [index("message_logs_lead_idx").on(t.leadId, t.at), index("message_logs_source_idx").on(t.sourceId, t.at), index("message_logs_provider_idx").on(t.providerId)],
 );
 
 // 1단계는 항상 not_connected. 필드는 대행사 연동 방식에 따라 바뀔 수 있다 [검증 필요]

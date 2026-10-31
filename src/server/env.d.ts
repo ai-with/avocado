@@ -2,6 +2,7 @@
 // wrangler.jsonc vars 에 있는 이름(APP_URL, APP_ENV 등)은 생성물에 들어가므로 여기에 다시 쓰지 않는다
 interface Env {
   RESEND_API_KEY?: string;
+  RESEND_WEBHOOK_SECRET?: string;
   EMAIL_FROM?: string;
   META_APP_ID?: string;
   META_APP_SECRET?: string;

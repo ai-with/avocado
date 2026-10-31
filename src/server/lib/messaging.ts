@@ -47,6 +47,8 @@ type Delivery = { env: Env; db: Db; workspaceId: string; channel: Channel; kind:
 
 // 실제 전송 1건. 판정은 호출자가 끝낸 뒤 부른다. 결과를 message_logs 에 남긴다
 async function deliver(d: Delivery, lead: Lead, source: { type: "automation" | "broadcast"; id: string }): Promise<{ status: LogStatus; reason: SkipReason | null }> {
+  const logId = newId();
+  let providerId: string | null = null;
   let result: { status: LogStatus; reason: SkipReason | null };
   if (d.channel === "alimtalk" || !isEmailTemplate(d.template)) {
     const t = d.template;
@@ -54,15 +56,18 @@ async function deliver(d: Delivery, lead: Lead, source: { type: "automation" | "
     result = r.delivered ? { status: "sent", reason: null } : { status: "skipped", reason: "alimtalk_not_connected" };
   } else {
     const msg = renderEmail(d.template, await leadVars(d.db, lead), { kind: d.kind, ...(await senderInfo(d.db, d.workspaceId)), unsubscribeUrl: `${d.env.APP_URL}/unsubscribe/${lead.unsubscribeToken}` });
-    const r = await sendEmail(d.env, { to: lead.email, ...msg });
+    // 웹훅이 API 응답·로그 저장보다 빨리 와도, 관리 대상 발송인 경우에만 재시도할 수 있게 표시한다.
+    const r = await sendEmail(d.env, { to: lead.email, ...msg, tags: [{ name: "message_log_id", value: logId }] });
+    if (r.delivered) providerId = r.id;
     result = r.delivered ? { status: "sent", reason: null } : r.reason === "no_provider" ? { status: "skipped", reason: "no_provider" } : { status: "failed", reason: "provider_error" };
   }
-  await logMessage(d.db, { workspaceId: d.workspaceId, leadId: lead.id, source: source.type, sourceId: source.id, channel: d.channel, ...result });
+  await logMessage(d.db, { id: logId, workspaceId: d.workspaceId, leadId: lead.id, source: source.type, sourceId: source.id, channel: d.channel, providerId, recipientEmail: d.channel === "email" ? lead.email : null, leadCreatedAt: lead.createdAt, ...result });
   return result;
 }
 
-export async function logMessage(db: Db, l: { workspaceId: string; leadId: string | null; source: "automation" | "broadcast" | "test"; sourceId: string; channel: Channel; status: LogStatus; reason: SkipReason | null }) {
-  await db.insert(messageLogs).values({ id: newId(), ...l, at: now() });
+export async function logMessage(db: Db, l: { id?: string; workspaceId: string; leadId: string | null; source: "automation" | "broadcast" | "test"; sourceId: string; channel: Channel; status: LogStatus; reason: SkipReason | null; providerId?: string | null; recipientEmail?: string | null; leadCreatedAt?: number | null }) {
+  const { id = newId(), ...fields } = l;
+  await db.insert(messageLogs).values({ id, ...fields, at: now() });
 }
 
 // 받는 사람 집계: 그룹·태그 합집합 → 발송 가능 / 전체 / 불가(사유별). 야간 보류는 불가로 세지 않는다

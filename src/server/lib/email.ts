@@ -1,4 +1,4 @@
-export type EmailMessage = { to: string; subject: string; html: string; text: string };
+export type EmailMessage = { to: string; subject: string; html: string; text: string; tags?: { name: string; value: string }[] };
 export type EmailResult = { delivered: true; id: string } | { delivered: false; reason: "no_provider" | "provider_error" };
 
 export async function sendEmail(env: Env, msg: EmailMessage): Promise<EmailResult> {
@@ -10,12 +10,16 @@ export async function sendEmail(env: Env, msg: EmailMessage): Promise<EmailResul
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(msg.tags?.length && { tags: msg.tags }) }),
   });
   if (!res.ok) {
     console.error("[email:provider_error]", res.status, await res.text());
     return { delivered: false, reason: "provider_error" };
   }
-  const data: { id: string } = await res.json();
+  const data: { id?: unknown } = await res.json();
+  if (typeof data.id !== "string" || !data.id.trim()) {
+    console.error("[email:provider_error]", "missing_email_id");
+    return { delivered: false, reason: "provider_error" };
+  }
   return { delivered: true, id: data.id };
 }

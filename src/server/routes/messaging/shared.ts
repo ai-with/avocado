@@ -47,6 +47,6 @@ export async function sendTest(c: Context<AppEnv>, r: Sendable & { id: string })
   const res = await sendEmail(c.env, { to: user.email, ...msg, subject: `[테스트] ${msg.subject}` });
   const status = res.delivered ? "sent" : res.reason === "no_provider" ? "skipped" : "failed";
   const reason = res.delivered ? null : res.reason;
-  await logMessage(db, { workspaceId: workspace.id, leadId: null, source: "test", sourceId: r.id, channel: "email", status, reason });
+  await logMessage(db, { workspaceId: workspace.id, leadId: null, source: "test", sourceId: r.id, channel: "email", providerId: res.delivered ? res.id : null, recipientEmail: user.email, status, reason });
   return { to: user.email, delivered: res.delivered, reason };
 }

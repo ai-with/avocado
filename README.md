@@ -104,6 +104,7 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 | 이름 | 용도 | 없을 때 |
 |------|------|---------|
 | `RESEND_API_KEY` | 이메일 발송 (Resend) | 메일을 보내지 않고 로그만. 발송 로그는 `no_provider` |
+| `RESEND_WEBHOOK_SECRET` | Resend 반송 웹훅 서명 검증 (`whsec_`로 시작하는 Signing Secret) | `/webhooks/resend`가 503을 반환하며 반송을 반영하지 않는다 |
 | `EMAIL_FROM` | 발신 주소 (Resend에서 인증한 도메인) | `no-reply@example.com` |
 | `SUPPORT_EMAIL` | 도움 받기 문의를 받을 운영 주소 (선택, 실제 발송은 `RESEND_API_KEY`도 필요) | 문의를 저장만 하고 메일은 보내지 않는다 |
 | `SMS_PROVIDER` | `solapi`로 두면 문자 발송 | 문자 미발송. 운영에서는 인증번호를 받을 수 없어 가입이 막힌다 (필수) |
@@ -136,6 +137,14 @@ Google Cloud 콘솔 > API 및 서비스 > 사용자 인증 정보에서 OAuth �
 npm run db:migrate:remote
 npm run deploy
 ```
+
+### 7. Resend 반송 웹훅
+
+Resend의 Webhooks에서 운영 URL `${APP_URL}/webhooks/resend`를 등록하고 `email.bounced`를 구독한다. 해당 웹훅의 Signing Secret을 `npx wrangler secret put RESEND_WEBHOOK_SECRET`으로 등록한다. `0022_email_bounces.sql` 마이그레이션을 적용한 뒤 배포한다.
+
+자동·1회성 발송은 Resend ID와 발송 당시 리드·수신자 정보를 보관한다. 반송은 원문과 Svix 서명을 검증한 뒤, 해당 발송에 연결된 리드의 `bounced_at`과 발송 기록의 `bounced` 상태를 함께 갱신한다. 같은 주소가 다른 워크스페이스에 있어도 영향을 주지 않는다. 삭제 후 복구된 리드나 발송 후 이메일을 바꾼 리드에는 과거 반송을 적용하지 않는다. 반송된 리드는 이후 이메일 발송에서 제외된다.
+
+DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착하면 관리 태그가 있는 발송에 한해 이벤트 생성 후 10분 동안 재시도하고, 끝내 연결되지 않으면 무시한다. 배포 전 로그처럼 Resend ID가 없는 기록은 이메일 주소만으로 연결하지 않는다. 설정·페이로드 기준은 [Resend 반송 이벤트](https://resend.com/docs/webhooks/emails/bounced), [서명 검증](https://resend.com/docs/webhooks/verify-webhooks-requests), [Svix 수동 검증](https://docs.svix.com/receiving/verifying-payloads/how-manual)을 따른다.
 
 ## 웹 SDK
 
@@ -200,7 +209,7 @@ npm run sdk:size    # gzip 크기 확인 (한도 10KB)
 - AI는 Workers AI 바인딩을 쓴다. 로컬 dev에서도 실제 호출은 Cloudflare 계정으로 원격 실행된다 (`AI_FAKE=1`이면 고정 응답)
 - 카카오 알림톡은 어댑터 자리만 있다. 연결 전까지 알림톡 규칙은 저장 단계에서 막힌다
 - 구글 시트 내보내기는 구현하지 않았다 (CSV 내보내기만)
-- 이메일 반송(bounce) 웹훅이 없어 반송 주소를 자동으로 거르지 못한다
+- 반송 반영에는 Resend 웹훅 구독과 `RESEND_WEBHOOK_SECRET` 등록이 필요하다. Resend ID를 저장하지 않았던 이전 발송은 반송과 자동으로 연결하지 않는다
 - `npm audit`의 moderate 4건은 drizzle-kit이 쓰는 옛 esbuild(개발 도구 전용)라 배포되는 Worker와 무관하다
 - `wrangler.jsonc`의 `"minify": true`는 Vite 빌드에서 무시된다는 경고가 뜬다. 실제 압축은 `vite.config.ts`에서 켜져 있다
 - 클라이언트 번들 중 `index` 청크가 500KB를 넘는다는 Vite 경고가 있다 (PDF 뷰어와 에디터는 이미 지연 로드)
