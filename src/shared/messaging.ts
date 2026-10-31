@@ -22,8 +22,8 @@ export const DELAYS: DelayMinutes[] = [0, 60, 1440, 4320];
 export const CHANNEL_LABELS: Record<Channel, string> = { email: "이메일", alimtalk: "알림톡" };
 export const KIND_LABELS: Record<MessageKind, string> = { info: "정보성", ad: "광고성" };
 
-// cron 주기(wrangler.jsonc triggers */15)와 맞춘다
-export const DELAY_NOTICE = "실제 발송은 예정 시각보다 최대 15분 늦을 수 있어요.";
+// 실제 15분 주기와 발송 대기량을 반영한다. 상한 시간으로 약속하지 않는다.
+export const DELAY_NOTICE = "보통 예정 시각부터 15분 안에 발송을 시작해요. 대기 중인 메시지가 많으면 더 늦어질 수 있어요.";
 
 // 이메일 변수. {{이름}} 형식
 export const VARIABLES = ["이름", "가이드명", "인플루언서명"] as const;
