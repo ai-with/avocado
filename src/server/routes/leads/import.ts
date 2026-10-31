@@ -6,7 +6,9 @@ import { workspaceCtx } from "../../middleware/auth";
 import { applyImportChunk, cancelImportJob, createImportJob, getImportJob, importContext, requireImportCsrf } from "../../lib/lead-imports";
 import { IMPORT_BODY_BYTES, IMPORT_CHUNK_ROWS } from "../../../shared/lead-imports";
 
-const text = (max: number) => z.string().max(max).refine((value) => !/[\u0000-\u001f\u007f]/.test(value), "줄바꿈과 제어 문자를 빼 주세요.");
+// Quoted CSV cells may legitimately contain tabs/CR/LF. Keep RFC4180 data
+// semantics while rejecting other control bytes and retaining the byte limits.
+const text = (max: number) => z.string().max(max).refine((value) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value), "내용의 제어 문자를 확인해 주세요.");
 const row = z.object({ email: text(254), name: text(100).optional(), company: text(100).optional(), phone: text(30).optional(), marketing_opt_in: text(16).optional() }).strict();
 const consent = z.literal(true, { error: "수신 동의를 받은 연락처만 올린다는 확인이 필요해요." });
 const generation = z.string().min(1).max(100);

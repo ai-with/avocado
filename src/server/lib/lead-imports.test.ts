@@ -86,6 +86,13 @@ describe("lead import atomic receipts and boundaries", () => {
     expect(JSON.stringify(s.db.prepare("SELECT * FROM lead_import_jobs UNION ALL SELECT * FROM lead_import_jobs WHERE 0").all())).not.toContain("same@example.invalid");
     expect(JSON.stringify(s.db.prepare("SELECT * FROM lead_import_chunks").all())).not.toMatch(/same@example|ANSWER|COMPANY/);
   });
+
+  it("preserves quoted CSV line breaks and trims peripheral tab whitespace", async () => {
+    const s = await setup(), { job } = await s.create(1);
+    const result = await s.apply(job, [{ email: " multiline@example.invalid ", name: "FIRST\nSECOND", company: "R&D\r\nQA", phone: "\tTEST-PHONE\t" }]);
+    expect(result.status).toBe(200);
+    expect(s.db.prepare("SELECT name,company,phone FROM leads").all()).toEqual([{ name: "FIRST\nSECOND", company: "R&D\r\nQA", phone: "TEST-PHONE" }]);
+  });
   it("same chunk concurrency and response replay return the exact stored receipt", async () => {
     const s = await setup(), { job } = await s.create(100), input = rows(0);
     const responses = await Promise.all([s.apply(job, input), s.apply(job, input)]);
