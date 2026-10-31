@@ -1,5 +1,7 @@
 // 브라우저에서 영상의 프레임과 오디오를 뽑는다 (F-60 일부를 클라이언트로 옮김)
 import { frameTargets, sceneChanged, sceneSample, validateFrameDuration, validateFrameLimit, type SceneSample } from "./frame-scenes";
+import type { AudioExtraction } from "../../../shared/audio-analysis";
+import { probeAudioTracks } from "./audio-probe";
 
 export type VideoMeta = { durationS: number; width: number; height: number };
 export type FrameShot = { tMs: number; source: "fps" | "scene"; blob: Blob };
@@ -103,16 +105,17 @@ export async function extractFrames(file: File, max: number, onProgress?: (ratio
 
 const MAX_AUDIO_DECODE_BYTES = 500 * 1024 ** 2;
 
-// 16kHz mono WAV. 오디오 트랙이 없거나 너무 큰 파일이면 null
-export async function extractAudioWav(file: File): Promise<{ blob: Blob; sampleRate: number; durationS: number } | null> {
-  // ponytail: 파일 전체를 메모리에 읽어 디코딩한다. 500MB 넘으면 건너뛰고 서버 처리에 맡긴다
-  if (file.size > MAX_AUDIO_DECODE_BYTES) return null;
+// 16kHz mono WAV. Decode failure/size limits are not evidence of no audio.
+export async function extractAudioWav(file: File): Promise<AudioExtraction> {
+  const probe = await probeAudioTracks(file);
+  if (probe.kind === "no_audio") return probe;
+  if (file.size > MAX_AUDIO_DECODE_BYTES) return probe.kind === "unavailable" && probe.reason === "probe_limit" ? probe : { kind: "unavailable", reason: "decode_limit" };
   const rate = 16000;
   let decoded: AudioBuffer;
   try {
     decoded = await new OfflineAudioContext(1, 1, rate).decodeAudioData(await file.arrayBuffer());
   } catch {
-    return null;
+    return { kind: "unavailable", reason: probe.kind === "unavailable" ? probe.reason : "decode_failed" };
   }
   const n = decoded.length;
   const mono = new Float32Array(n);
@@ -120,7 +123,7 @@ export async function extractAudioWav(file: File): Promise<{ blob: Blob; sampleR
     const data = decoded.getChannelData(ch);
     for (let i = 0; i < n; i++) mono[i]! += data[i]! / decoded.numberOfChannels;
   }
-  return { blob: encodeWav(mono, decoded.sampleRate), sampleRate: decoded.sampleRate, durationS: decoded.duration };
+  return { kind: "audio", blob: encodeWav(mono, decoded.sampleRate), sampleRate: decoded.sampleRate, durationS: decoded.duration };
 }
 
 export function encodeWav(samples: Float32Array, sampleRate: number): Blob {

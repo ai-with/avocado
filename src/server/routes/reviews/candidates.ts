@@ -62,7 +62,7 @@ export const candidateRoutes = new Hono<AppEnv>()
     await assertMediaWritable(c.var.db, sub.id);
     if (!sub.originalKey) throw new ApiError(400, "no_file", "드라이브 링크 제출은 자동 처리하지 않아요.");
     const stages = stage === "transcribe" ? ["transcribe", "translate", "detect"] : ["detect"];
-    await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: sub.id, stages } });
+    await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: sub.id, stages, requestId: newId() } });
     return c.json({ ok: true });
   })
   // 후보 판정: 채택이면 피드백 초안이 생기고, 채택을 풀면 보내지 않은 초안은 지운다

@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Badge, Button, Card, EmptyState, Switch } from "../../../ui";
 import { api } from "../../../lib/api";
 import { fmtTimecode } from "../../../../shared/review";
+import { transcriptSkipped } from "../../../../shared/audio-analysis";
 import type { ActFn, ReviewDetail, SeekFn } from "../types";
 
 export function TranscriptTab({ d, base, canEdit, onSeek, onAct }: { d: ReviewDetail; base: string; canEdit: boolean; onSeek: SeekFn; onAct: ActFn }) {
   const [translated, setTranslated] = useState(false);
   const stt = d.jobs.find((j) => j.stage === "transcribe");
   const tr = d.jobs.find((j) => j.stage === "translate");
+  if (d.mediaState === "withdrawn") return <EmptyState {...transcriptSkipped("withdrawn")} />;
+  if (d.mediaState === "unavailable") return <EmptyState {...transcriptSkipped("audio_unavailable")} />;
   if (stt?.status === "failed")
     return (
       <Card className="stack">
@@ -16,7 +19,7 @@ export function TranscriptTab({ d, base, canEdit, onSeek, onAct }: { d: ReviewDe
         {canEdit && <div><Button variant="secondary" onClick={() => void onAct(() => api.post(`${base}/retry`, { stage: "transcribe" }), "다시 요청했어요.")}>전사 다시 요청</Button></div>}
       </Card>
     );
-  if (stt?.status === "skipped") return <EmptyState title="음성 없음" description="대사가 없는 영상이에요. 위반 후보는 화면 기준으로만 찾았어요." />;
+  if (stt?.status === "skipped") return <EmptyState {...transcriptSkipped(stt.error)} />;
   if (d.segments.length === 0) return <EmptyState title="전사 준비 중" description="처리가 끝나면 타임코드가 붙은 대사가 보여요." />;
   return (
     <div className="stack">

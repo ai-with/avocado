@@ -3,19 +3,19 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Db } from "../db";
 import { audioTracks, guideInfluencers, guides, processingJobs, submissions } from "../db/schema";
 import { newId, now } from "../lib/ids";
-import { logEvent } from "../lib/events";
 import { JOB_STAGES, type JobStage } from "../../shared/review";
 import { StageSkip, jobWhere, type Ctx } from "./context";
 import { stageTranscribe } from "./stages/transcribe";
 import { stageTranslate } from "./stages/translate";
 import { stageDetect } from "./stages/detect";
 import { stageNotify } from "./stages/notify";
-import { assertMediaWritable, mediaWritable } from "../lib/media-purge";
+import { mediaWritable } from "../lib/media-purge";
+import { analysisWrite, claimAnalysis, finishAnalysis, processingEvent, releaseAnalysis, renewAnalysis, StaleAnalysis } from "./analysis";
 
 // F-60 처리 파이프라인. Queue 메시지 { type: "process_submission", payload: { submissionId, stages? } }
 // 단계마다 processing_jobs 1행을 갱신하고, 한 단계가 실패해도 다음 단계는 가능한 범위에서 계속한다
 
-const payloadSchema = z.object({ submissionId: z.string(), stages: z.array(z.enum(JOB_STAGES)).optional() });
+const payloadSchema = z.object({ submissionId: z.string(), stages: z.array(z.enum(JOB_STAGES)).optional(), requestId: z.string().max(100).optional() });
 type Payload = z.infer<typeof payloadSchema>;
 // 프레임·오디오는 업로드 완료 뒤 브라우저가 보내므로 큐 메시지가 먼저 올 수 있다. 오디오가 오거나 이 시간이 지날 때까지 다시 넣는다
 const WAIT_FOR_ANALYSIS_MS = 3 * 60 * 1000;
@@ -46,18 +46,21 @@ async function loadCtx(env: Env, db: Db, submissionId: string): Promise<Ctx | nu
 async function requeueIfEarly(ctx: Ctx, payload: Payload) {
   if (payload.stages) return false;
   const audio = await ctx.db.select({ id: audioTracks.id }).from(audioTracks).where(eq(audioTracks.submissionId, ctx.sub.id)).get();
-  if (audio || now() - (ctx.sub.uploadedAt ?? 0) >= WAIT_FOR_ANALYSIS_MS) return false;
+  const receipt = await ctx.db.get<{ ready: number }>(sql`SELECT 1 AS ready FROM submission_analysis WHERE submission_id=${ctx.sub.id} AND audio_state='none' AND frames_complete=1`);
+  if (audio || receipt || now() - (ctx.sub.uploadedAt ?? 0) >= WAIT_FOR_ANALYSIS_MS) return false;
   await ctx.env.PIPELINE.send({ type: "process_submission", payload }, { delaySeconds: REQUEUE_DELAY_S });
   return true;
 }
 
-async function queueStages(ctx: Ctx, stages: JobStage[]) {
-  for (const stage of stages)
-    await ctx.db
+async function queueStages(ctx: Ctx, stages: JobStage[], retry: readonly JobStage[]) {
+  const generation = ctx.analysis!.generation;
+  const results = await analysisWrite(ctx, [...stages.map((stage) => ctx.db
       .insert(processingJobs)
-      .values({ id: newId(), submissionId: ctx.sub.id, stage, status: "queued" })
-      .onConflictDoUpdate({ target: [processingJobs.submissionId, processingJobs.stage], set: { status: "queued", attempts: 0, startedAt: null, finishedAt: null, error: null } });
-  await ctx.db.update(submissions).set({ status: "processing" }).where(eq(submissions.id, ctx.sub.id));
+      .values({ id: newId(), submissionId: ctx.sub.id, stage, status: "queued", analysisGeneration: generation })
+      .onConflictDoUpdate({ target: [processingJobs.submissionId, processingJobs.stage], set: { status: "queued", attempts: 0, startedAt: null, finishedAt: null, error: null, analysisGeneration: generation },
+        setWhere: retry.includes(stage) ? undefined : sql`${processingJobs.analysisGeneration}<>${generation} OR ${processingJobs.status} IN ('queued','running')` }).returning({ stage: processingJobs.stage })),
+    ctx.db.update(submissions).set({ status: "processing" }).where(eq(submissions.id, ctx.sub.id))]);
+  return stages.filter((_, index) => results[index + 1]!.results.length > 0);
 }
 
 export async function processSubmission(raw: unknown, env: Env) {
@@ -68,35 +71,43 @@ export async function processSubmission(raw: unknown, env: Env) {
   if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);
   if (await requeueIfEarly(ctx, payload)) return;
 
-  const stages = payload.stages ?? [...JOB_STAGES];
-  await queueStages(ctx, stages);
-  for (const stage of stages) {
+  try {
+    const requestId = payload.stages ? payload.requestId ?? `legacy:${payload.stages.join(",")}` : null;
+    const claim = await claimAnalysis(ctx, requestId);
+    if (claim === "done") return;
+    if (claim === "busy") { await env.PIPELINE.send({ type: "process_submission", payload }, { delaySeconds: REQUEUE_DELAY_S }); return; }
+    // A detect retry must not stamp old transcripts as terminal for a new audio
+    // generation before that generation's transcription has run.
+    const requested = payload.stages;
+    const stages: JobStage[] = requested && ctx.analysis!.pendingGeneration && requested.some((stage) => stage === "detect" || stage === "translate")
+      ? [...new Set<JobStage>(["transcribe", "translate", ...requested])] : requested ?? [...JOB_STAGES];
+    const pending = await queueStages(ctx, stages, payload.stages ?? []);
+    for (const stage of pending) { await renewAnalysis(ctx); await runStage(ctx, stage); }
+    await finishAnalysis(ctx);
+  } catch (error) {
+    if (error instanceof StaleAnalysis) return; // Never cancel a newer generation's jobs.
     if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);
-    if (!(await runStage(ctx, stage))) return cancelJobs(db, [ctx.sub.id]);
+    await releaseAnalysis(ctx).catch(() => { console.error("[pipeline_claim_release_failed]"); });
+    throw error;
   }
-  await assertMediaWritable(db, ctx.sub.id);
-  await db.update(submissions).set({ status: "ready" }).where(eq(submissions.id, ctx.sub.id));
 }
 
 async function runStage(ctx: Ctx, stage: JobStage) {
   const { db, sub } = ctx;
   const where = jobWhere(sub.id, stage);
   const startedAt = now();
-  await db.update(processingJobs).set({ status: "running", startedAt }).where(where);
+  await analysisWrite(ctx, [db.update(processingJobs).set({ status: "running", startedAt }).where(where)]);
   try {
     const note = await STAGE_FNS[stage](ctx);
-    await assertMediaWritable(db, sub.id);
-    await db.update(processingJobs).set({ status: "done", finishedAt: now(), error: note }).where(where);
-    await logEvent(db, ctx.workspaceId, "processing_job_completed", { stage, duration_ms: now() - startedAt });
-    return true;
+    await analysisWrite(ctx, [db.update(processingJobs).set({ status: "done", finishedAt: now(), error: note }).where(where),
+      processingEvent(ctx, "processing_job_completed", { stage, duration_ms: now() - startedAt })]);
   } catch (e) {
-    if (!(await mediaWritable(db, sub.id))) { await cancelJobs(db, [sub.id]); return false; }
+    if (e instanceof StaleAnalysis) throw e;
     const skipped = e instanceof StageSkip;
     const reason = e instanceof Error ? e.message.slice(0, ERROR_MAX_CHARS) : "unknown";
+    await analysisWrite(ctx, [db.update(processingJobs).set({ status: skipped ? "skipped" : "failed", finishedAt: now(), error: reason }).where(where),
+      ...(!skipped ? [processingEvent(ctx, "processing_job_failed", { stage, reason })] : [])]);
     if (!skipped) console.error("[pipeline]", stage, sub.id, e);
-    await db.update(processingJobs).set({ status: skipped ? "skipped" : "failed", finishedAt: now(), error: reason }).where(where);
-    if (!skipped) await logEvent(db, ctx.workspaceId, "processing_job_failed", { stage, reason });
-    return true;
   }
 }
 

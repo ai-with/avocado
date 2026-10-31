@@ -26,6 +26,7 @@ export const processingJobs = sqliteTable(
     startedAt: integer("started_at"),
     finishedAt: integer("finished_at"),
     error: text("error"),
+    analysisGeneration: integer("analysis_generation").notNull().default(0),
   },
   (t) => [uniqueIndex("processing_jobs_stage_idx").on(t.submissionId, t.stage)],
 );

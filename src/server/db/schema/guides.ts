@@ -197,4 +197,24 @@ export const audioTracks = sqliteTable("audio_tracks", {
   key: text("key").notNull(),
   sampleRate: integer("sample_rate").notNull(),
   durationS: real("duration_s").notNull(),
+  contentHash: text("content_hash"),
 });
+
+export const submissionAnalysis = sqliteTable("submission_analysis", {
+  submissionId: text("submission_id").primaryKey().references(() => submissions.id, { onDelete: "cascade" }),
+  audioState: text("audio_state").$type<"unknown" | "none" | "present">().notNull().default("unknown"),
+  audioReason: text("audio_reason"),
+  framesComplete: integer("frames_complete", { mode: "boolean" }).notNull().default(false),
+  generation: integer("generation").notNull().default(0),
+  completedGeneration: integer("completed_generation").notNull().default(-1),
+  claimToken: text("claim_token"),
+  claimUntil: integer("claim_until"),
+  completedRequestId: text("completed_request_id"),
+});
+
+export const submissionAnalysisRetries = sqliteTable("submission_analysis_retries", {
+  submissionId: text("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  requestId: text("request_id").notNull(),
+  generation: integer("generation").notNull(),
+  completedAt: integer("completed_at").notNull(),
+}, (t) => [primaryKey({ columns: [t.submissionId, t.requestId] })]);

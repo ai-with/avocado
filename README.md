@@ -206,6 +206,18 @@ DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착
 
 기존 확인 버튼의 POST와 `{ ok: true }`를 유지한다. 반복·동시 요청은 최초 저장한 거부 시각을 보존하고 동의 플래그나 다른 리드를 바꾸지 않는다. 기존처럼 soft-delete 후 파기 전까지 토큰은 작동하며, 파기된 리드·삭제 워크스페이스·알 수 없는 토큰은 같은 404로 응답한다. 토큰 이동 시 이전 브랜드와 완료 상태를 버리고 늦은 응답을 적용하지 않는다. 마이그레이션이나 발송·광고 분류 변경은 없다.
 
+## 오디오 트랙 부재 확인 (AIWITH-381)
+
+브라우저는 정적 MP4/MOV의 `moov/trak/mdia/hdlr` 전체 목록과 비디오 sample table이 가리키는 `mdat` 범위를 검사한 경우에만 오디오 트랙 부재를 확정한다. 단순 `soun` 문자열 검색이나 디코딩 오류를 근거로 쓰지 않는다. [Apple atom/계층 규칙](https://developer.apple.com/documentation/quicktime-file-format/atoms)을 따르며 compressed/reference movie, fragmented MP4, WebM, 외부 참조, 지원 밖 트랙·codec, 잘린 구조는 확인 불가다. probe는 `Blob.slice`로 payload를 건너뛰고 메타데이터 2MiB·top-level/moov 내부 box 순회 각 4,096개·전체 sample 100,000개를 상한으로 둔다. 이는 검사 메모리/반복 한도이며 업로드 요금제 제한이 아니다.
+
+부재 probe를 먼저 하므로 큰 무음 파일도 파일 전체를 읽지 않고 처리할 수 있다. 기존 500MiB는 이후 전체 오디오 디코딩의 메모리 상한이다. 상한 초과·미지원·decode 실패는 무음이 아니다. [WebAudio decode 오류](https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata)는 MIME/codec/손상 등의 실패도 포함한다. 서버 ffmpeg나 새 유료 처리 인프라는 추가하지 않는다.
+
+프레임을 모두 전송한 뒤 `POST /api/public/upload/:token/analysis-complete`가 제출물·기존 동의·실제 frame 수를 확인하고 결과 receipt를 보관한다. 확정 부재만 전사·번역을 같은 transaction에서 skipped로 남기고 기존 Queue를 즉시 깨워 3분 대기를 우회한다. 동일 receipt의 재시도는 세대를 다시 늘리지 않고 wake만 재시도한다. 프레임 실패·확인 불가는 기존 3분 대기와 부분 검수 흐름을 유지한다. WAV가 없거나 R2 객체를 확인하지 못한 경우도 ‘음성 없음’으로 확정하지 않는다.
+
+`0034_submission_analysis.sql`을 먼저 적용한다. 제출물별 오디오 상태·분석 세대·15분 claim과 명시적 재요청 완료 영수증을 기존 D1에 보관한다. 실제 오디오는 부재 receipt보다 우선하고, WAV hash가 같은 재전송은 세대를 바꾸지 않는다. 새 오디오 세대는 이전 claim을 무효화한다. 전사·번역·후보·작업 상태·최종 ready 쓰기는 동의/파기 조건과 현재 세대/claim을 같은 native batch에서 검사한다. 구세대 중단이 새 작업을 철회 취소하지 않으며, 이미 완료한 같은 세대의 단계는 일반 Queue 재전달로 다시 실행하지 않는다. 명시 재요청도 request ID별 완료 영수증을 보관한다. 알려진 처리 실패는 자기 claim만 해제하고, 실행이 중단되어 남은 claim은 lease 만료 뒤 재개한다.
+
+확정 무트랙은 ‘음성 없음’, 실제 STT의 빈 결과는 ‘대사 없음’, 미확보/옛 ambiguous `no_audio`는 ‘오디오 확인 불가’, 철회는 별도 상태로 표시한다. 로컬 회귀는 600MiB sparse payload를 전체 읽기 없이 검사하고, 실제 SQLite의 receipt·late audio·AI 응답·철회·실패/재시도 경합을 검증한다. 12프레임과 51개 규칙의 확정 무트랙 기본 경로는 [Free D1 호출당 50 API 한도](https://developers.cloudflare.com/d1/platform/limits/) 안에서 계측한다. 이 검증은 모든 실제 오디오/규칙 조합의 호출 예산이나 실제 브라우저 codec 지원을 보장하지 않는다. 실제 미디어·CUA 화면 검증은 별도다.
+
 ## 개인정보 파기
 
 `0024_privacy_purge.sql` 적용 후 배포한다. 기존 15분 Cron에서 기존 PIPELINE Queue에 개인정보 작업 세 건(리드·IP 해시, 사이트 D1, 철회 미디어)을 넣는다. `max_batch_size=1`로 각 작업을 별도 호출에서 실행해 기존 예약 발송·성과 수집과 D1/R2 호출 예산을 공유하지 않는다. 기존 영상 처리 메시지 경로도 유지한다.

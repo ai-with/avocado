@@ -6,7 +6,8 @@ import type { Ctx } from "../context";
 import { splitNames, type GuideRule } from "../../../shared/guides";
 import { isDictRule } from "../../../shared/brand-terms";
 import { dictQuestion } from "./detect-dict";
-import { assertMediaWritable, MediaWithdrawn } from "../../lib/media-purge";
+import { MediaWithdrawn } from "../../lib/media-purge";
+import { assertCurrentAnalysis, StaleAnalysis } from "../analysis";
 
 // 위반 탐지의 시각 질문: 규칙마다 프레임에 묻고 표를 모아 판정한다
 const UNIFORM_FRAMES = 12;
@@ -43,7 +44,7 @@ async function collectVotes(ctx: Ctx, questions: Question[], votes: Map<string, 
   const all = await db.select({ id: frames.id, tMs: frames.tMs, imageKey: frames.imageKey }).from(frames).where(eq(frames.submissionId, sub.id));
   const windowMax = Math.max(-1, ...questions.map((q) => q.windowMs ?? -1));
   for (const f of sampleFrames(all, UNIFORM_FRAMES, windowMax >= 0 ? windowMax : null)) {
-    await assertMediaWritable(db, sub.id);
+    await assertCurrentAnalysis(ctx);
     const qs = questions.filter((q) => q.windowMs == null || f.tMs <= q.windowMs);
     if (!qs.length) continue;
     qs.forEach((q) => asked.set(q.id, asked.get(q.id)! + 1));
@@ -51,12 +52,13 @@ async function collectVotes(ctx: Ctx, questions: Question[], votes: Map<string, 
     if (!img) continue;
     try {
       const bytes = await img.arrayBuffer();
-      await assertMediaWritable(db, sub.id);
+      await assertCurrentAnalysis(ctx);
       const answers = await judgeFrame(env, bytes, qs.map((q) => ({ id: q.id, question: q.question })));
-      await assertMediaWritable(db, sub.id);
+      // Votes are only local memory. The next frame checks before any R2/AI
+      // access, and saveDrafts fences the actual result in its atomic batch.
       for (const a of answers) votes.get(a.id)?.push({ frameId: f.id, yes: a.yes, confidence: a.confidence });
     } catch (e) {
-      if (e instanceof MediaWithdrawn) throw e;
+      if (e instanceof MediaWithdrawn || e instanceof StaleAnalysis) throw e;
       // 형식 오류·호출 실패는 그 프레임만 빠진다. 전부 빠지면 해당 규칙이 판단 불가
       console.error("[pipeline:vision]", f.id, e);
     }

@@ -64,6 +64,7 @@ export type FeedbackItem = {
 export type Round = { id: string; n: number; submissionId: string; version: number | null; submittedAt: number; items: FeedbackItem[] };
 
 export type ReviewDetail = {
+  mediaState?: "available" | "withdrawn" | "unavailable";
   submission: { id: string; version: number; kind: string; status: string; fileName: string | null; durationS: number | null; width: number | null; height: number | null; uploadedAt: number | null; driveUrl: string | null; driveAccess: DriveAccess | null; note: string | null; videoUrl: string | null; delayed: boolean };
   cleanUrl: string | null;
   guide: { id: string; name: string };

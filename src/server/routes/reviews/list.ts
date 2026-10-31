@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq, inArray, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { approvals, contents, feedbackItems, frames, guideInfluencers, guides, influencers, processingJobs, reviewRounds, submissions, supersededVersions, transcriptSegments, violationCandidates } from "../../db/schema";
@@ -70,7 +70,10 @@ async function analysisOf(db: Db, subId: string) {
   const segments = await db.select().from(transcriptSegments).where(eq(transcriptSegments.submissionId, subId)).orderBy(asc(transcriptSegments.startMs));
   const candidates = await db.select().from(violationCandidates).where(eq(violationCandidates.submissionId, subId)).orderBy(asc(violationCandidates.createdAt));
   const readable = await mediaWritable(db, subId);
-  return { jobs, frames: readable ? frameRows.map((f) => ({ id: f.id, tMs: f.tMs, source: f.source, url: fileUrl(f.imageKey) })) : [], segments: readable ? segments : [], candidates };
+  const consent = readable ? null : await db.get<{ withdrawnAt: number | null }>(sql`SELECT c.withdrawn_at AS withdrawnAt FROM submissions s
+    LEFT JOIN consents c ON c.id=s.consent_id AND c.guide_influencer_id=s.guide_influencer_id WHERE s.id=${subId}`);
+  const mediaState = readable ? "available" : consent?.withdrawnAt != null ? "withdrawn" : "unavailable";
+  return { jobs, mediaState, frames: readable ? frameRows.map((f) => ({ id: f.id, tMs: f.tMs, source: f.source, url: fileUrl(f.imageKey) })) : [], segments: readable ? segments : [], candidates };
 }
 
 // 승인 뒤 새 버전 상태와 승인된 버전 번호 (340)
