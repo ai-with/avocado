@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Badge, Button, CopyButton, Input, LoadingState, SectionCard, Table, useToast } from "../../ui";
-import { api } from "../../lib/api";
+import { api, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import { fmtDateTime } from "../guides/types";
 import type { IgTarget } from "../../../shared/performance";
 import type { Act } from "./kdmTypes";
 import { useAction } from "./useAction";
+import { beginInstagramOAuth } from "./instagramOAuth";
 import "../guides/guides.css";
 
 type Conn = {
@@ -17,6 +18,8 @@ type Conn = {
   scopes: string[];
   connected: boolean;
   expired: boolean;
+  disconnected: boolean;
+  reason: string | null;
   connectedAt: number | null;
   revokedAt: number | null;
   connectUrl: string | null;
@@ -31,29 +34,44 @@ const SCOPE_LABELS: Record<string, string> = {
 };
 const CARD_TITLE = "인스타그램 (브랜드 계정)";
 
-function useOAuthResultToast() {
+function useOAuthResultToast(data: IgData | null) {
   const toast = useToast();
   const [sp] = useSearchParams();
+  const seen = useRef(false);
   useEffect(() => {
-    if (sp.get("done") === "1") toast("인스타그램 계정을 연결했어요.", "success");
+    if (!data || seen.current) return;
+    seen.current = true;
+    if ((sp.get("done") === "1" || sp.get("ig") === "connected") && data.connections.find((c) => c.target === "brand_sender")?.connected) toast("인스타그램 계정을 연결했어요.", "success");
+    if (sp.get("ig") === "cancelled") toast("인스타그램 연결을 취소했어요.");
     const err = sp.get("error");
     if (err) toast(err === "personal_account" ? "개인 계정은 연결할 수 없어요. 프로페셔널 계정으로 바꿔 주세요." : err === "not_configured" ? "연결 준비 중이에요." : "연결하지 못했어요.", "danger");
-  }, [sp]);
+  }, [sp, data, toast]);
 }
 
+const connectionLabel = (connection: Conn | undefined) => connection?.connected ? "연결됨" : connection?.expired || connection?.disconnected ? "연결 끊김" : connection?.reason ? "다시 확인 필요" : "미연결";
+
 function SenderStatus({ sender }: { sender: Conn | undefined }) {
-  const tone = sender?.connected && !sender.expired ? "success" : sender?.expired ? "danger" : "neutral";
-  return <Badge tone={tone}>{sender?.connected ? (sender.expired ? "연결 끊김" : "연결됨") : "미연결"}</Badge>;
+  const tone = sender?.connected ? "success" : sender?.expired || sender?.disconnected ? "danger" : "neutral";
+  return <Badge tone={tone}>{connectionLabel(sender)}</Badge>;
 }
 
 function SenderActions({ data, sender, act }: { data: IgData; sender: Conn | undefined; act: Act }) {
+  const [connecting, setConnecting] = useState(false);
+  const toast = useToast();
+  const connect = async () => {
+    if (connecting) return;
+    setConnecting(true);
+    try { await beginInstagramOAuth({ target: "brand_sender", returnMode: "settings", lang: "ko" }); }
+    catch (e) { toast(errorMessage(e), "danger"); }
+    finally { setConnecting(false); }
+  };
   const disconnect = () => confirm("연결을 해제할까요? 켜진 댓글 키워드 DM 규칙이 멈춰요.") && void act(() => api.del(`/ig/connections/${sender!.id}`), "연결을 해제했어요.");
   return (
     <div className="row">
       {!data.configured ? (
         <Button disabled>연결 준비 중</Button>
       ) : (
-        <Button onClick={() => location.assign("/api/ig/oauth/start?target=brand_sender")}>{sender?.connected ? "다시 연결" : "브랜드 계정 연결"}</Button>
+        <Button loading={connecting} onClick={() => void connect()}>{sender?.connected || sender?.disconnected || sender?.expired ? "다시 연결" : "브랜드 계정 연결"}</Button>
       )}
       {sender && <Button variant="ghost" onClick={disconnect}>연결 해제</Button>}
     </div>
@@ -68,7 +86,7 @@ function ClientTable({ clients, canEdit, act }: { clients: Conn[]; canEdit: bool
         {clients.map((c) => (
           <tr key={c.id}>
             <td>{c.label}</td>
-            <td>{c.connected ? <Badge tone={c.expired ? "danger" : "success"}>{c.expired ? "연결 끊김" : "연결됨"}</Badge> : <Badge>연결 안 됨</Badge>}</td>
+            <td><Badge tone={c.connected ? "success" : c.expired || c.disconnected ? "danger" : "neutral"}>{connectionLabel(c)}</Badge></td>
             <td>{c.username ? `@${c.username}` : ""}</td>
             <td>{c.connectUrl && <CopyButton text={c.connectUrl} label="링크 복사" variant="ghost" />}</td>
             {canEdit && <td className="text-right"><Button size="sm" variant="ghost" onClick={() => void act(() => api.del(`/ig/connections/${c.id}`), "해제했어요.")}>해제</Button></td>}
@@ -109,11 +127,11 @@ export function InstagramCard() {
   const [data, setData] = useState<IgData | null>(null);
   const load = useCallback(async () => setData(await api.get("/ig/connections")), []);
   useEffect(() => void load(), [load]);
-  useOAuthResultToast();
+  useOAuthResultToast(data);
   const act = useAction(load);
   if (!data) return <SectionCard title={CARD_TITLE}><LoadingState pattern="table" lines={2} /></SectionCard>;
 
-  const sender = data.connections.find((c) => c.target === "brand_sender" && !c.revokedAt);
+  const sender = data.connections.find((c) => c.target === "brand_sender");
   const clients = data.connections.filter((c) => c.target === "client_brand" && !c.revokedAt);
   return (
     <SectionCard title={CARD_TITLE} actions={<SenderStatus sender={sender} />}>

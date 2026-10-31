@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { workspaces } from "./workspaces";
 import { guides, influencers } from "./guides";
 import type { IgTarget, KeywordDmSendStatus, MissingReason, OffsetH, SnapshotPath, SnapshotStatus } from "../../../shared/performance";
@@ -13,6 +14,11 @@ export const igConnections = sqliteTable(
     influencerId: text("influencer_id").references(() => influencers.id, { onDelete: "cascade" }),
     target: text("target").$type<IgTarget>().notNull(),
     connectToken: text("connect_token").unique(),
+    generation: text("generation").notNull().default(""),
+    connectExpiresAt: integer("connect_expires_at"),
+    grantsVerifiedAt: integer("grants_verified_at"),
+    disconnectedAt: integer("disconnected_at"),
+    disconnectedReason: text("disconnected_reason"),
     label: text("label"),
     igUserId: text("ig_user_id"),
     username: text("username"),
@@ -24,7 +30,7 @@ export const igConnections = sqliteTable(
     connectedAt: integer("connected_at"),
     createdAt: integer("created_at").notNull(),
   },
-  (t) => [index("ig_connections_ws_idx").on(t.workspaceId, t.target), index("ig_connections_influencer_idx").on(t.influencerId), index("ig_connections_ig_user_idx").on(t.igUserId)],
+  (t) => [index("ig_connections_ws_idx").on(t.workspaceId, t.target), index("ig_connections_influencer_idx").on(t.influencerId), index("ig_connections_ig_user_idx").on(t.igUserId), index("ig_connections_expiry_idx").on(t.expiresAt, t.id).where(sql`${t.disconnectedAt} IS NULL AND ${t.revokedAt} IS NULL`)],
 );
 
 // F-48. content_id 는 TASK-020 의 contents. FK 는 migrations/0006_performance.sql 에만 둔다

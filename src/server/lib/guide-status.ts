@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db";
 import { approvals, consents, contents, guideInfluencers, guideViews, reviewRounds, submissions } from "../db/schema";
+import { igConnectionUsableSql } from "./ig-connection-state";
 
 // 가이드 상세의 인플루언서별 단계 상태 한 줄 (F-57, US-25).
 // null = 아직 그 기능(테이블)이 없어서 모름. 0 과 구분한다
@@ -82,13 +83,14 @@ async function fillReview(db: Db, out: Summaries, ids: string[]) {
 
 // TASK-022: 연결 = 인플루언서 본인 인스타그램 연결(F-54), 스냅샷 = 수집 완료 시점 수(최대 3)
 async function fillPerformance(db: Db, out: Summaries, guideId: string, links: Link[]) {
-  const linked = await db.all<{ influencer_id: string }>(
-    sql`SELECT DISTINCT c.influencer_id FROM ig_connections c JOIN guides g ON g.workspace_id = c.workspace_id WHERE g.id = ${guideId} AND c.target = 'influencer' AND c.connected_at IS NOT NULL AND c.revoked_at IS NULL`,
-  );
+  const linked = await db.all<{ influencerId: string }>(sql`SELECT c.influencer_id AS influencerId FROM ig_connections c JOIN guides g ON g.workspace_id=c.workspace_id
+    WHERE g.id=${guideId} AND c.target='influencer' AND c.influencer_id IS NOT NULL
+    AND c.id=(SELECT latest.id FROM ig_connections latest WHERE latest.workspace_id=c.workspace_id AND latest.target=c.target AND latest.influencer_id=c.influencer_id
+      ORDER BY latest.connected_at DESC,latest.created_at DESC,latest.id DESC LIMIT 1) AND ${igConnectionUsableSql("c")}`);
   const snaps = await db.all<{ gi: string; n: number }>(
     sql`SELECT ct.guide_influencer_id AS gi, count(s.id) AS n FROM contents ct LEFT JOIN metric_snapshots s ON s.content_id = ct.id AND s.status = 'captured' WHERE ct.guide_id = ${guideId} AND ct.deleted_at IS NULL GROUP BY ct.guide_influencer_id`,
   );
-  for (const l of links) Object.assign(out.get(l.id)!, { connected: linked.some((x) => x.influencer_id === l.influencerId), snapshots: 0 });
+  for (const l of links) Object.assign(out.get(l.id)!, { connected: linked.some((x) => x.influencerId === l.influencerId), snapshots: 0 });
   for (const s of snaps) if (out.has(s.gi)) out.get(s.gi)!.snapshots = s.n;
 }
 
@@ -149,9 +151,9 @@ export async function workspaceCounts(db: Db, workspaceId: string) {
     sql`SELECT count(*) AS n FROM guide_influencers gi JOIN guides g ON g.id = gi.guide_id WHERE g.workspace_id = ${workspaceId} AND (EXISTS (SELECT 1 FROM review_rounds r WHERE r.guide_influencer_id = gi.id) OR EXISTS (SELECT 1 FROM approvals a WHERE a.guide_influencer_id = gi.id))`,
   );
   // 브랜드 본인 인스타 계정 연결 여부. 미연결이면 홈에 '댓글 키워드 DM 켜기(선택)'를 보여 준다 (AIWITH-374)
-  const igConnected = (await tableExists(db, "ig_connections"))
-    ? (await one(sql`SELECT count(*) AS n FROM ig_connections WHERE workspace_id = ${workspaceId} AND target = 'brand_sender' AND connected_at IS NOT NULL AND revoked_at IS NULL`)) > 0
-    : false;
+  const igConnected = (await tableExists(db, "ig_connections")) ? (await db.all(sql`SELECT 1 FROM ig_connections c
+    WHERE c.id=(SELECT latest.id FROM ig_connections latest WHERE latest.workspace_id=${workspaceId} AND latest.target='brand_sender'
+      ORDER BY latest.connected_at DESC,latest.created_at DESC,latest.id DESC LIMIT 1) AND ${igConnectionUsableSql("c")}`)).length > 0 : false;
   return { guides: guidesN, linksIssued, viewed, uploads, leadLinks, leads, reviewed, igConnected };
 }
 

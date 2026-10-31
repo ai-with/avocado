@@ -41,6 +41,7 @@ describe("개인정보 Queue 실행", () => {
     const privacy = messages.filter((message) => message.body.type === "privacy_purge");
     expect(privacy.map((message) => message.body)).toEqual(["leads", "sites", "media"].map((kind) => ({ type: "privacy_purge", payload: { kind, scheduledTime: NOW, cron: controller.cron } })));
     expect(messages.filter((message) => message.body.type === "cleanup_google_sheets")).toHaveLength(1);
+    expect(messages.filter((message) => message.body.type === "ig_connection_maintenance")).toEqual([{ body: { type: "ig_connection_maintenance", payload: {} } }]);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
     expect(counted.getCalls()).toBe(10); // 기존 조회 7회 + 03시 인증 정리 2회 + NULL 해시 보완 1회
     const expectedCalls = [5, 4, 4];
@@ -55,6 +56,11 @@ describe("개인정보 Queue 실행", () => {
     const cleanup = await queued(env, { type: "cleanup_google_sheets", payload: {} });
     expect(cleanup.ack).toHaveBeenCalledTimes(1);
     expect(cleanup.retry).not.toHaveBeenCalled();
+    expect(counted.getCalls()).toBe(1);
+    counted.reset();
+    const igMaintenance = await queued(env, { type: "ig_connection_maintenance", payload: {} });
+    expect(igMaintenance.ack).toHaveBeenCalledTimes(1);
+    expect(igMaintenance.retry).not.toHaveBeenCalled();
     expect(counted.getCalls()).toBe(1);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(0);
     expect(db.prepare("SELECT count(*) AS n FROM events WHERE name IN ('lead_privacy_cleanup_completed','site_privacy_cleanup_completed','media_purge_run')").all()[0]?.n).toBe(3);
@@ -99,6 +105,18 @@ describe("개인정보 Queue 실행", () => {
     expect(result.ack).toHaveBeenCalledTimes(1);
     expect(result.retry).not.toHaveBeenCalled();
     expect(counted.getCalls()).toBe(1); // 기존 영상 컨텍스트 조회가 수행됨
+  });
+
+  it("Instagram Queue DB 실패는 retry하면서 bound parameter 원문을 로그에 남기지 않는다", async () => {
+    const { env } = await setup();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    env.DB = { prepare: () => { throw new Error("bound params: private-recipient@example.invalid private-connect-token"); } } as unknown as D1Database;
+    const result = await queued(env, { type: "ig_disconnect_mail", payload: { id: "mail" } });
+    expect(result.retry).toHaveBeenCalledTimes(1);
+    expect(result.ack).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith("[queue]", "ig_disconnect_mail", expect.objectContaining({ message: "instagram_queue_job_failed" }));
+    expect(JSON.stringify(error.mock.calls)).not.toContain("private-recipient");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("private-connect-token");
   });
 
   it("작업 종류가 틀린 Queue 메시지는 실행하거나 ack하지 않는다", async () => {

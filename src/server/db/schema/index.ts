@@ -16,3 +16,4 @@ export * from "./message-templates";
 export * from "./privacy";
 export * from "./google-sheets";
 export * from "./content-thumbnails";
+export * from "./instagram-lifecycle";

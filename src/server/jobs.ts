@@ -51,3 +51,15 @@ queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
 queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
 queueHandlers.cleanup_google_sheets = (_payload, env) => cleanupGoogleSheetsJobs(env);
 scheduledTasks.push(enqueueGoogleSheetsCleanup, enqueueThumbnailSweep);
+
+// AIWITH-285: 연결 발견·연결 한 건 확인·수신자 한 명 발송을 각각 독립 호출로 실행한다.
+import { enqueueIgConnectionMaintenance, processIgConnectionCheck, processIgConnectionMaintenance, processIgDisconnectMail } from "./lib/ig-disconnect-mail";
+scheduledTasks.push(enqueueIgConnectionMaintenance);
+// Drizzle 오류의 bound params에는 메일 주소가 있을 수 있다. 실패·재시도는 유지하고 원문 로그는 막는다.
+const instagramQueue = (handler: QueueHandler): QueueHandler => async (payload, env) => {
+  try { await handler(payload, env); }
+  catch { throw new Error("instagram_queue_job_failed"); }
+};
+queueHandlers.ig_connection_maintenance = instagramQueue(processIgConnectionMaintenance);
+queueHandlers.check_ig_connection = instagramQueue(processIgConnectionCheck);
+queueHandlers.ig_disconnect_mail = instagramQueue(processIgDisconnectMail);

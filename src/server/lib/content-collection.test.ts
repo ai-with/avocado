@@ -54,7 +54,7 @@ async function setup() {
   db.prepare("INSERT INTO guide_influencers(id,guide_id,influencer_id,guide_token,upload_token,feedback_token,connect_token,token_expires_at,created_at) VALUES('gi','g','i','guide-token','upload-token','feedback-token','connect-token',?,1)").run(NOW + 86_400_000);
   db.prepare("INSERT INTO contents(id,guide_id,influencer_id,guide_influencer_id,url,ig_media_id,format,posted_at,posted_at_source,url_submitted_by,registered_at) VALUES('post','g','i','gi','https://www.instagram.com/reel/OLD/', 'media', 'reel', ?, 'api', 'brand', ?)").run(NOW - 24 * 3_600_000, NOW - 24 * 3_600_000);
   db.prepare("INSERT INTO metric_snapshots(id,content_id,offset_h,scheduled_at,status,missing) VALUES('snap','post',24,?,'scheduled','{}')").run(NOW);
-  db.prepare("INSERT INTO ig_connections(id,workspace_id,influencer_id,target,ig_user_id,scopes,token_enc,expires_at,connected_at,created_at) VALUES('conn','w','i','influencer','ig-user','[\"instagram_business_basic\",\"instagram_business_manage_insights\"]',?,?,1,1)").run(await encryptToken("key", "token"), NOW + 86_400_000);
+  db.prepare("INSERT INTO ig_connections(id,workspace_id,influencer_id,target,ig_user_id,account_type,scopes,token_enc,expires_at,connected_at,generation,grants_verified_at,created_at) VALUES('conn','w','i','influencer','ig-user','BUSINESS','[\"instagram_business_basic\",\"instagram_business_manage_insights\"]',?,?,1,'verified-thumbnail-fixture',?,1)").run(await encryptToken("key", "token"), NOW + 86_400_000, NOW);
   const r2 = new FakeR2();
   const messages: PipelineMessage[] = [];
   const env = { DB: counted.d1, FILES: r2 as unknown as R2Bucket, TOKEN_ENC_KEY: "key", APP_URL: "https://app.example.com", PIPELINE: {

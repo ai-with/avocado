@@ -1,5 +1,5 @@
 // F-64 댓글 키워드 자동 DM. 웹훅 댓글 → 규칙 매칭 → 비공개 답장 1건 (C1-a)
-import { and, asc, count, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, count, eq, gte, isNull, sql } from "drizzle-orm";
 import { getDb, type Db } from "../db";
 import { guides, igConnections, influencers, keywordDmRules, keywordDmSends, shortLinks, workspaces } from "../db/schema";
 import { matchKeyword, PRIVATE_REPLY_HOURLY_LIMIT, PRIVATE_REPLY_WINDOW_MS, renderDm, HOUR, type KeywordDmSendStatus } from "../../shared/performance";
@@ -7,9 +7,9 @@ import { decryptToken } from "./crypto";
 import { sendPrivateReply, sendPublicReply, tokenKey } from "./instagram";
 import { createShortLinks } from "./links";
 import { logEvent } from "./events";
-import { sendEmail } from "./email";
-import { memberEmails } from "./members";
 import { newId, now } from "./ids";
+import { definitiveIgDisconnect, igConnectionState, igConnectionUsable, igGrantVerified } from "./ig-connection-state";
+import { disconnectIgConnection } from "./ig-disconnect-mail";
 
 type Rule = typeof keywordDmRules.$inferSelect;
 
@@ -45,25 +45,20 @@ export async function ensureCommentDmLink(db: Db, rule: Pick<Rule, "workspaceId"
   );
 }
 
-async function notifyPaused(db: Db, env: Env, rule: Rule) {
-  const rows = await memberEmails(db, rule.workspaceId, ["owner", "editor"]);
-  for (const r of rows) {
-    await sendEmail(env, {
-      to: r.email,
-      subject: "댓글 키워드 DM 규칙이 일시정지됐어요",
-      text: `인스타그램 연결이 끊겨 규칙을 멈췄어요. 연동 화면에서 다시 연결해 주세요.\n${env.APP_URL}/dashboard/settings/integrations`,
-      html: `<p>인스타그램 연결이 끊겨 규칙을 멈췄어요. 연동 화면에서 다시 연결해 주세요.</p><p><a href="${env.APP_URL}/dashboard/settings/integrations">연동 열기</a></p>`,
-    });
-  }
-}
-
 export type IgComment = { id: string; text: string; from: { id: string; username?: string }; media: { id: string } };
 
 // 토큰이 살아 있는 연결만. 끊겼거나 만료면 null
-async function usableConnection(db: Db, rule: Rule) {
-  const conn = rule.igConnectionId ? await db.select().from(igConnections).where(eq(igConnections.id, rule.igConnectionId)).get() : null;
-  if (!conn?.tokenEnc || !conn.igUserId || conn.revokedAt || (conn.expiresAt ?? 0) < now()) return null;
-  return { ...conn, tokenEnc: conn.tokenEnc, igUserId: conn.igUserId };
+async function usableConnection(db: Db, env: Env, rule: Rule) {
+  const conn = rule.igConnectionId ? await db.select().from(igConnections).where(and(eq(igConnections.id, rule.igConnectionId), eq(igConnections.workspaceId, rule.workspaceId), eq(igConnections.target, "brand_sender"))).get() : null;
+  const state = igConnectionState(conn);
+  if (conn && igGrantVerified(conn) && (state.reason === "expired" || state.reason === "token_missing")) await disconnectIgConnection(env, db, conn, state.reason);
+  if (!conn?.igUserId || !igConnectionUsable(conn)) {
+    await db.update(keywordDmRules).set({ status: "paused", enabled: false, pausedReason: state.reason ?? "not_connected", updatedAt: now() })
+      .where(and(eq(keywordDmRules.id, rule.id), sql`${keywordDmRules.igConnectionId} IS ${rule.igConnectionId}`,
+        conn ? sql`EXISTS(SELECT 1 FROM ig_connections g WHERE g.id=${conn.id} AND g.generation=${conn.generation})` : sql`1`));
+    return null;
+  }
+  return { ...conn, tokenEnc: conn.tokenEnc!, igUserId: conn.igUserId };
 }
 
 // 시간당 750콜 (C1-b). 넘으면 대기열, cron 이 7일 창 안에서 다시 보낸다
@@ -88,10 +83,8 @@ async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commen
   if (now() - c.commentAt > PRIVATE_REPLY_WINDOW_MS) return set("expired", "older_than_7d");
 
   const key = tokenKey(env);
-  const conn = await usableConnection(db, rule);
+  const conn = await usableConnection(db, env, rule);
   if (!conn || !key) {
-    await db.update(keywordDmRules).set({ status: "paused", enabled: false, pausedReason: "token_expired", updatedAt: now() }).where(eq(keywordDmRules.id, rule.id));
-    await notifyPaused(db, env, rule);
     return set("failed", "token_expired");
   }
   if ((await sentLastHour(db, conn.id)) >= PRIVATE_REPLY_HOURLY_LIMIT) return set("queued", "hourly_limit");
@@ -103,12 +96,17 @@ async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commen
   const text = renderDm(rule.message, `${env.PUBLIC_SHORT_BASE}/${link.slug}`, ws?.name ?? "");
   const r = await sendPrivateReply(env, token, conn.igUserId, c.commentId, text);
   if (!r.ok) {
+    const reason = definitiveIgDisconnect(r);
+    if (reason) await disconnectIgConnection(env, db, conn, reason);
     if (r.reason === "api_error") return set("queued", `api_error:${r.code ?? ""}`, { linkId: link.id });
     return set("failed", r.message ? `${r.reason}: ${r.message}`.slice(0, 300) : r.reason, { linkId: link.id });
   }
   if (rule.publicReplyVariants.length > 0) {
     const pick = rule.publicReplyVariants[Math.floor(Math.random() * rule.publicReplyVariants.length)];
-    if (pick) await sendPublicReply(env, token, c.commentId, pick);
+    if (pick) {
+      const reply = await sendPublicReply(env, token, c.commentId, pick);
+      if (!reply.ok) { const reason = definitiveIgDisconnect(reply); if (reason) await disconnectIgConnection(env, db, conn, reason); }
+    }
   }
   return set("sent", null, { sentAt: now(), linkId: link.id });
 }

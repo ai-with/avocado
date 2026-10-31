@@ -1,5 +1,5 @@
 // F-48 24시간·3일·7일 스냅샷 스케줄러. 예약은 contents 등록 훅에서, 수집은 15분 cron 에서
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb, type Db } from "../db";
 import { contents, guides, igConnections, influencers, metricSnapshots } from "../db/schema";
 import { afterApiError, delayInfo, MAIN_METRICS, METRICS, parsePostUrl, planSnapshots, type Metric, type MissingReason, type SnapshotPath } from "../../shared/performance";
@@ -13,6 +13,8 @@ import { z } from "zod";
 import { COLLECTION_GRACE_MS, collectionAllowed, collectionContent } from "./content-collection";
 import { saveContentThumbnail } from "./content-thumbnail";
 import { mediaMetadata, mediaThumbnailUrl } from "./instagram";
+import { definitiveIgDisconnect, igConnectionState, igConnectionUsable, igGrantVerified } from "./ig-connection-state";
+import { disconnectIgConnection } from "./ig-disconnect-mail";
 
 type ContentRow = typeof contents.$inferSelect;
 const stillCollectible = async (db: Db, content: ContentRow, workspaceId: string) =>
@@ -20,7 +22,7 @@ const stillCollectible = async (db: Db, content: ContentRow, workspaceId: string
 
 // 미연결 경로 조회용 토큰: 운영 계정(IG_SYSTEM_*, 페이스북 로그인 경로) 우선, 없으면 워크스페이스 브랜드 발송 계정
 // [검증 필요] 인스타그램 로그인 토큰으로 business_discovery 가 되는지 (C5 는 페이스북 로그인 경로 기능)
-async function discoveryAuth(db: Db, env: Env, workspaceId: string): Promise<{ token: string; igUserId: string; host: "fb" | "ig" } | null> {
+async function discoveryAuth(db: Db, env: Env, workspaceId: string): Promise<{ token: string; igUserId: string; host: "fb" | "ig"; connection?: typeof igConnections.$inferSelect } | null> {
   if (isFake(env)) return { token: "fake", igUserId: "fake_sys", host: "fb" };
   if (env.IG_SYSTEM_TOKEN && env.IG_SYSTEM_USER_ID) return { token: env.IG_SYSTEM_TOKEN, igUserId: env.IG_SYSTEM_USER_ID, host: "fb" };
   const key = tokenKey(env);
@@ -28,10 +30,16 @@ async function discoveryAuth(db: Db, env: Env, workspaceId: string): Promise<{ t
   const c = await db
     .select()
     .from(igConnections)
-    .where(and(eq(igConnections.workspaceId, workspaceId), eq(igConnections.target, "brand_sender"), isNull(igConnections.revokedAt), gt(igConnections.expiresAt, now())))
+    .where(and(eq(igConnections.workspaceId, workspaceId), eq(igConnections.target, "brand_sender")))
+    .orderBy(desc(igConnections.connectedAt), desc(igConnections.createdAt), desc(igConnections.id))
     .get();
-  if (!c?.tokenEnc || !c.igUserId) return null;
-  return { token: await decryptToken(key, c.tokenEnc), igUserId: c.igUserId, host: "ig" };
+  if (!c?.igUserId) return null;
+  const state = igConnectionState(c);
+  if (!state.connected) {
+    if (igGrantVerified(c) && (state.reason === "expired" || state.reason === "token_missing")) await disconnectIgConnection(env, db, c, state.reason);
+    return null;
+  }
+  return { token: await decryptToken(key, c.tokenEnc!), igUserId: c.igUserId, host: "ig", connection: c };
 }
 
 // 인플루언서 본인 연결 (F-54). 만료·해제면 expired 로 알려 미연결 경로로 바꾼다
@@ -40,10 +48,10 @@ async function influencerConnection(db: Db, workspaceId: string, influencerId: s
     .select()
     .from(igConnections)
     .where(and(eq(igConnections.workspaceId, workspaceId), eq(igConnections.influencerId, influencerId), eq(igConnections.target, "influencer")))
-    .orderBy(sql`${igConnections.connectedAt} DESC`)
+    .orderBy(desc(igConnections.connectedAt), desc(igConnections.createdAt), desc(igConnections.id))
     .get();
   if (!c?.connectedAt) return { state: "none" as const };
-  if (c.revokedAt || !c.tokenEnc || (c.expiresAt ?? 0) < now()) return { state: "expired" as const };
+  if (!igConnectionUsable(c)) return { state: "unusable" as const, conn: c };
   return { state: "ok" as const, conn: c };
 }
 
@@ -54,6 +62,10 @@ async function findMedia(db: Db, env: Env, workspaceId: string, content: Content
   if (!auth) return { ok: false, reason: "not_connected" };
   if (!(await stillCollectible(db, content, workspaceId))) return { ok: false, reason: "campaign_ended" };
   const r = await discoverMedia(env, auth, username, parsed.shortcode);
+  if (!r.ok && auth.connection) {
+    const reason = definitiveIgDisconnect(r);
+    if (reason) await disconnectIgConnection(env, db, auth.connection, reason);
+  }
   return r.ok ? { media: r.data } : r;
 }
 
@@ -122,6 +134,10 @@ async function cacheThumbnail(db: Db, env: Env, workspaceId: string, content: Co
 // 한 시점 조회. 실패 사유는 Capture.missing 또는 IgFail 로 돌려준다
 async function capture(db: Db, env: Env, workspaceId: string, content: ContentRow): Promise<Capture | IgFail> {
   const conn = await influencerConnection(db, workspaceId, content.influencerId);
+  if (conn.state === "unusable" && igGrantVerified(conn.conn)) {
+    const reason = igConnectionState(conn.conn).reason;
+    if (reason === "expired" || reason === "token_missing") await disconnectIgConnection(env, db, conn.conn, reason);
+  }
   const key = tokenKey(env);
   if (conn.state === "ok" && key && content.igMediaId) {
     const token = await decryptToken(key, conn.conn.tokenEnc!);
@@ -131,15 +147,21 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
       if (await stillCollectible(db, content, workspaceId)) {
         const media = await mediaMetadata(env, token, content.igMediaId);
         if (media.ok) await cacheThumbnail(db, env, workspaceId, content, media.data);
+        else {
+          const reason = definitiveIgDisconnect(media);
+          if (reason) await disconnectIgConnection(env, db, conn.conn, reason);
+        }
       }
       const missing: Capture["missing"] = {};
       for (const m of METRICS) if (r.data[m] === undefined) missing[m] = "not_supported";
       return { path: "connected", values: r.data, missing };
     }
+    const reason = definitiveIgDisconnect(r);
+    if (reason) await disconnectIgConnection(env, db, conn.conn, reason);
     if (r.reason !== "token_expired") return r;
     // 토큰 만료 → 이번 시점부터 미연결 경로
   }
-  const noConn: MissingReason = conn.state === "none" ? "not_connected" : "token_expired";
+  const noConn: MissingReason = conn.state === "none" || (conn.state === "unusable" && !igGrantVerified(conn.conn)) ? "not_connected" : "token_expired";
   const inf = await db.select({ handle: influencers.igHandle }).from(influencers).where(eq(influencers.id, content.influencerId)).get();
   const found = await findMedia(db, env, workspaceId, content, inf?.handle ?? null);
   if (!("media" in found)) return found;
@@ -257,7 +279,8 @@ async function collectSnapshot(db: Db, env: Env, item: DueItem, token: string) {
     await commitSnapshot(db, item, token, { attempts });
     return;
   }
-  const reason: MissingReason = r.reason === "not_configured" ? "not_connected" : r.reason;
+  const reason: MissingReason = r.reason === "not_configured" ? "not_connected"
+    : ["grant_unverified", "invalid_response", "personal_account"].includes(r.reason) ? "api_error" : r.reason as MissingReason;
   if (!(await commitSnapshot(db, item, token, { missing: allMissing(reason), capturedAt, delayed, attempts, status: "missing" }))) return;
   await logEvent(db, ws, "snapshot_missing", { offset_h: snap.offsetH, reason, content_id: content.id });
   if (reason !== "deleted") return;

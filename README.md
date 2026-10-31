@@ -131,6 +131,24 @@ Google Cloud 콘솔 > API 및 서비스 > 사용자 인증 정보에서 OAuth �
 4. 앱 검수 전에는 테스터로 등록한 계정만 연결된다. 키워드 DM(비공개 답장)과 인사이트 권한은 앱 검수가 필요하다
 5. 미연결 게시물 지표를 쓰려면 페이스북 로그인 경로의 시스템 사용자 토큰을 `IG_SYSTEM_TOKEN`, 그 인스타그램 비즈니스 계정 ID를 `IG_SYSTEM_USER_ID`로 넣는다
 
+#### 가이드에서 계정 연결·재연결 (AIWITH-285)
+
+`0026_instagram_lifecycle.sql`을 적용한다. 개인 가이드의 선택 연결 버튼은 현재 발행된 가이드·인플루언서의 연결 토큰으로 만든다. 공용 가이드에는 개인 연결 버튼을 표시하지 않는다. `POST /api/ig/oauth/start`는 같은 출처 요청만 받고 임의 복귀 URL을 받지 않는다. 가이드/연결 화면의 현재 `ko`·`en` 언어와 시작 당시 가이드 경로를 보관해 성공·취소·실패 뒤 돌아간다. 고객사 요청 링크는 발급 후 30일이며, 만료 시각이 없는 과거 고객사 링크는 새로 발급해야 한다.
+
+OAuth state는 불투명 난수이고 DB에는 해시만 남긴다. 흐름별 HttpOnly·SameSite=Lax 쿠키의 브라우저 난수도 해시로 검증하며, 운영 쿠키는 Secure·Path=/의 `__Host-` 쿠키다. state 인증은 10분·한 번만 허용한다. 15분 쿠키는 마지막 5분 동안 원래 브라우저에 만료 안내를 돌려주는 데만 쓴다. 로그인한 시작 사용자의 세션·현재 워크스페이스와 브랜드 owner/editor 권한, 현재 연결 세대·연결/가이드 토큰·발행/만료 상태를 콜백 claim과 저장 직전 SQL에서 다시 확인한다. 다른 브라우저에는 가이드 capability를 노출하지 않는다. 해제·재연결·토큰 재발급 뒤의 옛 콜백은 거절하며, 시작 당시의 옛 경로로만 돌아간다. 기존 Google 로그인과 초대 복귀는 변경하지 않는다.
+
+실제 발급 응답에 명시된 승인 범위만 기록한다. 기존 `IG_SCOPES` 요청 범위를 유지하면서 필요한 범위를 모두 포함하는지 검사하며, 요청값을 승인값으로 대신 저장하지 않는다. 유효한 토큰·만료 시각·실제 승인 증명·프로페셔널 계정이 모두 있어야 가이드/성과표/자동 DM에서 연결됨으로 취급한다. 과거 요청 범위만 저장한 연결은 승인 증명이 없어 다시 확인해야 하며, 이를 철회로 추정해 알림을 보내지 않는다.
+
+Meta의 [공식 Postman Instagram 문서](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api#instagram-api-with-instagram-login)는 Instagram Login과 Facebook Login 경로를 구분한다. 개발 중 Meta Business Login 직접 문서는 429/접근 차단으로 발급 응답의 실제 grant 필드를 충분히 검증하지 못했다. 따라서 발급 응답에 일관된 명시 `scope` 또는 `permissions`가 없으면 `grant_unverified`로 연결을 거절한다. Facebook Login의 `/me/permissions`나 `/debug_token` 경로를 추정 적용하지 않는다. 실제 Meta 앱·테스터 계정에서 grant 응답, 프로페셔널 계정, 취소/철회·재연결을 확인하기 전에는 운영 연결 QA 완료로 간주하지 않는다.
+
+로컬 토큰 만료·토큰 누락 또는 비일시 Graph 인증 오류 190만 현재 세대 CAS로 끊김 전환한다. 429·5xx·`is_transient`·10/200 권한 오류·누락 지표는 계정 전체 철회로 추정하지 않는다. 세대 회전·자동 DM 일시정지·당시 브랜드 owner/editor 및 해당 인플루언서별 알림 원장을 D1 원자 배치로 보관한다. 재연결한 세대나 현재 권한/주소/가이드 링크가 달라진 대기 알림은 전송하지 않는다. 이미 시작한 외부 HTTP는 사후 취소할 수 없다.
+
+15분 Cron은 D1 조회 없이 기존 `PIPELINE`에 유지보수 한 건을 넣는다. 유지보수는 연결 ID 최대 20개와 발송 원장 최대 50개만 발견해 각각 별도 Queue 메시지로 처리한다. 기존 `max_batch_size=1`을 유지하고 새 리소스를 만들지 않는다. 전송 실패는 consumer 재시도와 다음 유지보수가 다시 처리하며, Queue 등록 실패도 영속 원장/오류 코드에 남는다. 만료 state는 15분 브라우저 안내 시간이 지난 뒤 정리 대상이 된다.
+
+새 작업의 호출 예산은 Cron D1 0회+Queue 1회, 유지보수 D1 배치 1회+Queue 최대 1회, 연결 확인 D1 최대 4회+Queue 최대 1회, 수신자 발송 D1 최대 8회+HTTP 1회다. R2 호출은 없다. 수신자 예산은 HTTP 성공 뒤 마지막 DB 저장까지 실패하는 경로를 실제 SQLite 회귀로 확인한다. [D1은 Free 호출당 50회이며 배치 전체를 1회로 계산한다](https://developers.cloudflare.com/d1/platform/limits/). 기존 다른 Cron 작업에 새 연결·수신자별 DB 순회를 더하지 않는다.
+
+알림은 기존 Resend 공용 함수를 쓰며 `RESEND_API_KEY`·명시 `EMAIL_FROM`·`TOKEN_ENC_KEY`가 모두 있어야 HTTP를 시작한다. 설정이 없으면 `blocked/mail_not_configured`로 남고 예제 발신 주소로 전송하지 않는다. 첫 전송 전에 발신/수신 주소·본문·가이드 경로를 암호화해 고정하고 수신자별 동일 idempotency key로 재시도한다. [Resend의 보관 시간은 24시간](https://resend.com/docs/dashboard/emails/idempotency-keys)이므로 첫 시도 후 24시간에서 1분 여유를 뺀 시점부터 결과 미확정 알림은 `unknown`으로 닫아 자동 재전송하지 않는다. 이 경우 수동 확인이 필요하며, 무기한 중복 발송하지 않는다. 성공·취소·결과 미확정으로 닫힌 원장의 암호화 본문은 지운다. 실제 Meta 앱 키·승인된 발신 도메인/주소가 없는 환경의 실제 OAuth·메일 수신 검증은 별도다.
+
 ### 6. 원격 마이그레이션과 배포
 
 ```bash

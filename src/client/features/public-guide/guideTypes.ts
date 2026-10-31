@@ -1,6 +1,7 @@
 import type { Lang, TKey } from "../../i18n";
 import type { PublicDictionary } from "../../../shared/brand-terms";
 import type { InfluencerTabs } from "../../../shared/influencer-tabs";
+import type { PublicInstagramLink } from "../../../shared/instagram-connection";
 import type { GuideProduct, RuleSeverity, RuleType, SecondaryUseScope, VideoGuide } from "../../../shared/guides";
 
 export type PublicGuide = {
@@ -26,6 +27,7 @@ export type PersonalData = {
   consent: { agreedAt: number; docVersion: string } | null;
   tabs: InfluencerTabs;
   leadLinks: { channel: string; name: string; url: string }[];
+  instagram?: PublicInstagramLink;
 };
 export type GuideData = { mode: "shared"; lang: Lang; guide: PublicGuide } | PersonalData;
 export type T = (k: TKey) => string;

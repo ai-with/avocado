@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { AppEnv } from "../types";
 import type { Db } from "../db";
-import { campaigns, contents, guides, igConnections, influencers, metricSnapshots, shortLinks } from "../db/schema";
+import { campaigns, contents, guides, influencers, metricSnapshots, shortLinks } from "../db/schema";
 import { ApiError, parse } from "../lib/errors";
 import { logEvent } from "../lib/events";
 import { csvResponse } from "../lib/http";
@@ -15,6 +15,7 @@ import { MAIN_METRICS, OFFSET_LABELS, SNAPSHOT_OFFSETS, METRIC_LABELS, type Miss
 import type { ContentFormat } from "../../shared/review";
 import { collectionAllowed, collectionContent, collectionState, type CollectionStoppedReason } from "../lib/content-collection";
 import { ownedThumbnailKey, THUMBNAIL_MAX_BYTES } from "../lib/content-thumbnail";
+import { igConnectionUsableSql } from "../lib/ig-connection-state";
 
 type Snap = typeof metricSnapshots.$inferSelect;
 export type PerfRow = {
@@ -96,11 +97,11 @@ async function linkTotals(db: Db, workspaceId: string): Promise<Totals> {
 }
 
 async function connectedInfluencers(db: Db, workspaceId: string) {
-  const conns = await db
-    .select({ influencerId: igConnections.influencerId })
-    .from(igConnections)
-    .where(and(eq(igConnections.workspaceId, workspaceId), eq(igConnections.target, "influencer"), isNull(igConnections.revokedAt), sql`${igConnections.connectedAt} IS NOT NULL`));
-  return new Set(conns.map((c) => c.influencerId));
+  const conns = await db.all<{ influencerId: string }>(sql`SELECT c.influencer_id AS influencerId FROM ig_connections c
+    WHERE c.workspace_id=${workspaceId} AND c.target='influencer' AND c.influencer_id IS NOT NULL
+    AND c.id=(SELECT latest.id FROM ig_connections latest WHERE latest.workspace_id=c.workspace_id AND latest.target=c.target AND latest.influencer_id=c.influencer_id
+      ORDER BY latest.connected_at DESC,latest.created_at DESC,latest.id DESC LIMIT 1) AND ${igConnectionUsableSql("c")}`);
+  return new Set(conns.map((connection) => connection.influencerId));
 }
 
 function snapshotCells(mine: Snap[]) {

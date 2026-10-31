@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, desc, eq, gte, inArray, isNull, count } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, count, sql } from "drizzle-orm";
 import type { AppEnv } from "../types";
 import type { Db } from "../db";
 import { guides, influencers, keywordDmRules, keywordDmSends, shortLinks } from "../db/schema";
@@ -13,6 +13,7 @@ import { editorsOnly, workspaceCtx } from "../middleware/auth";
 import { statsByLink } from "../lib/link-stats";
 import { brandSender } from "./instagram";
 import { DEFAULT_PUBLIC_REPLIES } from "../../shared/performance";
+import { igConnectionState, igConnectionUsable, igConnectionUsableSql } from "../lib/ig-connection-state";
 
 const ruleSchema = z.object({
   guideId: z.string().min(1, "가이드를 골라 주세요."),
@@ -58,7 +59,7 @@ export const keywordDmRoutes = new Hono<AppEnv>()
     const conn = await brandSender(db, workspace.id);
     return c.json({
       configured: igConfigured(c.env),
-      connection: conn?.connectedAt ? { username: conn.username, expired: (conn.expiresAt ?? 0) < now() } : null,
+      connection: conn?.connectedAt ? { username: conn.username, ...igConnectionState(conn) } : null,
       defaultPublicReplies: DEFAULT_PUBLIC_REPLIES,
       rules: rules.map(({ rule, guideName, influencerName }) => {
         const link = links.find((l) => l.guideId === rule.guideId && l.influencerId === rule.influencerId);
@@ -116,10 +117,13 @@ export const keywordDmRoutes = new Hono<AppEnv>()
     if (on) {
       if (!igConfigured(c.env)) throw new ApiError(409, "not_configured", "인스타그램 연결 준비 중이라 아직 켤 수 없어요.");
       const conn = await brandSender(db, workspace.id);
-      if (!conn?.connectedAt || (conn.expiresAt ?? 0) < now()) throw new ApiError(409, "not_connected", "먼저 연동 화면에서 브랜드 인스타그램 계정을 연결해 주세요.");
+      if (!conn || !igConnectionUsable(conn)) throw new ApiError(409, "not_connected", "먼저 연동 화면에서 브랜드 인스타그램 계정을 다시 연결해 주세요.");
       const link = await ensureCommentDmLink(db, rule);
       if (!link) throw new ApiError(409, "no_link", "이 가이드에 리드 링크가 없어요. 리드 링크 탭에서 먼저 발급해 주세요.");
-      await db.update(keywordDmRules).set({ igConnectionId: conn.id, enabled: true, status: "on", pausedReason: null, updatedAt: now() }).where(eq(keywordDmRules.id, rule.id));
+      const changed = await db.update(keywordDmRules).set({ igConnectionId: conn.id, enabled: true, status: "on", pausedReason: null, updatedAt: now() })
+        .where(and(eq(keywordDmRules.id, rule.id), eq(keywordDmRules.workspaceId, workspace.id), sql`EXISTS(SELECT 1 FROM ig_connections g
+          WHERE g.id=${conn.id} AND g.workspace_id=${workspace.id} AND g.generation=${conn.generation} AND ${igConnectionUsableSql("g")})`)).returning({ id: keywordDmRules.id });
+      if (!changed.length) throw new ApiError(409, "connection_changed", "연결 상태가 바뀌었어요. 새로고침한 뒤 다시 시도해 주세요.");
     } else {
       await db.update(keywordDmRules).set({ enabled: false, status: "off", updatedAt: now() }).where(eq(keywordDmRules.id, rule.id));
     }

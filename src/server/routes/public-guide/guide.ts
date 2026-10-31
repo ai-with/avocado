@@ -10,6 +10,7 @@ import { logEvent, logEvents } from "../../lib/events";
 import { influencerLeadLinks } from "../../lib/guide-status";
 import { linkInfluencer, linkNotFound } from "../../lib/guides";
 import { cancelProcessingFor } from "../../pipeline";
+import { publicGuideInstagram } from "../../lib/instagram-oauth";
 import { CONSENT_DOC_VERSION, missingConsent } from "../../../shared/guides";
 import { brandNameOf } from "../../lib/brands";
 import { withdrawMedia } from "../../lib/media-purge";
@@ -92,6 +93,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
       tabs: await influencerTabs(db, gi, guide),
       leadLinks: await influencerLeadLinks(db, c.env.PUBLIC_SHORT_BASE, guide.id, influencer.id),
       consentDocVersion: CONSENT_DOC_VERSION,
+      instagram: await publicGuideInstagram(db, c.env, gi.id, q === "ko" || q === "en" ? q : influencer.lang, gi.guideToken),
     });
   })
   // 공용 링크로 들어온 인플루언서가 이름·계정을 넣으면 본인 링크를 만든다

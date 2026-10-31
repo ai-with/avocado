@@ -1,14 +1,14 @@
 // 인스타그램 Graph API 어댑터 (v26.0). SDK 없이 fetch 만 쓴다.
 // 인스타그램 로그인 경로: graph.instagram.com / 미연결 경로(business_discovery): graph.facebook.com (페이스북 로그인 경로 기능, C5)
 // IG_FAKE=1 이면 네트워크 없이 고정 응답을 돌려준다 (로컬 흐름 확인용)
-import { parsePostUrl, type Metric, type MissingReason } from "../../shared/performance";
+import { IG_SCOPES, parsePostUrl, type Metric, type MissingReason } from "../../shared/performance";
 import { hmacHex, safeEqual } from "./crypto";
 
 const V = "v26.0";
 const IG = `https://graph.instagram.com/${V}`;
 const FB = `https://graph.facebook.com/${V}`;
 
-export type IgFail = { ok: false; reason: MissingReason | "not_configured"; code?: number; message?: string };
+export type IgFail = { ok: false; reason: MissingReason | "not_configured" | "grant_unverified" | "invalid_response" | "personal_account"; code?: number; message?: string; transient?: boolean; authFailure?: boolean };
 export type IgResult<T> = { ok: true; data: T } | IgFail;
 
 export const isFake = (env: Env) => env.IG_FAKE === "1";
@@ -18,14 +18,17 @@ export const tokenKey = (env: Env): string | null => env.TOKEN_ENC_KEY || (isFak
 export const igConfigured = (env: Env) => isFake(env) || Boolean(env.META_APP_ID && env.META_APP_SECRET && env.TOKEN_ENC_KEY);
 export const redirectUri = (env: Env) => `${env.APP_URL}/api/ig/oauth/callback`;
 
-type GraphError = { error?: { code?: number; error_subcode?: number; message?: string } };
+type GraphError = { error?: { code?: number; error_subcode?: number; message?: string; is_transient?: boolean } };
 
 // Graph 오류 코드 → 사유. 190 토큰 무효, 100/33 객체 없음(삭제), 110 계정 없음
-function failOf(status: number, body: GraphError): IgFail {
+export function classifyIgFailure(status: number, body: GraphError): IgFail {
   const code = body.error?.code;
   const sub = body.error?.error_subcode;
   const message = body.error?.message ?? `HTTP ${status}`;
-  if (code === 190) return { ok: false, reason: "token_expired", code, message };
+  const transient = status === 429 || status >= 500 || body.error?.is_transient === true;
+  if (transient) return { ok: false, reason: "api_error", code, message, transient: true };
+  // 190은 만료·철회·무효의 공통 인증 실패다. 미검증 subcode로 세부 원인을 추정하지 않는다.
+  if (code === 190) return { ok: false, reason: "token_expired", code, message, transient: false, authFailure: true };
   if (code === 100 && sub === 33) return { ok: false, reason: "deleted", code, message };
   if (code === 110 || (code === 100 && /business_discovery|cannot find|not found/i.test(message))) return { ok: false, reason: "private_or_unavailable", code, message };
   if (code === 10 || code === 200) return { ok: false, reason: "not_supported", code, message };
@@ -38,10 +41,11 @@ async function call<T>(url: string, init?: RequestInit): Promise<IgResult<T>> {
   try {
     const res = await fetch(url, { ...init, signal: init?.signal ?? controller.signal });
     const body = (await res.json().catch(() => ({}))) as T & GraphError;
-    if (!res.ok || body.error) return failOf(res.status, body);
+    if (!res.ok || body.error) return classifyIgFailure(res.status, body);
     return { ok: true, data: body };
-  } catch (e) {
-    return { ok: false, reason: "api_error", message: e instanceof Error ? e.message : String(e) };
+  } catch {
+    // 네트워크 오류의 URL에 access_token이 포함될 수 있어 원문 오류를 반환하지 않는다.
+    return { ok: false, reason: "api_error", message: "provider_request_failed", transient: true };
   } finally { clearTimeout(timeout); }
 }
 
@@ -53,28 +57,49 @@ export function authorizeUrl(env: Env, state: string, scopes: string[]): string 
   return `https://www.instagram.com/oauth/authorize?${q({ enable_fb_login: "0", client_id: env.META_APP_ID!, redirect_uri: redirectUri(env), response_type: "code", scope: scopes.join(","), state })}`;
 }
 
-export type IgAccount = { token: string; expiresAt: number; igUserId: string; username: string; accountType: string };
+export type IgAccount = { token: string; expiresAt: number; igUserId: string; username: string; accountType: string; grantedScopes: string[] };
+
+const opaqueToken = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 16_384 && !/\s/.test(value);
+const providerId = (value: unknown): string | null => typeof value === "string" && /^\d{1,30}$/.test(value) ? value : typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+function explicitScopes(value: Record<string, unknown>): string[] | null {
+  const parsed = [typeof value.scope === "string" ? value.scope.trim().split(/\s+/) : null, Array.isArray(value.permissions) ? value.permissions : null].filter((item): item is unknown[] => item !== null);
+  if (!parsed.length || parsed.some((scopes) => !scopes.length || scopes.length > 32 || scopes.some((scope) => typeof scope !== "string" || !/^[a-zA-Z][a-zA-Z0-9_]{0,99}$/.test(scope)))) return null;
+  const scopes = parsed.map((items) => [...new Set(items as string[])].sort());
+  return scopes.length === 2 && JSON.stringify(scopes[0]) !== JSON.stringify(scopes[1]) ? null : scopes[0]!;
+}
 
 // 코드 → 단기 토큰 → 장기 토큰(60일) → 계정 정보
-export async function exchangeCode(env: Env, code: string): Promise<IgResult<IgAccount>> {
+export async function exchangeCode(env: Env, code: string, expectedFakeScopes?: string[]): Promise<IgResult<IgAccount>> {
   if (isFake(env)) {
     const n = Math.floor(Math.random() * 100000);
-    return { ok: true, data: { token: `fake-token-${n}`, expiresAt: Date.now() + 60 * 86_400_000, igUserId: `fake_${n}`, username: `fake_account_${n}`, accountType: "BUSINESS" } };
+    return { ok: true, data: { token: `fake-token-${n}`, expiresAt: Date.now() + 60 * 86_400_000, igUserId: `fake_${n}`, username: `fake_account_${n}`, accountType: "BUSINESS", grantedScopes: [...new Set(expectedFakeScopes ?? Object.values(IG_SCOPES).flat())].sort() } };
   }
-  const short = await call<{ access_token: string; user_id: number | string }>("https://api.instagram.com/oauth/access_token", {
+  const short = await call<Record<string, unknown>>("https://api.instagram.com/oauth/access_token", {
     method: "POST",
     body: new URLSearchParams({ client_id: env.META_APP_ID!, client_secret: env.META_APP_SECRET!, grant_type: "authorization_code", redirect_uri: redirectUri(env), code }),
   });
   if (!short.ok) return short;
-  const long = await call<{ access_token: string; expires_in: number }>(
+  if (!opaqueToken(short.data.access_token) || !providerId(short.data.user_id)) return { ok: false, reason: "invalid_response" };
+  const long = await call<Record<string, unknown>>(
     `https://graph.instagram.com/access_token?${q({ grant_type: "ig_exchange_token", client_secret: env.META_APP_SECRET!, access_token: short.data.access_token })}`,
   );
   if (!long.ok) return long;
-  const me = await call<{ user_id: string; username: string; account_type: string }>(`${IG}/me?${q({ fields: "user_id,username,account_type", access_token: long.data.access_token })}`);
+  if (!opaqueToken(long.data.access_token) || typeof long.data.expires_in !== "number" || !Number.isFinite(long.data.expires_in) || long.data.expires_in <= 0 || long.data.expires_in > 90 * 86_400) return { ok: false, reason: "invalid_response" };
+  // Facebook User의 permissions 경로를 Instagram Login에 추정 적용하지 않는다. 명시된 발급 범위만 쓴다.
+  const shortScopes = explicitScopes(short.data), longScopes = explicitScopes(long.data);
+  if ((("scope" in short.data || "permissions" in short.data) && !shortScopes) || (("scope" in long.data || "permissions" in long.data) && !longScopes)) return { ok: false, reason: "grant_unverified" };
+  if (shortScopes && longScopes && JSON.stringify(shortScopes) !== JSON.stringify(longScopes)) return { ok: false, reason: "grant_unverified" };
+  const grantedScopes = longScopes ?? shortScopes;
+  if (!grantedScopes) return { ok: false, reason: "grant_unverified" };
+  const me = await call<Record<string, unknown>>(`${IG}/me?${q({ fields: "user_id,username,account_type", access_token: long.data.access_token })}`);
   if (!me.ok) return me;
+  const igUserId = providerId(me.data.user_id);
+  if (!igUserId || igUserId !== providerId(short.data.user_id) || typeof me.data.username !== "string" || !/^[A-Za-z0-9_.]{1,30}$/.test(me.data.username) || typeof me.data.account_type !== "string") return { ok: false, reason: "invalid_response" };
+  const accountType = me.data.account_type.toUpperCase();
+  if (!["BUSINESS", "CREATOR", "MEDIA_CREATOR"].includes(accountType)) return { ok: false, reason: "personal_account" };
   return {
     ok: true,
-    data: { token: long.data.access_token, expiresAt: Date.now() + long.data.expires_in * 1000, igUserId: String(me.data.user_id), username: me.data.username, accountType: me.data.account_type },
+    data: { token: long.data.access_token, expiresAt: Date.now() + long.data.expires_in * 1000, igUserId, username: me.data.username, accountType, grantedScopes },
   };
 }
 

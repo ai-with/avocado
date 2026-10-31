@@ -10,6 +10,7 @@ import { GuideBody } from "./sections/GuideBody";
 import { JoinForm } from "./sections/JoinForm";
 import { ConsentForm } from "./sections/ConsentForm";
 import { InfluencerTabs, useStickyNav } from "./sections/InfluencerTabs";
+import { InstagramGuideConnection } from "./sections/InstagramGuideConnection";
 import "./public.css";
 
 // 화면 언어: 링크의 ?lang= 이 먼저, 없으면 서버가 정한 인플루언서·가이드 기본 언어 (AIWITH-373)
@@ -77,6 +78,7 @@ export function GuidePublicPage() {
   return (
     <PublicShell {...shell}>
       <GuideBody guide={data.guide} leadLinks={data.leadLinks} t={t} lang={lang} />
+      {data.instagram && <InstagramGuideConnection info={data.instagram} t={t} lang={lang} />}
       <GuideCta data={data} t={t} lang={lang} onJoin={() => { setView("consent"); scrollTo(0, 0); }} onWithdraw={() => void withdraw()} />
     </PublicShell>
   );
