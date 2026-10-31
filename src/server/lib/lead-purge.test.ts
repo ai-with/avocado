@@ -6,6 +6,7 @@ import { DEFAULT_GATE } from "../../shared/leads";
 import { publicDocRoutes } from "../routes/public-lead/docs";
 import { publicFormRoutes } from "../routes/public-lead/forms";
 import { applyIdentify, type IdentifyJob } from "./collect/people";
+import { prepareIdentifyJobs, processIdentifyJob } from "./collect/identify-outbox";
 import { upsertLead } from "./leads";
 import { IP_HASH_RETENTION_MS, LEAD_RETENTION_MS, purgeDeletedLeads } from "./lead-purge";
 import { sha256Hex } from "./ids";
@@ -62,6 +63,13 @@ function oldData(db: Sqlite, leadId: string) {
 const n = (db: Sqlite, table: string) => Number(db.prepare(`SELECT count(*) AS n FROM ${table}`).all()[0]!.n);
 const controller = { scheduledTime: NOW } as ScheduledController;
 
+async function queuedIdentity(env: Env, id: string, sessionId: string, anonId: string, email = "same@example.com") {
+  const prepared = await prepareIdentifyJobs(env, [{ site: { id: "site", workspaceId: "w", collectRawEmail: true },
+    sessionId, anonId, linkId: null, receivedAt: NOW, event: { id, t: "identify", ts: NOW, url: "https://shop.test", ref: null, email, name: "OLD-QUEUED-NAME" } }]);
+  if (prepared.statement) await env.DB.batch([prepared.statement]);
+  return prepared.ids[0]!;
+}
+
 describe("리드·클릭 개인정보 보존 기한", () => {
   it("기한 리드의 자식 PII·SDK 원시 연결을 파기하고 살아있는 다른 사용자와 집계는 보존한다", async () => {
     const { db, env } = await setup();
@@ -86,6 +94,38 @@ describe("리드·클릭 개인정보 보존 기한", () => {
     await purgeDeletedLeads(env, controller);
     expect(log).toHaveBeenCalledTimes(2);
     expect(n(db, "leads")).toBe(3);
+  });
+
+  it("사람 연결 전 pending job만 가진 세션·전환과 완료 receipt를 해시로 함께 파기한다", async () => {
+    const { db, env } = await setup();
+    const hash = await sha256Hex("same@example.com");
+    lead(db, "dead", { email: "same@example.com", hash, deletedAt: null });
+    db.exec("INSERT INTO site_sessions(site_id,id,anon_id,first_at,last_at) VALUES('site','pending-only','pending-anon',1,2),('site','completed','completed-anon',1,2),('site','unrelated','other-anon',1,2)");
+    db.exec("INSERT INTO site_conversions(id,site_id,session_id,kind,currency,at) VALUES('pending-conv','site','pending-only','purchase','KRW',1),('unrelated-conv','site','unrelated','purchase','KRW',1)");
+    const pendingId = await queuedIdentity(env, "pending", "pending-only", "pending-anon");
+    const doneId = await queuedIdentity(env, "completed", "completed", "completed-anon");
+    await processIdentifyJob({ id: doneId }, env);
+    const otherId = await queuedIdentity(env, "other", "unrelated", "other-anon", "other@example.com");
+    db.prepare("UPDATE leads SET deleted_at=? WHERE id='dead'").run(NOW - LEAD_RETENTION_MS);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    await purgeDeletedLeads(env, controller);
+    expect(db.prepare("SELECT id FROM site_sessions").all()).toEqual([{ id: "unrelated" }]);
+    expect(db.prepare("SELECT id FROM site_conversions").all()).toEqual([{ id: "unrelated-conv" }]);
+    expect(db.prepare("SELECT id FROM site_identify_jobs").all()).toEqual([{ id: otherId }]);
+    await processIdentifyJob({ id: pendingId }, env);
+    expect(n(db, "leads")).toBe(0);
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  });
+
+  it("다른 새 사람이 같은 익명 ID를 써도 현재 연결된 새 세션·전환을 파기하지 않는다", async () => {
+    const { db, env } = await setup(); lead(db, "dead"); oldData(db, "dead");
+    db.prepare("INSERT INTO site_people(id,site_id,anon_ids,email_hash,created_at) VALUES('fresh-person','site','[\"anon-dead\"]',?,?)").run("b".repeat(64), NOW);
+    db.exec("INSERT INTO site_sessions(site_id,id,anon_id,person_id,first_at,last_at) VALUES('site','fresh-session','anon-dead','fresh-person',1,2)");
+    db.exec("INSERT INTO site_conversions(id,site_id,session_id,person_id,kind,currency,at) VALUES('fresh-conv','site','fresh-session','fresh-person','purchase','KRW',1)");
+    vi.spyOn(console, "log").mockImplementation(() => {}); await purgeDeletedLeads(env, controller);
+    expect(db.prepare("SELECT id FROM site_sessions").all()).toEqual([{ id: "fresh-session" }]);
+    expect(db.prepare("SELECT id FROM site_conversions").all()).toEqual([{ id: "fresh-conv" }]);
+    expect(db.prepare("SELECT id FROM site_people").all()).toEqual([{ id: "fresh-person" }]);
   });
 
   it("중간 삭제 실패는 앞선 삭제도 롤백하고 성공 이력을 남기지 않는다", async () => {
@@ -134,6 +174,19 @@ describe("삭제 후 새 등록", () => {
     expect(row.unsubscribe_token).not.toBe("unsubscribe-dead");
     for (const table of ["automation_runs", "message_logs", "lead_tag_links", "site_people", "site_sessions", "site_conversions", "document_views", "form_submissions"]) expect(n(db, table)).toBe(0);
     expect(n(db, "lead_sources")).toBe(1);
+  });
+
+  it("새 등록은 pending-only job과 원시 세션을 파기해 이전 Queue가 새 프로필을 덮지 못한다", async () => {
+    const { db, orm, env } = await setup();
+    lead(db, "dead", { email: "same@example.com", hash: await sha256Hex("same@example.com") });
+    db.exec("INSERT INTO site_sessions(site_id,id,anon_id,first_at,last_at) VALUES('site','pending-only','pending-anon',1,2)");
+    db.exec("INSERT INTO site_conversions(id,site_id,session_id,kind,currency,at) VALUES('pending-conv','site','pending-only','purchase','KRW',1)");
+    const oldId = await queuedIdentity(env, "old", "pending-only", "pending-anon");
+    const fresh = await upsertLead(orm, { workspaceId: "w", email: "same@example.com", name: "FRESH-PROFILE", source: { type: "manual" } });
+    expect(n(db, "site_identify_jobs")).toBe(0); expect(n(db, "site_sessions")).toBe(0); expect(n(db, "site_conversions")).toBe(0);
+    await processIdentifyJob({ id: oldId }, env);
+    expect(db.prepare("SELECT id,name FROM leads").all()).toEqual([{ id: fresh.leadId, name: "FRESH-PROFILE" }]);
+    expect(db.prepare("SELECT type FROM lead_sources").all()).toEqual([{ type: "manual" }]);
   });
 
   it("현재 게이트 view는 원자적으로 새 리드에 붙여 같은 v로 다시 열 수 있다", async () => {

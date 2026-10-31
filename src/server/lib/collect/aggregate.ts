@@ -34,8 +34,17 @@ function addEvent(d: SessionDelta, e: SdkEvent) {
 }
 
 // seen 에 든 이벤트 ID 는 이미 처리한 것(중복 전송)이라 뺀다
+export function freshEvents(env: Envelope, seen: Set<string>): SdkEvent[] {
+  const claimed = new Set(seen);
+  return env.events.filter((event) => {
+    if (claimed.has(event.id)) return false;
+    claimed.add(event.id);
+    return true;
+  });
+}
+
 export function sessionDelta(env: Envelope, receivedAt: number, seen: Set<string>): SessionDelta | null {
-  const events = env.events.filter((e) => !seen.has(e.id));
+  const events = freshEvents(env, seen);
   if (events.length === 0) return null;
   const times = events.map((e) => correctedTs(e.ts, env, receivedAt));
   const d: SessionDelta = { firstAt: Math.min(...times), lastAt: Math.max(...times), pageviews: 0, maxScroll: 0, visibleMs: 0, clicks: 0, conversions: [], identifies: [] };

@@ -1,9 +1,11 @@
 import type { ConversionEvent, Envelope } from "../../../shared/sdk-events";
 import type { PipelineMessage } from "../../jobs";
-import { correctedTs, dailyDelta, kstDay, sessionDelta, type SessionDelta } from "./aggregate";
+import { correctedTs, dailyDelta, freshEvents, kstDay, sessionDelta, type SessionDelta } from "./aggregate";
 import { resolveAttribution, type SessionAttribution } from "./attribution";
-import { applyIdentify, type IdentifyJob } from "./people";
-import { insertConversion, insertEventIds, markFirstEvent, upsertDaily, upsertSession, type SessionKey } from "./statements";
+import type { IdentifyJob } from "./people";
+import { prepareIdentifyJobs } from "./identify-outbox";
+import { assertCollectLease, claimCollectLease, CollectLeaseBusy, releaseCollectLease } from "./lease";
+import { insertConversionsBulk, insertEventIds, markFirstEvent, upsertDaily, upsertSession, type SessionKey } from "./statements";
 
 // Queue avocado-collect 소비자 (docs/14 6-3). 배치를 사이트별로 묶어 D1 batch 한 번으로 쓴다
 
@@ -55,8 +57,8 @@ function writesFor(db: D1Database, state: SiteState, m: CollectMessage, d: Sessi
   const daily = dailyDelta(d, conversions, prevMax, known.isMember, state.site.currency);
   state.sessions.set(env.sess, { ...known, maxScroll: Math.max(known.maxScroll, d.maxScroll) });
   return [
-    upsertSession(db, key, d, { attr: known.attr, isMember: known.isMember, country: m.country, device: m.device }),
-    ...conversions.map((c) => insertConversion(db, key, known.attr.linkId, c, state.site.currency, correctedTs(c.ts, env, m.receivedAt), m.receivedAt, !known.isMember)),
+    upsertSession(db, key, d, { attr: known.attr, isMember: known.isMember, country: m.country, device: m.device, receivedAt: m.receivedAt }),
+    ...(conversions.length ? [insertConversionsBulk(db, key, known.attr.linkId, conversions.map((event) => ({ event, at: correctedTs(event.ts, env, m.receivedAt) })), state.site.currency, m.receivedAt, !known.isMember)] : []),
     upsertDaily(db, state.site.id, kstDay(m.receivedAt), known.attr.linkId, daily),
   ];
 }
@@ -69,29 +71,47 @@ async function knownSession(db: D1Database, state: SiteState, m: CollectMessage)
   return { maxScroll: 0, attr, isMember: attr.isMember || !!m.envelope.member };
 }
 
-async function processSite(env: Env, siteId: string, msgs: CollectMessage[]): Promise<IdentifyJob[]> {
-  const state = await loadState(env.DB, siteId, msgs);
-  if (!state) return [];
-  const writes: D1PreparedStatement[] = [];
-  const jobs: IdentifyJob[] = [];
-  const newIds: string[] = [];
-  for (const m of msgs) {
-    const d = sessionDelta(m.envelope, m.receivedAt, state.seen);
-    if (!d) continue;
-    const fresh = m.envelope.events.filter((e) => !state.seen.has(e.id)).map((e) => e.id);
-    for (const id of fresh) state.seen.add(id);
-    newIds.push(...fresh);
-    const known = await knownSession(env.DB, state, m);
-    writes.push(...writesFor(env.DB, state, m, d, known));
-    // 동의 전(pending)에는 사람 연결을 하지 않는다 (docs/14 7장)
-    if (m.envelope.consent !== "granted") continue;
-    for (const event of d.identifies) jobs.push({ site: state.site, anonId: m.envelope.anon, sessionId: m.envelope.sess, linkId: known.attr.linkId, event, receivedAt: m.receivedAt });
+async function processSite(env: Env, siteId: string, msgs: CollectMessage[]): Promise<void> {
+  const lease = await claimCollectLease(env.DB, siteId, msgs[0]!.workspaceId);
+  if (!lease) return;
+  let released = false;
+  try {
+    const state = await loadState(env.DB, siteId, msgs);
+    if (!state) return;
+    const writes: D1PreparedStatement[] = [];
+    const jobs: IdentifyJob[] = [];
+    const newIds: string[] = [];
+    for (const m of msgs) {
+      if (m.workspaceId !== state.site.workspaceId) continue;
+      const d = sessionDelta(m.envelope, m.receivedAt, state.seen);
+      if (!d) continue;
+      const fresh = freshEvents(m.envelope, state.seen).map((e) => e.id);
+      for (const id of fresh) state.seen.add(id);
+      newIds.push(...fresh);
+      const known = await knownSession(env.DB, state, m);
+      writes.push(...writesFor(env.DB, state, m, d, known));
+      // 동의 전(pending)에는 사람 연결을 하지 않는다 (docs/14 7장)
+      if (m.envelope.consent !== "granted") continue;
+      for (const event of d.identifies) jobs.push({ site: state.site, anonId: m.envelope.anon, sessionId: m.envelope.sess, linkId: known.attr.linkId, event, receivedAt: m.receivedAt });
+    }
+    const prepared = await prepareIdentifyJobs(env, jobs);
+    const at = Math.max(...msgs.map((m) => m.receivedAt));
+    // 이벤트 ID 기록을 같은 batch(트랜잭션)에 넣어 실패 후 재시도 때 이벤트가 빠지지 않게 한다
+    await env.DB.batch([assertCollectLease(env.DB, lease), ...writes,
+      ...(writes.length ? [insertEventIds(env.DB, siteId, newIds, at), markFirstEvent(env.DB, siteId, at)] : []),
+      ...(prepared.statement ? [prepared.statement] : []), releaseCollectLease(env.DB, lease)]);
+    released = true;
+    if (prepared.ids.length) {
+      try { await env.PIPELINE.sendBatch(prepared.ids.map((id) => ({ body: { type: "collect_identify", payload: { id } } }))); }
+      catch {
+        await env.DB.prepare("UPDATE site_identify_jobs SET last_error='identify_enqueue_failed' WHERE status='pending' AND id IN (SELECT value FROM json_each(?))")
+          .bind(JSON.stringify(prepared.ids)).run();
+        throw new Error("identify_enqueue_failed");
+      }
+    }
+  } finally {
+    if (!released) await releaseCollectLease(env.DB, lease).run();
   }
-  if (writes.length === 0) return [];
-  const at = Math.max(...msgs.map((m) => m.receivedAt));
-  // 이벤트 ID 기록을 같은 batch(트랜잭션)에 넣어 실패 후 재시도 때 이벤트가 빠지지 않게 한다
-  await env.DB.batch([...writes, insertEventIds(env.DB, siteId, newIds, at), markFirstEvent(env.DB, siteId, at)]);
-  return jobs;
 }
 
 export async function consumeCollect(batch: MessageBatch<PipelineMessage>, env: Env) {
@@ -100,10 +120,16 @@ export async function consumeCollect(batch: MessageBatch<PipelineMessage>, env: 
     const m = msg.body.payload as CollectMessage;
     bySite.set(m.siteId, [...(bySite.get(m.siteId) ?? []), m]);
   }
-  const jobs: IdentifyJob[] = [];
-  for (const [siteId, msgs] of bySite) jobs.push(...(await processSite(env, siteId, msgs)));
-  // ponytail: identify 는 집계 batch 뒤에 따로 처리한다. 여기서 실패하면 재시도 때 이벤트 ID 중복으로 건너뛰어 사람 연결만 빠진다. 잦으면 별도 메시지로 분리
-  for (const job of jobs) await applyIdentify(env, job).catch((e: unknown) => console.error("[collect] identify", e));
+  try {
+    for (const [siteId, msgs] of bySite) await processSite(env, siteId, msgs);
+  } catch (error) {
+    if (error instanceof CollectLeaseBusy) {
+      // Explicit per-message retry wins over index.ts's later ackAll().
+      for (const message of batch.messages) message.retry({ delaySeconds: error.delaySeconds });
+      return;
+    }
+    throw new Error("collect_processing_failed"); // No SDK/contact/SQL params in logs.
+  }
 }
 
 // 24시간 지난 중복 제거 기록 정리 (cron)

@@ -3,6 +3,7 @@ import { createSqliteD1, type TestSqlite } from "../test/sqlite-d1";
 import { getDb } from "../db";
 import { conversionTotals, ECB_RATES_URL, enqueueFxRefresh, parseEcbRates, refreshFxRates } from "./site-fx";
 import { summaries } from "../routes/sites/shared";
+import { insertConversionsBulk } from "./collect/statements";
 
 const NOW = Date.parse("2026-11-01T02:00:00Z"), DAY = 86_400_000, HOUR = 3_600_000;
 const databases: TestSqlite[] = [];
@@ -129,6 +130,20 @@ describe("Same-cohort multi-currency totals", () => {
     db.prepare("INSERT INTO site_conversions(id,site_id,session_id,kind,value,currency,at,received_at,eligible_at_capture) VALUES ('raced','s1','visitor','purchase',10,'USD',?,?,?)").run(NOW, NOW, capturedEligible);
     db.exec("INSERT INTO site_daily_stats(site_id,day,link_id,conversions) VALUES ('s1','2026-11-01','',1)");
     expect((await summaries(orm, [{ id: "s1", currency: "KRW" }])).get("s1")).toMatchObject({ conversions: 1, conversionValue: 5000, conversionValuePending: 0 });
+  });
+
+  it("keeps receipt time and captured eligibility through the bulk conversion writer", async () => {
+    const { db, d1, orm, rate } = await setup(); rate(); db.exec("UPDATE site_sessions SET is_member=1 WHERE site_id='s1' AND id='visitor'");
+    const event = { id: "bulk_event", t: "conversion" as const, kind: "purchase" as const, ts: NOW - 10 * DAY, url: "https://qa.example/p", ref: null, value: 10, currency: "USD" };
+    await insertConversionsBulk(d1, { siteId: "s1", sessionId: "visitor", anonId: "anon" }, null, [{ event, at: event.ts }, { event: { ...event, id: "bulk_native", value: 5, currency: "KRW" }, at: event.ts }], "KRW", NOW, true).run();
+    expect(await conversionTotals(orm, [{ id: "s1", currency: "KRW" }], "2026-10-31")).toEqual([{ siteId: "s1", value: 5, pending: 1, converted: 0 }]);
+  });
+
+  it("applies identify migration after an already-deployed FX migration", async () => {
+    const { db } = await createSqliteD1({ migrateThrough: 27 }); databases.push(db);
+    const fs = await import("node:fs" as string) as { readFileSync(path: string, encoding: string): string };
+    for (const file of ["0029_site_fx.sql", "0028_collect_identify_retry.sql"]) db.exec(fs.readFileSync(`migrations/${file}`, "utf8"));
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]); expect(db.prepare("PRAGMA integrity_check").all()).toEqual([{ integrity_check: "ok" }]);
   });
 
   it("migrates surviving raw data and marks already-purged legacy amounts as unknown", async () => {

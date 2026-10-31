@@ -6,10 +6,14 @@ import type { DailyDelta, SessionDelta } from "./aggregate";
 // Queue 소비자가 db.batch() 로 한 번에 보내는 쓰기 문장들 (D1 원시 SQL. 증분 upsert 가 Drizzle 보다 읽기 쉽다)
 
 export type SessionKey = { siteId: string; sessionId: string; anonId: string };
-export type SessionMeta = { attr: SessionAttribution; isMember: boolean; country: string | null; device: string };
+export type SessionMeta = { attr: SessionAttribution; isMember: boolean; country: string | null; device: string; receivedAt?: number };
 
 // 같은 익명 ID 로 이미 식별된 사람이 있으면 새 세션에 바로 붙인다
-const PERSON_BY_ANON = "(SELECT p.id FROM site_people p, json_each(p.anon_ids) j WHERE p.site_id = ? AND j.value = ? LIMIT 1)";
+const PERSON_BY_ANON = `(SELECT p.id FROM site_people p, json_each(p.anon_ids) j
+  WHERE p.site_id=? AND j.value=? AND p.created_at<=?
+  AND (p.lead_id IS NULL OR EXISTS(SELECT 1 FROM leads l JOIN sites s ON s.workspace_id=l.workspace_id
+    WHERE s.id=p.site_id AND l.id=p.lead_id AND l.deleted_at IS NULL AND l.created_at<=?))
+  ORDER BY p.created_at DESC,p.id LIMIT 1)`;
 
 export function upsertSession(db: D1Database, k: SessionKey, d: SessionDelta, m: SessionMeta) {
   return db
@@ -22,7 +26,7 @@ export function upsertSession(db: D1Database, k: SessionKey, d: SessionDelta, m:
          visible_ms = visible_ms + excluded.visible_ms, clicks = clicks + excluded.clicks,
          is_member = max(is_member, excluded.is_member), person_id = coalesce(person_id, excluded.person_id)`,
     )
-    .bind(k.siteId, k.sessionId, k.anonId, k.siteId, k.anonId, m.attr.linkId, m.attr.clickToken, m.attr.match, d.firstAt, d.lastAt, d.pageviews, d.maxScroll, d.visibleMs, d.clicks, m.isMember ? 1 : 0, m.country, m.device);
+    .bind(k.siteId, k.sessionId, k.anonId, k.siteId, k.anonId, m.receivedAt ?? d.lastAt, m.receivedAt ?? d.lastAt, m.attr.linkId, m.attr.clickToken, m.attr.match, d.firstAt, d.lastAt, d.pageviews, d.maxScroll, d.visibleMs, d.clicks, m.isMember ? 1 : 0, m.country, m.device);
 }
 
 export function insertConversion(db: D1Database, k: SessionKey, linkId: string | null, e: ConversionEvent, currency: string, at: number, receivedAt = at, eligibleAtCapture?: boolean) {
@@ -32,6 +36,18 @@ export function insertConversion(db: D1Database, k: SessionKey, linkId: string |
        VALUES (?, ?, ?, (SELECT person_id FROM site_sessions WHERE site_id = ? AND id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(newId(), k.siteId, k.sessionId, k.siteId, k.sessionId, linkId, e.kind, e.name ?? null, e.value ?? null, e.currency ?? currency, e.orderId ?? null, at, receivedAt, eligibleAtCapture === undefined ? null : eligibleAtCapture ? 1 : 0);
+}
+
+// One physical SQL statement even at the 50-conversion limit. Preserve the same
+// receipt time and membership snapshot used by the daily/currency aggregates.
+export function insertConversionsBulk(db: D1Database, k: SessionKey, linkId: string | null, events: { event: ConversionEvent; at: number }[], currency: string, receivedAt?: number, eligibleAtCapture?: boolean) {
+  const rows = events.map(({ event, at }) => ({ id: newId(), kind: event.kind, name: event.name ?? null, value: event.value ?? null, currency: event.currency ?? currency, orderId: event.orderId ?? null, at, receivedAt: receivedAt ?? at, eligibleAtCapture: eligibleAtCapture === undefined ? null : eligibleAtCapture ? 1 : 0 }));
+  return db.prepare(`INSERT OR IGNORE INTO site_conversions (id,site_id,session_id,person_id,link_id,kind,name,value,currency,order_id,at,received_at,eligible_at_capture)
+    SELECT json_extract(e.value,'$.id'),?,?,(SELECT person_id FROM site_sessions WHERE site_id=? AND id=?),?,
+      json_extract(e.value,'$.kind'),json_extract(e.value,'$.name'),json_extract(e.value,'$.value'),
+      json_extract(e.value,'$.currency'),json_extract(e.value,'$.orderId'),json_extract(e.value,'$.at'),
+      json_extract(e.value,'$.receivedAt'),json_extract(e.value,'$.eligibleAtCapture') FROM json_each(?) e`)
+    .bind(k.siteId, k.sessionId, k.siteId, k.sessionId, linkId, JSON.stringify(rows));
 }
 
 export function upsertDaily(db: D1Database, siteId: string, day: string, linkId: string | null, d: DailyDelta) {

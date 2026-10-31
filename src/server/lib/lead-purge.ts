@@ -17,11 +17,18 @@ export function leadPurgeStatements(db: D1Database, selection: string, params: B
     target_people AS (
       SELECT p.id, p.site_id, p.anon_ids FROM target_leads l JOIN sites s ON s.workspace_id = l.workspace_id
       JOIN site_people p ON p.site_id = s.id AND (p.lead_id = l.id OR (l.email_hash IS NOT NULL AND p.email_hash = l.email_hash))
+    ), target_jobs AS (
+      SELECT j.id, j.site_id, j.session_id FROM target_leads l JOIN sites s ON s.workspace_id = l.workspace_id
+      JOIN site_identify_jobs j ON j.site_id = s.id AND j.workspace_id = l.workspace_id
+        AND (j.resolved_lead_id = l.id OR (l.email_hash IS NOT NULL AND j.email_hash = l.email_hash))
     ), target_sessions AS (
       SELECT ss.site_id, ss.id FROM target_people p JOIN site_sessions ss ON ss.site_id = p.site_id AND ss.person_id = p.id
       UNION
       SELECT ss.site_id, ss.id FROM target_people p JOIN json_each(p.anon_ids) anon
       JOIN site_sessions ss ON ss.site_id = p.site_id AND ss.anon_id = anon.value
+        AND (ss.person_id IS NULL OR ss.person_id IN (SELECT id FROM target_people))
+      UNION
+      SELECT ss.site_id, ss.id FROM target_jobs j JOIN site_sessions ss ON ss.site_id = j.site_id AND ss.id = j.session_id
     )`;
   const query = (name: string, sql: string, extra: Bound[] = []): PurgeStatement => ({ name, statement: db.prepare(`${cte} ${sql}`).bind(...params, ...extra) });
   return [
@@ -34,6 +41,11 @@ export function leadPurgeStatements(db: D1Database, selection: string, params: B
       UNION SELECT c.id FROM target_sessions ss JOIN site_conversions c ON c.site_id = ss.site_id AND c.session_id = ss.id
     )`),
     query("site_sessions", "DELETE FROM site_sessions WHERE (site_id, id) IN (SELECT site_id, id FROM target_sessions)"),
+    // Session deletion cascades pending-only jobs AFTER conversion selection used their linkage.
+    // Also clear receipts that share a target person/session, even if they carried no email hash.
+    query("site_identify_jobs", `DELETE FROM site_identify_jobs WHERE id IN (SELECT id FROM target_jobs)
+      OR (site_id, session_id) IN (SELECT site_id, id FROM target_sessions)
+      OR resolved_person_id IN (SELECT id FROM target_people)`),
     query("site_people", "DELETE FROM site_people WHERE id IN (SELECT id FROM target_people)"),
     query("automation_runs", "DELETE FROM automation_runs WHERE lead_id IN (SELECT id FROM target_leads)"),
     query("message_logs", "DELETE FROM message_logs WHERE lead_id IN (SELECT id FROM target_leads)"),

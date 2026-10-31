@@ -25,6 +25,7 @@ function children(db: TestSqlite, id: string) {
   db.prepare("INSERT INTO site_conversions(id,site_id,session_id,kind,currency,at) VALUES(?,?,?,'purchase','KRW',1)").run(`conv-${id}`, id, `session-${id}`);
   db.prepare("INSERT INTO site_people(id,site_id,anon_ids,external_id,email_hash,created_at) VALUES(?,?,'[\"anon\"]','private-id','private-hash',1)").run(`person-${id}`, id);
   db.prepare("INSERT INTO site_daily_stats(site_id,day) VALUES(?,'2026-10-01')").run(id);
+  db.prepare("INSERT INTO site_identify_jobs(id,site_id,workspace_id,session_id,anon_id,event_id,received_at,expires_at,payload_enc,created_at,updated_at) SELECT ?,id,workspace_id,?,'anon','identify',1,2,'encrypted-private',1,1 FROM sites WHERE id=?").run(`job-${id}`, `session-${id}`, id);
   db.prepare("INSERT INTO site_event_ids(site_id,id,at) VALUES(?,'event',1)").run(id);
 }
 const count = (db: TestSqlite, table: string, id: string) => db.prepare(`SELECT count(*) AS n FROM ${table} WHERE site_id = ?`).all(id)[0]?.n;
@@ -38,7 +39,7 @@ describe("사이트 개인정보 파기", () => {
     db.prepare("UPDATE sites SET deleted_at = ? WHERE id = 'future'").run(CUTOFF + 1);
     await purgeDeletedSites({ DB: d1 } as Env, controller);
     expect(db.prepare("SELECT count(*) AS n FROM sites WHERE id = 'due'").all()[0]?.n).toBe(0);
-    for (const table of ["site_sessions", "site_conversions", "site_people", "site_daily_stats", "site_event_ids"]) {
+    for (const table of ["site_sessions", "site_conversions", "site_people", "site_daily_stats", "site_event_ids", "site_identify_jobs"]) {
       expect(count(db, table, "due")).toBe(0);
       for (const id of ["future", "active", "other"]) expect(count(db, table, id)).toBe(1);
     }

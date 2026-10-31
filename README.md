@@ -113,7 +113,7 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 구글 로그인 및 별도 Google Sheets 추가 동의 (둘 다 필요) | 로그인·가입과 시트 연결이 준비 중으로 표시됨 |
 | `META_APP_ID`, `META_APP_SECRET` | 인스타그램 연결 OAuth, 웹훅 서명 검증 (필수) | 인스타그램 연결, 키워드 DM이 "연결 준비 중" |
 | `META_VERIFY_TOKEN` | 웹훅 등록 확인용 임의 문자열 (필수) | 웹훅 등록 불가 |
-| `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰과 임시 내보내기 자료 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램과 시트 연결 꺼짐 |
+| `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰, 임시 내보내기 자료와 SDK identify 작업 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램·시트 연결과 SDK identify 작업 처리 불가 |
 | `TURNSTILE_SITE_KEY` | 공용 가이드 참여용 Turnstile sitekey. 클라이언트에 공개되는 값 | 공용 참여는 준비 중으로 표시되고 신청은 거절됨 |
 | `TURNSTILE_SECRET_KEY` | 같은 위젯의 Siteverify secret. 서버 시크릿으로만 등록 | 위와 같음. 검증 없이 가입하지 않음 |
 | `CF_API_TOKEN_AE` | Analytics Engine SQL API 조회용 토큰 (선택, 아직 읽는 화면 없음) | 영향 없음. 사이트 분석 화면은 D1 집계만 쓴다 |
@@ -268,6 +268,18 @@ CSV와 같은 워크스페이스·권한·필터의 행을 재사용한다. 선�
 4. 리드 링크의 목적지가 등록 도메인이면 `/l` 클릭 때 `avc` 클릭 ID가 붙어 링크·인플루언서별 방문·전환으로 묶인다 (가이드 상세 리드 탭 묶어 보기, 리드 링크 표)
 
 동의 모드가 "동의 필요"인 사이트는 스니펫에 `data-consent="require"`가 붙고, 사이트가 `avocado('consent', 'granted')`를 부르기 전에는 아무것도 보내지 않는다.
+
+### identify 재시도와 집계 소유권 (AIWITH-390)
+
+`0028_collect_identify_retry.sql`을 적용한다. 방문 집계의 `site_event_ids`와 사람 연결의 `site_identify_jobs`는 독립적으로 완료를 기록한다. 집계 트랜잭션에 암호화된 identify 작업도 함께 남긴 뒤 기존 PIPELINE에는 작업 ID만 보낸다. 사람 연결 실패나 Queue 등록 실패가 나도 pending 원장이 남아 다시 처리하며, 같은 작업을 재시도할 때 방문·전환 집계를 다시 증가시키지 않는다. 연락처·이름·외부 식별자 원문은 작업 본문에 암호화하고 처리 후 지운다. 원문 수집이 꺼져 있으면 SQL 실행 시에도 원문을 제외한 암호문을 고른다. 기존 `TOKEN_ENC_KEY`가 필요하고 설정 오류는 검증 없이 성공으로 처리하지 않는다.
+
+집계 소비자는 사이트별 짧은 random-token lease를 얻은 뒤 중복 기록·세션을 읽는다. native batch 첫 문장은 현재 소유 토큰을 검증하며, 마지막 문장에서 같은 토큰을 해제한다. 만료 뒤 다른 소비자가 토큰을 얻었다면 옛 쓰기는 모두 롤백된다. 시간만 지났고 토큰은 여전히 본인 것이면 commit할 수 있다. 같은 봉투 안의 중복 ID도 한 번만 반영한다. 사람 연결은 SQL claim·현재 canonical person 선택·리드/출처/별칭/세션/전환 연결·완료 영수증을 한 native batch에 넣는다. 현재 원장을 보며 canonical ID를 고르고, 작업별 출처 ID를 고정해 동시 처리·부분 실패·응답 손실에도 출처를 중복 생성하지 않는다. 다른 이메일 해시를 가진 사람의 별칭은 합치지 않고, 이전 작업이 새 등록 프로필·별칭을 덮지 않는다.
+
+receivedAt은 최초 HTTP 수신 시 서버가 기록한 시각을 유지한다. 미래 시각이나 24시간 지난 identify는 처리하지 않는다. 모든 실제 쓰기에서 현재 사이트·워크스페이스·세션·익명 ID, 리드 삭제 상태와 생성 시각을 다시 검사하며 원문 리드 쓰기는 현재 `collect_raw_email`도 확인한다. 리드 파기·재신청은 기존 작업과 연결된 원시 세션·전환까지 정리하고, 삭제 사이트의 작업은 FK cascade로 지운다. 삭제된 작업을 오래된 집계 메시지에서 재생성하지 않는다.
+
+Cloudflare Queue는 [재시도 횟수를 소진하면 DLQ가 없는 메시지를 삭제한다](https://developers.cloudflare.com/queues/configuration/batching-retries/#delivery-failure). 별도 리소스를 만들지 않고 기존 정리 Queue가 pending 원장을 다시 발견한다. 한 실행에서 만료된 작업 최대 100개, 비활성 작업 본문 최대 100개를 정리하고 유효한 pending ID 최대 50개를 다시 넣는다. 24시간이 지나면 처리·복호화를 멈추고 다음 정리에서 파기한다. 물리 파기는 Queue 대기·실패·배치 상한에 따라 후속 주기로 넘어갈 수 있다. 처리 실패는 정규화된 오류 코드로 남고 Queue 재시도로 전파하며, 정리 로그에는 건수만 남긴다.
+
+기존 `avocado-collect`의 `max_batch_size`는 1로 제한한다. 50개 전환과 50개 identify는 각각 JSON bulk SQL 1개로 저장한다. 정상 집계는 최대 6개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 1회, identify 작업은 정상 13개·실패 증거 기록 포함 최대 14개 물리 SQL을 사용한다. 새 HTTP·R2 호출이나 신규 Queue는 없다. 기존 정리 consumer는 Sheets 배치·join 제한 정리·identify 정리를 합쳐 4개 D1 바인딩 호출·7개 물리 SQL과 Queue 전송 최대 1회를 사용한다. 기존 24시간 이벤트 중복 제거 창은 유지한다.
 
 ### 개발
 

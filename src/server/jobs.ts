@@ -48,11 +48,17 @@ queueHandlers.privacy_purge = processPrivacyPurge;
 import { enqueueThumbnailSweep, processThumbnailCleanup, processThumbnailSweep } from "./lib/content-thumbnail";
 import { cleanupGoogleSheetsJobs, enqueueGoogleSheetsCleanup } from "./lib/google-sheets-export";
 import { cleanupPublicJoinLimits } from "./lib/guide-join";
+import { maintainIdentifyJobs, processIdentifyJob } from "./lib/collect/identify-outbox";
 queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
 queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
 queueHandlers.cleanup_google_sheets = async (_payload, env) => {
   await cleanupGoogleSheetsJobs(env);
   await cleanupPublicJoinLimits(env); // 기존 정리 Queue를 재사용하며 추가 D1 호출은 bounded DELETE 1회다.
+  await maintainIdentifyJobs(env);
+};
+queueHandlers.collect_identify = async (payload, env) => {
+  if (!payload || typeof payload !== "object" || typeof (payload as { id?: unknown }).id !== "string") throw new Error("identify_job_invalid");
+  await processIdentifyJob(payload as { id: string }, env);
 };
 scheduledTasks.push(enqueueGoogleSheetsCleanup, enqueueThumbnailSweep);
 
