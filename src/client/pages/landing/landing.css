@@ -16,7 +16,7 @@ html:has(.landing) { scroll-behavior: smooth; }
 .landing-anchors { display: flex; gap: var(--space-8); }
 .landing-anchors a { color: var(--color-text-secondary); text-decoration: none; font-size: var(--text-body-sm-size); font-weight: var(--weight-medium); }
 .landing-anchors a:hover { color: var(--color-text-primary); }
-.landing-header-actions { margin-left: auto; display: flex; gap: var(--space-4); }
+.landing-header-actions { margin-left: auto; display: flex; flex-shrink: 0; gap: var(--space-4); }
 
 /* 히어로 */
 /* 1fr의 최소 폭은 자식 min-content라 목업이 넓어지면 페이지를 밀어낸다. minmax(0, 1fr)로 막는다 */

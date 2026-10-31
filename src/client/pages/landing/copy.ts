@@ -12,6 +12,7 @@ export type Item = { title: string; body?: string };
 export type FeatureSection = { id: string; title: string; sub: string; chips?: string[]; items: Item[]; note?: string };
 
 export const NAV_ANCHORS = [
+  { href: "#showcase", label: "이렇게 씁니다" },
   { href: "#features", label: "기능" },
   { href: "#process", label: "진행 방식" },
   { href: "#faq", label: "FAQ" },
