@@ -279,7 +279,7 @@ receivedAt은 최초 HTTP 수신 시 서버가 기록한 시각을 유지한다.
 
 Cloudflare Queue는 [재시도 횟수를 소진하면 DLQ가 없는 메시지를 삭제한다](https://developers.cloudflare.com/queues/configuration/batching-retries/#delivery-failure). 별도 리소스를 만들지 않고 기존 정리 Queue가 pending 원장을 다시 발견한다. 한 실행에서 만료된 작업 최대 100개, 비활성 작업 본문 최대 100개를 정리하고 유효한 pending ID 최대 50개를 다시 넣는다. 24시간이 지나면 처리·복호화를 멈추고 다음 정리에서 파기한다. 물리 파기는 Queue 대기·실패·배치 상한에 따라 후속 주기로 넘어갈 수 있다. 처리 실패는 정규화된 오류 코드로 남고 Queue 재시도로 전파하며, 정리 로그에는 건수만 남긴다.
 
-기존 `avocado-collect`의 `max_batch_size`는 1로 제한한다. 50개 전환과 50개 identify는 각각 JSON bulk SQL 1개로 저장한다. 정상 집계는 최대 6개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 1회, identify 작업은 정상 13개·실패 증거 기록 포함 최대 14개 물리 SQL을 사용한다. 새 HTTP·R2 호출이나 신규 Queue는 없다. 기존 정리 consumer는 Sheets 배치·join 제한 정리·identify·급감 알림 정리를 합쳐 5개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 최대 2회를 사용한다. 기존 24시간 이벤트 중복 제거 창은 유지한다.
+기존 `avocado-collect`의 `max_batch_size`는 1로 제한한다. 50개 전환과 50개 identify는 각각 JSON bulk SQL 1개로 저장한다. 정상 집계는 최대 6개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 1회, identify 작업은 정상 13개·실패 증거 기록 포함 최대 14개 물리 SQL을 사용한다. 새 HTTP·R2 호출이나 신규 Queue는 없다. 기존 정리 consumer는 Sheets 배치·join 제한 정리·identify·급감 알림·가져오기 정리를 합쳐 6개 D1 바인딩 호출·16개 물리 SQL과 Queue 전송 최대 2회를 사용한다. 기존 24시간 이벤트 중복 제거 창은 유지한다.
 
 ### 개발
 
@@ -347,7 +347,19 @@ KST 날짜를 쓰며 매일 09:00 이후 첫 정리 Queue가 전날까지를 확
 
 네 테이블은 사이트 설정, 자기 구독/쿨다운, 숫자 검사 기록, 발송 outbox다. 주소 원문은 별도로 저장하지 않고 구독에는 도메인이 분리된 HMAC만 남긴다. 종료된 메일의 암호화 본문은 즉시 지운다. 24시간이 지난 미완료 본문은 정리 대상이 되어 다음 정리 Queue에서 지우며, 실행 중인 5분 lease는 중간에 덮지 않는다. 검사와 연락처/본문 없는 발송 영수증은 생성 30일 뒤 각 최대 100개씩 파기 대상으로 삼는다. 현재 부적격인 구독이 남았다면 설정 저장의 원자 배치 또는 정리 호출당 최대 100개를 비활성화하고 세대를 회전시킨다. 정리만 남은 backlog는 다음 15분 정리 주기에서 이어 처리하며 정확한 TTL 시각의 전체 파기를 약속하지 않는다. 삭제 사이트의 설정·구독·검사는 FK로 삭제하고, 부모 없는 발송 영수증은 불확실성을 숨기지 않도록 남긴 뒤 본문을 정리하고 같은 30일 기준으로 파기한다. 활성 설정/자기 구독과 마지막 시도 시각은 설정·쿨다운 유지에 사용한다. 로그에는 처리·실패·남은 건수만 남기고 주소·본문·provider 오류 원문을 기록하지 않는다.
 
-정상 탐지는 7개 물리 SQL+Queue 전송 1회, 메일은 8개 SQL+메일 HTTP 1회다. 오류 증거 기록/lease 해제도 각각 SQL 1회 추가 이내다. 기존 정리와 합친 consumer는 15개 SQL+Queue 전송 최대 2회이고, 별도 알림 정리는 8개 SQL+Queue 전송 1회다. 각 SQL 바인딩은 100개 이하, 기존 PIPELINE `max_batch_size=1`을 유지한다. 실제 발신 도메인·`EMAIL_FROM` 설정 후 운영 메일의 접수/수신 QA는 별도로 진행해야 한다. 로컬 회귀는 실제 SQLite와 가짜 메일 HTTP만 사용한다.
+정상 탐지는 7개 물리 SQL+Queue 전송 1회, 메일은 8개 SQL+메일 HTTP 1회다. 오류 증거 기록/lease 해제도 각각 SQL 1회 추가 이내다. 기존 정리와 합친 consumer는 16개 SQL+Queue 전송 최대 2회이고, 별도 알림 정리는 8개 SQL+Queue 전송 1회다. 각 SQL 바인딩은 100개 이하, 기존 PIPELINE `max_batch_size=1`을 유지한다. 실제 발신 도메인·`EMAIL_FROM` 설정 후 운영 메일의 접수/수신 QA는 별도로 진행해야 한다. 로컬 회귀는 실제 SQLite와 가짜 메일 HTTP만 사용한다.
+
+## CSV 가져오기 (AIWITH-395/396)
+
+`0032_lead_imports.sql`을 적용한다. 원본 CSV는 서버/R2에 저장하지 않는다. 브라우저에서 UTF-8 CSV를 고르고 열을 매핑한 뒤 수신 동의를 확인하면, 100행씩 job/chunk API로 보낸다. 16MiB 파일과 256KiB 실제 요청 본문은 처리 메모리를 위한 기술 상한이며 발송 인원·요금제 quota와 관계없다. 열 길이는 직접 등록과 같은 이름/소속 100자·전화 30자, 이메일 254자 이하다. 마케팅 동의 열이 없거나 동의 값이 아니면 동의 없음으로 처리한다.
+
+job은 현재 사용자·로그인 세션·워크스페이스에 묶이며, 모든 쓰기는 현재 소유자/편집자 역할·번호 인증·세션 만료/현재 WS·CSRF·generation을 확인한다. chunk의 입력 digest, 결과/오류 행 번호, 진행 수만 원장에 저장한다. 같은 chunk 재전송/응답 소실은 같은 영수증을 반환하며 다른 내용은 409다. claim·삭제 세대 정리·묶음 upsert·출처·이벤트·진행·영수증은 native D1 batch 하나로 함께 commit/rollback한다. 중복 이메일의 마지막 비어 있지 않은 값과 OR 동의 병합을 유지하고, 기존 수신 거부/반송/답변을 지우지 않는다.
+
+같은 브라우저/로그인에서 24시간 안에 같은 파일과 열 매핑을 다시 선택하면 서버 완료 지점부터 재개한다. 브라우저에는 scope/파일 fingerprint별 요청 UUID·시각만 저장하며 파일명/CSV/연락처는 보관하지 않는다. 완료 응답이 불명확하면 새 ID로 자동 재시작하지 않는다. 취소는 남은 묶음을 막고 generation을 바꾸며 이미 완료된 병합은 되돌리지 않는다. 로그인 세션이 삭제되거나 사용자/WS가 삭제되면 job 원장도 FK로 삭제된다. 24시간이 지난 job/chunk/소유 표시는 기존 cleanup Queue에서 한 번에 최대 1,000 job씩 정리한다. 만료 요청은 원장 정리 뒤에도 원래 요청 시각으로 다시 시작하지 못한다.
+
+삭제된 리드의 명시적 새 등록은 기존 개인정보 파기를 먼저 집합 단위로 수행하고 새 ID를 만든다. DB trigger가 lead birth revision과 WS privacy epoch를 기록하므로 원래 job 이후 생긴 새 세대를 덮지 않는다. 외부 soft/hard 삭제·재등록은 옛 job의 계속 쓰기를 막는다. 주소별 추가 tombstone은 만들지 않아 **같은 WS의 무관한 연락처 삭제도 이전 job을 중단할 수 있다**. 완료된 행을 확인하고 권한·동의를 다시 확인한 새 작업으로 시작해야 한다. 자기 chunk의 파기만 첫 assertion으로 권한/epoch를 증명한 같은 batch 끝에서 자신의 epoch를 갱신한다. 다른 job은 이를 자동 채택하지 않는다. live birth 메타데이터는 lead FK로 함께 파기되고, WS counter에는 주소/연락처가 없다.
+
+100행 일반 chunk는 모듈에서 제출한 물리 SQL 12개/DB API 4회, tombstone 집합이 있으면 최대 25개/4회다. 실제 Worker cookie 인증 middleware까지 포함한 재등록 경로는 27개/6회로 검증한다. 바인딩은 문장당 100개 이하이며 SQL 100KB, 요청/JSON byte와 결과 크기를 별도 계측한다. 이 물리 SQL 수는 D1에 제출한 prepared statement 수이며 DB 내부 birth/epoch trigger 작업은 포함하지 않는다. native batch 실패 후 영수증/현재 상태를 확인하는 경로는 읽기 최대 2회가 추가된다. cleanup은 물리 DELETE 1개/native batch API 1회만 더하며 새 Cron/Queue 종류나 리소스는 없다. 로컬 회귀는 실제 migrations/SQLite로 2만 행·200 chunk, 세대/권한/취소 경합, 중간 rollback, 응답 소실과 가짜 fetch를 검증한다. 실제 발송/398/사업상 quota는 이 변경 범위가 아니다.
 
 ## 알려진 한계
 

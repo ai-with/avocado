@@ -16,33 +16,8 @@ import { emailSchema, filteredLeads, lookups, ownLead, publicLead } from "./shar
 
 // 리드 목록·추가·가져오기·내보내기·상세·삭제
 
-const IMPORT_MAX_ROWS = 100;
 const PAGE_DWELL_VIEWS = 50;
-// 열이 없거나 값이 동의로 읽히지 않으면 '동의 없음'
-const OPT_IN_RE = /^(y|yes|true|1|o|동의|예)$/i;
 const createBody = z.object({ email: emailSchema, name: z.string().max(100).optional(), company: z.string().max(100).optional(), phone: z.string().max(30).optional(), marketingOptIn: z.boolean().default(false) });
-const importRow = z.object({ email: z.string(), name: z.string().optional(), company: z.string().optional(), phone: z.string().optional(), marketing_opt_in: z.string().optional() });
-const importBody = z.object({
-  consentConfirmed: z.literal(true, { error: "수신 동의를 받은 연락처만 올린다는 확인이 필요해요." }),
-  rows: z.array(importRow).min(1).max(IMPORT_MAX_ROWS),
-});
-
-// ponytail: 행마다 upsertLead(쿼리 3~4개). 유료 플랜의 호출당 쿼리 한도(1000) 안에 들도록 100행 제한
-async function importRows(db: Db, workspaceId: string, rows: z.infer<typeof importRow>[]) {
-  let imported = 0;
-  const invalid: number[] = [];
-  for (const [i, row] of rows.entries()) {
-    const email = emailSchema.safeParse(row.email);
-    if (!email.success) {
-      invalid.push(i);
-      continue;
-    }
-    const optIn = OPT_IN_RE.test((row.marketing_opt_in ?? "").trim());
-    await upsertLead(db, { workspaceId, email: email.data, name: row.name, company: row.company, phone: row.phone, marketingOptIn: optIn, source: { type: "import" } });
-    imported++;
-  }
-  return { imported, invalid };
-}
 
 // 상세: 출처 누적, 열람 기록(페이지별 체류), 제출 답변
 async function leadActivity(db: Db, leadId: string) {
@@ -83,14 +58,6 @@ export const leadCrudRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const r = await upsertLead(c.var.db, { workspaceId: workspace.id, ...body, source: { type: "manual" } });
     return c.json(r, 201);
-  })
-  // CSV 가져오기. 클라이언트가 열 매핑까지 끝낸 행을 100행씩 보낸다
-  .post("/import", editorsOnly, async (c) => {
-    const body = parse(importBody, await c.req.json());
-    const { workspace } = workspaceCtx(c);
-    const r = await importRows(c.var.db, workspace.id, body.rows);
-    await logEvent(c.var.db, workspace.id, "lead_imported", { rows: r.imported });
-    return c.json(r);
   })
   .get("/export", async (c) => {
     const { workspace } = workspaceCtx(c);

@@ -51,6 +51,8 @@ import { cleanupPublicJoinLimits } from "./lib/guide-join";
 import { maintainIdentifyJobs, processIdentifyJob } from "./lib/collect/identify-outbox";
 import { checkSiteAlert, maintainSiteAlerts } from "./lib/site-alerts";
 import { sendSiteAlert } from "./lib/site-alert-mail";
+
+import { cleanupLeadImports } from "./lib/lead-imports";
 queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
 queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
 queueHandlers.cleanup_google_sheets = async (_payload, env) => {
@@ -58,6 +60,8 @@ queueHandlers.cleanup_google_sheets = async (_payload, env) => {
   await cleanupPublicJoinLimits(env); // 기존 정리 Queue를 재사용하며 추가 D1 호출은 bounded DELETE 1회다.
   await maintainIdentifyJobs(env);
   await maintainSiteAlerts(env);
+
+  await cleanupLeadImports(env);
 };
 queueHandlers.check_site_alert = checkSiteAlert;
 queueHandlers.send_site_alert = sendSiteAlert;
