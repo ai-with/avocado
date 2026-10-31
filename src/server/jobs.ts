@@ -15,7 +15,12 @@ scheduledTasks.push(abortStaleUploads);
 
 // TASK-021: 자동 발송 대기열(due 지난 run)과 예약된 1회성 발송 처리
 import { processMessaging } from "./lib/messaging";
+import { messageEngine } from "./lib/message-engine";
 scheduledTasks.push(processMessaging);
+queueHandlers.message_maintenance = messageEngine.maintain;
+queueHandlers.prepare_message_run = messageEngine.prepare;
+queueHandlers.dispatch_messages = messageEngine.dispatch;
+queueHandlers.send_message_delivery = messageEngine.send;
 
 // TASK-020: 업로드 완료 후 처리 파이프라인 (F-60, F-61)
 import { processSubmission } from "./pipeline";

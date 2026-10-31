@@ -41,7 +41,8 @@ export type SkipReason =
   | "provider_error"
   | "rule_off"
   | "lead_deleted";
-export const REASON_LABELS: Record<SkipReason | "night", string> = {
+export type DeliveryReason = "source_changed" | "lead_changed" | "delivery_unknown" | "authorization_required" | "sender_changed" | "send_policy_unconfigured" | "send_policy_denied";
+export const REASON_LABELS: Record<SkipReason | DeliveryReason | "night", string> = {
   unsubscribed: "수신 거부",
   bounced: "반송",
   no_consent: "수신 동의 없음",
@@ -53,6 +54,7 @@ export const REASON_LABELS: Record<SkipReason | "night", string> = {
   rule_off: "규칙이 꺼짐",
   lead_deleted: "삭제된 리드",
   night: "야간 보류",
+  source_changed: "발송 설정 변경", lead_changed: "연락처 변경", delivery_unknown: "전송 결과 미확인", authorization_required: "권한 재확인 필요", sender_changed: "발신 설정 변경", send_policy_unconfigured: "발송 기준 준비 중", send_policy_denied: "발송 기준 확인 필요",
 };
 
 export type SendableLead = { email: string; phone: string | null; marketingOptIn: boolean; alimtalkOptIn: boolean; unsubscribedAt: number | null; bouncedAt: number | null };

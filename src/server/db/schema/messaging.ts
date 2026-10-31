@@ -2,10 +2,11 @@ import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqli
 import type { Audience, AutomationTarget, Channel, DelayMinutes, MessageKind, MessageTemplate, Trigger } from "../../../shared/messaging";
 import { workspaces } from "./workspaces";
 import { leads } from "./leads";
+import { users } from "./users";
 
 // 발송 전 점검 결과 요약(켤 때 저장). 화면은 shared/messaging validateTemplate 으로 다시 계산한다
 export type LastCheck = { ok: boolean; at: number; failed: string[] };
-export type BroadcastStats = { eligible: number; sent: number; skipped: number; reasons: Record<string, number> };
+export type BroadcastStats = { eligible: number; sent: number; skipped: number; failed?: number; unknown?: number; remaining?: number; reasons: Record<string, number> };
 
 export const automations = sqliteTable(
   "automations",
@@ -23,6 +24,8 @@ export const automations = sqliteTable(
     lastCheck: text("last_check", { mode: "json" }).$type<LastCheck | null>(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    generation: text("generation").notNull().default(""), authorizedBy: text("authorized_by").references(() => users.id, { onDelete: "set null" }),
+    authorizationGeneration: text("authorization_generation").notNull().default(""), authorizationRevokedAt: integer("authorization_revoked_at"),
   },
   (t) => [index("automations_ws_trigger_idx").on(t.workspaceId, t.trigger)],
 );
@@ -59,6 +62,9 @@ export const broadcasts = sqliteTable(
     stats: text("stats", { mode: "json" }).$type<BroadcastStats | null>(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    generation: text("generation").notNull().default(""), authorizedBy: text("authorized_by").references(() => users.id, { onDelete: "set null" }),
+    authorizationGeneration: text("authorization_generation").notNull().default(""), authorizationRevokedAt: integer("authorization_revoked_at"),
+    activeRunId: text("active_run_id"), dispatchToken: text("dispatch_token"), deliveryState: text("delivery_state"),
   },
   (t) => [index("broadcasts_ws_idx").on(t.workspaceId, t.createdAt), index("broadcasts_due_idx").on(t.status, t.scheduledAt)],
 );
@@ -79,6 +85,7 @@ export const messageLogs = sqliteTable(
     providerId: text("provider_id"),
     recipientEmail: text("recipient_email"),
     leadCreatedAt: integer("lead_created_at"),
+    leadBirthRevision: integer("lead_birth_revision"),
     at: integer("at").notNull(),
   },
   (t) => [index("message_logs_lead_idx").on(t.leadId, t.at), index("message_logs_source_idx").on(t.sourceId, t.at), index("message_logs_provider_idx").on(t.providerId)],

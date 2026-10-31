@@ -454,3 +454,19 @@ HTTP audience 집계는 COUNT/사유별 aggregate만 반환한다. 기존 canSen
 - 0009 이전에 들어온 리드는 이메일 해시가 비어 있어, Cron이 200건씩 채우기 전까지 SDK `identify`(해시)로 기존 리드와 연결되지 않는다
 - SDK 스크롤 깊이는 scroll 이벤트를 200ms마다 확인한다. 화면보다 짧은 페이지는 로드 즉시 100%로 잡힌다
 - Analytics Engine 원본 이벤트(클릭 좌표 등)는 쓰기만 하고 아직 읽는 화면이 없다
+
+### 수신자별 발송 Queue (AIWITH-398)
+
+`0035_message_delivery.sql`을 먼저 적용한다. 기존 `PIPELINE`과 `max_batch_size=1`을 사용한다. Cron은 수신자를 읽거나 메일을 보내지 않고 유지보수 ID 메시지 한 건만 넣는다. 별도 유지보수가 실행할 작업을 최대 50개, dispatcher가 수신자 ID를 최대 100개씩 예약한다. Queue 등록 실패·중복 전달·consumer 재시도 한도 소진 뒤에도 D1의 같은 작업/수신자 ID를 다음 유지보수가 발견한다. ID 외 연락처·본문은 Queue에 넣지 않는다. 한 호출에서 전체 리드를 JS로 읽지 않으며, 받는 사람은 현재 워크스페이스의 그룹·태그 조건을 공통 SQL로 평가한 시점에 원자적으로 고정한다. 이후 신규 리드는 그 발송에 추가하지 않는다.
+
+AIWITH-347/280의 업무상 인원·월 한도·비용/환불 기준은 아직 확정되지 않았다. 서버 공통 `productionMessagePolicy`는 거부가 기본이고 Env/HTTP 설정으로 허가할 수 없다. API는 `send_policy_unconfigured`, 화면은 발송 기준 준비 중을 표시하며 실제 발송·자동 규칙 켜기·테스트 발송을 차단한다. 규칙/초안 작성과 남은 발송 취소는 가능하다. 테스트만 생성자 의존성 주입으로 가짜 허가 정책/가짜 provider를 사용한다. 실제 허용 정책과 원자적 업무 한도 처리를 구현·승인하기 전에는 메일 키가 있어도 398을 이용한 운영 발송은 열리지 않는다. 기술적 묶음 크기는 업무 발송 한도가 아니다. 알림톡 미연결/stub, `disableSms`, DM 분류·동의 규칙은 변경하지 않는다.
+
+1회성 요청은 클라이언트 UUID와 초안 세대에 묶는다. 응답 유실 시 같은 UUID·내용으로만 확인하며 다른 내용은 409다. 자동 규칙도 같은 리드/발생 참조에 한 번만 작업을 만든다. 소유자/편집자의 현재 권한·휴대폰 인증, 승인한 소스 세대·권한 세대, 리드 생성 revision·수신 거부·반송·채널 동의를 claim과 HTTP 직전 원자 SQL에서 다시 검사한다. 구성원 제거/권한 강등·인증 해제·소스 수정/삭제·리드 삭제/철회는 이전 세대를 영구 취소하므로 나중에 복구해도 옛 작업은 살아나지 않는다. 설정 변경 중인 다른 워크스페이스에 초안을 저장하지 않도록 CSRF와 명시 workspace 헤더도 검증한다. 마이그레이션은 기존 자동 규칙을 끄고 옛 pending을 `authorization_required`로 종료한다. 기존 예약은 취소 후 현재 정책/권한으로 다시 요청해야 한다. rolling 구 worker의 새 예약/claim·새 규칙의 legacy pending 쓰기도 DB fence로 거절한다.
+
+개별 프로필은 64KiB, 변수 치환 전 계산한 합계는 128KB, 고정 provider JSON은 512KB를 넘으면 HTTP 없이 실패한다. 원본 answers를 읽지 않으며 반복 변수 확장도 렌더 전에 거절한다. 메일 본문은 기존 `renderEmail`의 광고표기·전송자·수신거부 링크를 유지한다. 첫 시도 전에 본문·수신자·발신 주소·요청 hash·provider 계정 fingerprint를 `TOKEN_ENC_KEY`로 암호화해 고정한다. 재시도는 같은 바이트와 `message/<delivery-id>` 키만 사용한다. [Resend는 키를 24시간 보존한다](https://resend.com/docs/dashboard/emails/idempotency-keys). 첫 HTTP intent부터 23시간 59분이 지나면 새 HTTP/새 키로 재발송하지 않고 `unknown`으로 끝낸다. 409 충돌은 unknown, 동시 같은 키·429는 같은 키로 대기, 네트워크/5xx는 불확실한 재시도로 남긴다. [오류 계약](https://resend.com/docs/api-reference/errors)을 사용하며 provider 원문/연락처를 로그로 내보내지 않는다. 인증 키/암호화 키/발신 주소가 바뀐 불확실한 건도 unknown이다. `EMAIL_FROM`·Resend 키·암호화 키가 없으면 HTTP 0회다.
+
+광고성은 HTTP 바로 앞의 마지막 await가 끝난 시각에도 21:00~08:00(KST)인지 확인한다. 경계를 넘으면 HTTP를 하지 않고 다음 08시로 미룬다. 아직 보내지 않은 첫 intent만 되돌리며 이미 불확실한 이전 시도의 24시간 시계는 연장하지 않는다. 이미 시작한 외부 HTTP는 사후 취소할 수 없으므로 접수 응답은 원자적으로 기록하되 삭제한 연락처를 재생성하지 않는다. 여기서 접수 확인은 수신함 도착 보장이 아니다. 완료·제외·실패·결과 미확인·남은 수를 구별하며 407/409 법률·DM 정책 완료를 의미하지 않는다.
+
+반송이 접수 응답보다 먼저 와도 서명 검증 뒤 provider ID·delivery ID·수신자 HMAC만 최대 24시간 영속 보관한다. 실제 접수 ID가 확인돼야 같은 리드 birth revision에 적용한다. 태그·같은 주소만으로 추정하지 않으며 삭제/재등록한 새 리드에 옛 반송을 적용하지 않는다. 완료/취소 시 고정 본문과 HMAC을 지우고 리드·워크스페이스 파기에도 scrubbing/cascade한다. FK 없는 최소 접수 증거에는 연락처/본문/리드·사람·워크스페이스 ID가 없으며 첫 시도 후 30일에 정리 대상이 된다. 유지보수는 불확실한 수신자 최대 100건·만료 반송/증거 각 1000건·종료 작업 100건씩 정리하므로 대기량이 많으면 다음 주기에 이어 처리한다.
+
+실제 migrations+SQLite 회귀의 2만 리드/가짜 provider 3천 접수는 invocation 최대 physical SQL 17문장(D1 API 11회), bind 15개, SQL 3830B, D1 결과 4304B였다. 39개 실제 문장은 compound SELECT 5·열 100·식 깊이 100·함수 인자 32·bind 100·SQL 100KB·VDBE 21504 제한에서 EXPLAIN했고 최대 1777 ops였다. 성공 외에도 롤백/최종 권한 경합/취소 중 응답/lease 교체/반송 선도착/야간 경계/응답 유실을 가짜 transport로 검증한다. 이 수치는 로컬 기술 회귀이며 운영 속도·사업자 요금·업무 quota 약속이나 실제 메일 QA를 대신하지 않는다. [D1 한도](https://developers.cloudflare.com/d1/platform/limits/)와 [Queues 중복/재시도 계약](https://developers.cloudflare.com/queues/configuration/batching-retries/)을 따른다.

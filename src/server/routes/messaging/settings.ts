@@ -8,6 +8,8 @@ import { parse } from "../../lib/errors";
 import { findOwned } from "../../lib/owned";
 import { alimtalkConnected } from "../../lib/messaging";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
+import { messageConfigured, messageCsrf } from "../../lib/message-delivery-common";
+import { messagePolicyStatus } from "../../lib/message-policy";
 
 // 발신 정보 설정, 리드 드로어의 발송 기록
 
@@ -25,14 +27,16 @@ async function sourceNames(db: Db, ids: string[]) {
 
 export const messagingRoutes = new Hono<AppEnv>()
   .get("/settings", async (c) => {
-    const { workspace } = workspaceCtx(c);
+    const auth = workspaceCtx(c), { workspace } = auth;
     const db = c.var.db;
     const w = await db.select({ senderName: workspaces.senderName, senderContact: workspaces.senderContact }).from(workspaces).where(eq(workspaces.id, workspace.id)).get();
     return c.json({
       senderName: w?.senderName ?? "",
       senderContact: w?.senderContact ?? "",
       workspaceName: workspace.name,
+      workspaceId: workspace.id,
       fromAddress: c.env.EMAIL_FROM?.trim() ?? "",
+      senderConfigured: messageConfigured(c.env), sendPolicy: messagePolicyStatus(), csrfToken: await messageCsrf(c.env, auth, workspace.id),
       alimtalk: { status: (await alimtalkConnected(db, workspace.id)) ? "connected" : "not_connected" },
     });
   })

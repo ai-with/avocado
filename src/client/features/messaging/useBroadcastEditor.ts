@@ -5,6 +5,7 @@ import { useMe } from "../../lib/me";
 import { dateTime } from "../links/common";
 import { allPassed, validateTemplate, type Audience } from "../../../shared/messaging";
 import { NEW, type Broadcast, type Count, type Draft, type Group, type Named } from "./broadcast-model";
+import { messageHeaders, useMessageAvailability } from "./message-availability";
 
 const COUNT_DEBOUNCE_MS = 300;
 const AUTOSAVE_DEBOUNCE_MS = 5000;
@@ -63,32 +64,38 @@ function useAudienceCount(d: Draft) {
 function useDraft(initial: Broadcast | null, locked: boolean) {
   const toast = useToast();
   const [id, setId] = useState(initial?.id ?? null);
+  const idRef = useRef(id), generation = useRef(initial?.generation ?? ""), scope = useRef(useMe().me?.workspace?.id ?? "");
+  const saving = useRef<Promise<string> | null>(null);
   const [d, setD] = useState<Draft>(initial ?? NEW);
   const [savedAt, setSavedAt] = useState<number | null>(initial?.updatedAt ?? null);
   const dirty = useRef(false);
   const set = (patch: Partial<Draft>) => ((dirty.current = true), setD((p) => ({ ...p, ...patch })));
-  const save = async (): Promise<string> => {
-    dirty.current = false;
-    if (id) {
-      const r = await api.patch<{ updatedAt: number }>(`/broadcasts/${id}`, d);
-      setSavedAt(r.updatedAt);
-      return id;
-    }
-    const r = await api.post<{ broadcast: Broadcast }>("/broadcasts", d);
-    setId(r.broadcast.id);
-    setSavedAt(r.broadcast.updatedAt);
-    return r.broadcast.id;
+  const save = (): Promise<string> => {
+    if (saving.current) return saving.current;
+    const task = (async () => {
+      const headers = await messageHeaders(scope.current);
+      dirty.current = false;
+      if (idRef.current) {
+        const r = await api.patch<{ updatedAt: number; generation: string }>(`/broadcasts/${idRef.current}`, { ...d, expectedGeneration: generation.current }, { headers });
+        generation.current = r.generation; setSavedAt(r.updatedAt); return idRef.current;
+      }
+      const r = await api.post<{ broadcast: Broadcast }>("/broadcasts", d, { headers });
+      idRef.current = r.broadcast.id; generation.current = r.broadcast.generation ?? ""; setId(r.broadcast.id); setSavedAt(r.broadcast.updatedAt); return r.broadcast.id;
+    })().catch((error: unknown) => { dirty.current = true; throw error; }).finally(() => { saving.current = null; });
+    saving.current = task; return task;
   };
   useEffect(() => {
     if (locked || !dirty.current) return;
     const t = setTimeout(() => void save().catch((e: unknown) => toast(errorMessage(e), "danger")), AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [d]);
-  return { d, set, savedAt, save, isDirty: () => dirty.current };
+  return { d, set, savedAt, save, isDirty: () => dirty.current, generation: () => generation.current, workspaceId: scope.current };
 }
 
 export function useBroadcastEditor(initial: Broadcast | null, connected: boolean, onDone: () => void) {
-  const locked = !!initial && initial.status !== "draft";
+  const [pendingSend, setPendingSend] = useState(false);
+  const locked = !!initial && initial.status !== "draft" || pendingSend;
+  const availability = useMessageAvailability();
   const draft = useDraft(initial, locked);
   const { d, set } = draft;
   const countState = useAudienceCount(d), { count } = countState;
@@ -102,41 +109,43 @@ export function useBroadcastEditor(initial: Broadcast | null, connected: boolean
     const cur = d.audience[key];
     set({ audience: { ...d.audience, [key]: cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value] } });
   };
-  const actions = useBroadcastActions(draft.save, initial, scheduleAt, onDone, () => setConfirmOpen(false));
+  const actions = useBroadcastActions(draft.save, draft.generation, draft.workspaceId, initial, scheduleAt, onDone, () => setConfirmOpen(false), () => setPendingSend(true));
   const leave = () => (draft.isDirty() && !locked ? void draft.save().then(onDone) : onDone());
   return {
     ...draft, ...actions, ...options, ...countState, locked, hasAudience, checks, toggleAudience, leave,
     scheduleAt, setScheduleAt, confirmOpen, setConfirmOpen,
-    blockedAlimtalk: d.channel === "alimtalk" && !connected,
-    canSend: !locked && !options.optionsError && !options.optionsLoading && !options.optionsIncomplete && allPassed(checks) && (count?.eligible ?? 0) > 0,
+    blockedAlimtalk: d.channel === "alimtalk" && !connected, availability, pendingSend,
+    canSend: availability.available && !locked && !options.optionsError && !options.optionsLoading && !options.optionsIncomplete && allPassed(checks) && (count?.eligible ?? 0) > 0,
   };
 }
 
-function useBroadcastActions(save: () => Promise<string>, initial: Broadcast | null, scheduleAt: string, onDone: () => void, closeConfirm: () => void) {
+function useBroadcastActions(save: () => Promise<string>, generation: () => string, workspace: string, initial: Broadcast | null, scheduleAt: string, onDone: () => void, closeConfirm: () => void, onIntent: () => void) {
   const toast = useToast();
+  const busy = useRef(false), intent = useRef<{ bid: string; generation: string; requestId: string; scheduledAt: number | null } | null>(null);
   const test = async () => {
     try {
       const bid = await save();
-      const r = await api.post<{ to: string; delivered: boolean }>(`/broadcasts/${bid}/test`);
+      const r = await api.post<{ to: string; delivered: boolean }>(`/broadcasts/${bid}/test`, {}, { headers: await messageHeaders(workspace) });
       toast(r.delivered ? `${r.to} 주소로만 보냈어요. 리드 발송 기록에는 남지 않아요.` : "이메일 발송 설정이 없어 실제로 보내지는 않았어요. 리드 기록에는 남지 않아요.", r.delivered ? "success" : "neutral");
     } catch (e) {
       toast(errorMessage(e), "danger");
     }
   };
   const send = async () => {
+    if (busy.current) return; busy.current = true;
     try {
-      const bid = await save();
-      const at = scheduleAt ? new Date(scheduleAt).getTime() : null;
-      const r = await api.post<{ recipients: number }>(`/broadcasts/${bid}/send`, { scheduledAt: at });
-      toast(at ? `${dateTime(at)}에 ${r.recipients}명에게 보내도록 예약했어요.` : `${r.recipients}명에게 보내기 시작했어요.`, "success");
+      if (!intent.current) { const bid = await save(); intent.current = { bid, generation: generation(), requestId: crypto.randomUUID(), scheduledAt: scheduleAt ? new Date(scheduleAt).getTime() : null }; onIntent(); }
+      const value = intent.current;
+      await api.post(`/broadcasts/${value.bid}/send`, { requestId: value.requestId, generation: value.generation, scheduledAt: value.scheduledAt }, { headers: await messageHeaders(workspace) });
+      toast(value.scheduledAt ? `${dateTime(value.scheduledAt)} 발송 요청을 저장했어요.` : "발송 요청을 저장했어요. 현재 동의와 권한을 확인하며 차례로 진행해요.", "success");
       onDone();
     } catch (e) {
       closeConfirm();
       toast(errorMessage(e), "danger");
-    }
+    } finally { busy.current = false; }
   };
   const cancel = async () => {
-    await api.post(`/broadcasts/${initial!.id}/cancel`);
+    await api.post(`/broadcasts/${initial!.id}/cancel`, { generation: initial?.generation ?? "" }, { headers: await messageHeaders(workspace) });
     toast("예약을 취소했어요. 임시저장 상태로 돌아갔어요.");
     onDone();
   };

@@ -52,7 +52,7 @@ export function rulesPredicate(rules: string, lead = "l") {
 }
 const fields: [string, GroupCondition["field"]][] = [["sourceType", "source_type"], ["guideId", "guide_id"], ["influencerId", "influencer_id"], ["channelKey", "channel_key"], ["tagId", "tag_id"], ["marketing", "marketing_opt_in"], ["alimtalk", "alimtalk_opt_in"]];
 type Plan = { workspace: string; rules: Rule[]; text: string; fingerprint: string; after: { at: number; id: string } | null; limit: number };
-export async function readRuleGroups(db: Db, workspace: string, ids: string[]) {
+export async function readRuleGroups(db: Db, workspace: string, ids: string[], includeRaw = false) {
   if (ids.length > 50) throw new ApiError(400, "too_many_groups", "한 번에 50개 그룹까지 확인할 수 있어요.");
   if (!ids.length) return [];
   const query = "FROM lead_groups WHERE workspace_id=? AND id IN(SELECT value FROM json_each(?))", values = [workspace, JSON.stringify([...new Set(ids)])];
@@ -63,7 +63,7 @@ export async function readRuleGroups(db: Db, workspace: string, ids: string[]) {
     db.$client.prepare(`SELECT json(CASE WHEN coalesce(sum(length(CAST(rules AS BLOB))+length(CAST(name AS BLOB))),0)<=524288 THEN 'true' ELSE 'group_rules_too_large' END) ${query}`).bind(...values),
     db.$client.prepare(`SELECT id,name,rules,created_at ${query}`).bind(...values),
   ]); } catch { throw new ApiError(503, "groups_unavailable", "그룹 조건을 불러오지 못했어요."); }
-  return (result[1]!.results as { id: string; name: string; rules: string; created_at: number }[]).map((row) => ({ id: row.id, name: row.name, rules: JSON.parse(row.rules) as GroupRules, createdAt: row.created_at }));
+  return (result[1]!.results as { id: string; name: string; rules: string; created_at: number }[]).map((row) => ({ id: row.id, name: row.name, rules: JSON.parse(row.rules) as GroupRules, ...(includeRaw && { rawRules: row.rules }), createdAt: row.created_at }));
 }
 export async function leadPlan(db: Db, workspace: string, q: Record<string, string>): Promise<Plan> {
   const all: GroupCondition[] = fields.filter(([key]) => q[key]).map(([key, field]) => ({ field, op: "eq", value: q[key]! }));
@@ -149,16 +149,18 @@ export async function groupCounts(db: Db, workspace: string, groups: { id: strin
     GROUP BY json_extract(g.value,'$.id')`).bind(data, workspace).all<{ id: string; n: number }>();
   return new Map(rows.results.map((r) => [r.id, r.n]));
 }
+export function audiencePredicate(groups: string, tags: string, lead = "l") {
+  return `(EXISTS(SELECT 1 FROM json_each(${groups}) g WHERE ${rulesPredicate("json_extract(g.value,'$.rules')", lead)}) OR EXISTS(SELECT 1 FROM lead_tag_links x JOIN lead_tags t ON t.id=x.tag_id WHERE x.lead_id=${lead}.id AND t.workspace_id=${lead}.workspace_id AND x.tag_id IN(SELECT value FROM json_each(${tags}))))`;
+}
 export async function countAudienceSummary(db: Db, workspace: string, audience: Audience, channel: Channel, kind: MessageKind) {
   const ids = [...new Set(audience.groupIds)];
   const stored = await readRuleGroups(db, workspace, ids);
   const groups = stored.map((g) => ({ id: g.id, rules: normalizeRules(g.rules) }));
   const connection = channel === "alimtalk" ? await db.$client.prepare("SELECT status FROM alimtalk_channels WHERE workspace_id=?").bind(workspace).first<{ status: string }>() : null;
-  const rows = await db.$client.prepare(`WITH audience AS(SELECT value FROM json_each(?)), selected AS(SELECT l.unsubscribed_at,l.bounced_at,l.phone,l.alimtalk_opt_in,l.marketing_opt_in FROM leads l WHERE l.workspace_id=? AND l.deleted_at IS NULL AND
-    (EXISTS(SELECT 1 FROM audience g WHERE ${rulesPredicate("json_extract(g.value,'$.rules')")}) OR EXISTS(SELECT 1 FROM lead_tag_links x JOIN lead_tags t ON t.id=x.tag_id WHERE x.lead_id=l.id AND t.workspace_id=l.workspace_id AND x.tag_id IN(SELECT value FROM json_each(?))))),
+  const rows = await db.$client.prepare(`WITH ctx(groups,tags) AS(VALUES(?,?)),selected AS(SELECT l.unsubscribed_at,l.bounced_at,l.phone,l.alimtalk_opt_in,l.marketing_opt_in FROM ctx CROSS JOIN leads l WHERE l.workspace_id=? AND l.deleted_at IS NULL AND ${audiencePredicate("ctx.groups", "ctx.tags")}),
     reasons AS(SELECT CASE WHEN coalesce(unsubscribed_at,0)<>0 THEN 'unsubscribed' WHEN ?='email' AND coalesce(bounced_at,0)<>0 THEN 'bounced'
       WHEN ?='alimtalk' AND (phone IS NULL OR phone='') THEN 'no_phone' WHEN ?='alimtalk' AND alimtalk_opt_in<>1 THEN 'no_alimtalk_consent'
       WHEN ?='alimtalk' AND ?=0 THEN 'alimtalk_not_connected' WHEN ?='email' AND ?='ad' AND marketing_opt_in<>1 THEN 'no_consent' ELSE 'eligible' END AS reason FROM selected)
-    SELECT reason,count(*) AS n FROM reasons GROUP BY reason`).bind(JSON.stringify(groups), workspace, JSON.stringify([...new Set(audience.tagIds)]), channel, channel, channel, channel, connection?.status === "connected" ? 1 : 0, channel, kind).all<{ reason: string; n: number }>();
+    SELECT reason,count(*) AS n FROM reasons GROUP BY reason`).bind(JSON.stringify(groups), JSON.stringify([...new Set(audience.tagIds)]), workspace, channel, channel, channel, channel, connection?.status === "connected" ? 1 : 0, channel, kind).all<{ reason: string; n: number }>();
   return { total: rows.results.reduce((sum, row) => sum + row.n, 0), eligible: rows.results.find((r) => r.reason === "eligible")?.n ?? 0, reasons: Object.fromEntries(rows.results.filter((r) => r.reason !== "eligible").map((r) => [r.reason, r.n])) };
 }

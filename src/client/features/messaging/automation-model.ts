@@ -4,7 +4,7 @@ import { EMPTY_EMAIL } from "./common";
 export type Named = { id: string; name: string };
 export type Lookups = { forms: Named[]; documents: Named[]; guides: Named[] };
 export type Draft = { name: string; trigger: Trigger; target: AutomationTarget; delayMinutes: DelayMinutes; channel: Channel; kind: MessageKind; template: MessageTemplate };
-export type Automation = Draft & { id: string; enabled: boolean; recentSent: number };
+export type Automation = Draft & { id: string; generation?: string; enabled: boolean; recentSent: number };
 export type ListResponse = { automations: Automation[]; lookups: Lookups; alimtalkConnected: boolean };
 export type TargetOption = { key: string; label: string };
 

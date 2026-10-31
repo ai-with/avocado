@@ -7,6 +7,7 @@ import { sendEmail } from "../../lib/email";
 import { alimtalkConnected, logMessage, senderInfo } from "../../lib/messaging";
 import { workspaceCtx } from "../../middleware/auth";
 import { isEmailTemplate, renderEmail, validateTemplate, type Channel, type MessageKind, type MessageTemplate } from "../../../shared/messaging";
+import { requireMessagePolicy } from "../../lib/message-policy";
 
 // 자동 발송·1회성 발송 공용
 
@@ -21,7 +22,7 @@ const alimtalkTemplate = z.object({ templateCode: z.string().max(100), variables
 export const templateSchema = z.union([emailTemplate, alimtalkTemplate]);
 export const channelSchema = z.enum(["email", "alimtalk"]);
 export const kindSchema = z.enum(["info", "ad"]);
-export const audienceSchema = z.object({ groupIds: z.array(z.string()).max(50).default([]), tagIds: z.array(z.string()).max(50).default([]) });
+export const audienceSchema = z.object({ groupIds: z.array(z.string().min(1).max(100)).max(50).default([]), tagIds: z.array(z.string().min(1).max(100)).max(50).default([]) });
 
 type Sendable = { channel: Channel; kind: MessageKind; template: MessageTemplate };
 
@@ -39,6 +40,7 @@ export async function checksFor(db: Db, workspaceId: string, r: Sendable, target
 
 // 테스트 발송: 로그인한 본인 이메일로만. 리드 기록에는 붙이지 않고 source test 로 남긴다
 export async function sendTest(c: Context<AppEnv>, r: Sendable & { id: string }) {
+  requireMessagePolicy();
   const { workspace, user } = workspaceCtx(c);
   const db = c.var.db;
   if (r.channel !== "email" || !isEmailTemplate(r.template)) throw new ApiError(400, "test_email_only", "테스트 발송은 이메일만 돼요.");

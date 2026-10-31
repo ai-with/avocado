@@ -23,6 +23,6 @@ export const resendWebhookRoutes = new Hono<AppEnv>().post("/resend", bodyLimit(
   if (event.type !== "email.bounced") return c.text("ok");
   const parsed = bounceSchema.safeParse(event);
   if (!parsed.success) return c.text("invalid event", 400);
-  const result = await recordEmailBounce(c.env.DB, parsed.data);
+  const result = await recordEmailBounce(c.env.DB, parsed.data, c.env.TOKEN_ENC_KEY);
   return result === "retry" ? c.text("send record not ready", 503) : c.text("ok");
 });

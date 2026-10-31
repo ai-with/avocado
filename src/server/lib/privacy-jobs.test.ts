@@ -43,7 +43,8 @@ describe("개인정보 Queue 실행", () => {
     expect(messages.filter((message) => message.body.type === "cleanup_google_sheets")).toHaveLength(1);
     expect(messages.filter((message) => message.body.type === "ig_connection_maintenance")).toEqual([{ body: { type: "ig_connection_maintenance", payload: {} } }]);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
-    expect(counted.getCalls()).toBe(11); // 기존10회 + 전역 FX Queue 선점1회; 사이트별 조회는 없다.
+    expect(counted.getCalls()).toBe(9); // 메시징 recipient 조회2회를 별도 Queue로 이동; 사이트별 조회는 없다.
+    expect(messages.filter((message) => message.body.type === "message_maintenance")).toEqual([{ body: { type: "message_maintenance", payload: {} } }]);
     expect(messages.filter((message) => message.body.type === "site_fx_refresh")).toEqual([{ body: { type: "site_fx_refresh", payload: {} } }]);
     const expectedCalls = [5, 4, 5]; // media는 retired audio tombstone 발견 batch 1회 포함
     for (const [i, message] of privacy.entries()) {
@@ -71,7 +72,7 @@ describe("개인정보 Queue 실행", () => {
     const { env, sendBatch, messages } = await setup();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
-    sendBatch.mockRejectedValueOnce(new Error("queue unavailable"));
+    sendBatch.mockImplementationOnce(async (batch) => { messages.push(...batch); }).mockRejectedValueOnce(new Error("queue unavailable"));
     expect((await scheduled(env)).some((result) => result.status === "rejected")).toBe(true);
     expect(messages.filter((message) => message.body.type === "privacy_purge")).toHaveLength(0);
     expect((await scheduled(env)).every((result) => result.status === "fulfilled")).toBe(true);

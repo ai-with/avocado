@@ -302,7 +302,7 @@ describe("동의 철회 미디어 파기", () => {
     const pending: Promise<unknown>[] = [];
     await worker.scheduled({ scheduledTime: at, cron: "*/15 * * * *", noRetry() {} }, env, { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } } as unknown as ExecutionContext);
     await Promise.all(pending);
-    expect(counted.getCalls()).toBe(10); // 기존9회 + 전역 FX 선점1회; 실제 파기는 별도 Queue에서 한다.
+    expect(counted.getCalls()).toBe(8); // 메시징 recipient 조회2회를 Queue로 이동; 실제 파기는 별도 Queue에서 한다.
     expect(enqueued.filter((message) => message.type === "privacy_purge")).toHaveLength(3);
     expect(enqueued.filter((message) => message.type === "cleanup_google_sheets")).toHaveLength(1);
     if (failCommit) db.exec("CREATE TRIGGER fail_purge_commit BEFORE UPDATE OF media_purged_at ON submissions BEGIN SELECT RAISE(ABORT,'test'); END");

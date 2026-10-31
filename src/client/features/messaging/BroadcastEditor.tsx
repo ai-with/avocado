@@ -12,6 +12,7 @@ export function BroadcastEditor({ initial, connected, onDone }: Props) {
   return (
     <>
       <PageHeader title={initial ? d.name || "1회성 발송" : "새 1회성 발송"} actions={<Button variant="ghost" onClick={e.leave}>목록으로</Button>} />
+      {!e.availability.available && <p role="status" className="msg-notice">{e.availability.message}</p>}
       <fieldset disabled={locked} className="stack-loose content-narrow fieldset-plain">
         {locked && initial?.stats && <Card>결과: {resultText(initial.stats)}</Card>}
         <ChannelSection d={d} set={set} connected={connected} />
@@ -26,8 +27,9 @@ export function BroadcastEditor({ initial, connected, onDone }: Props) {
         <ReviewSection checks={e.checks} count={count} hasAudience={e.hasAudience} scheduleAt={e.scheduleAt} onScheduleAt={e.setScheduleAt} />
       </fieldset>
       <ActionBar status={e.savedAt && !locked ? `${dateTime(e.savedAt)} 자동 임시저장` : undefined}>
-        {initial?.status === "scheduled" && <Button variant="secondary" onClick={() => void e.cancel()}>예약 취소</Button>}
-        <Button variant="secondary" disabled={locked || d.channel !== "email" || e.blockedAlimtalk} onClick={() => void e.test()}>나에게 테스트 보내기</Button>
+        {initial && ["scheduled", "sending"].includes(initial.status) && <Button variant="secondary" onClick={() => void e.cancel()}>남은 발송 취소</Button>}
+        {e.pendingSend && <Button variant="secondary" onClick={() => void e.send()}>같은 발송 요청 다시 확인</Button>}
+        <Button variant="secondary" disabled={!e.availability.available || locked || d.channel !== "email" || e.blockedAlimtalk} onClick={() => void e.test()}>나에게 테스트 보내기</Button>
         <Button disabled={!e.canSend} onClick={() => e.setConfirmOpen(true)}>{count ? `${count.eligible}명에게 발송` : "받는 사람 확인 필요"}</Button>
       </ActionBar>
       <SendConfirmModal open={e.confirmOpen} d={d} count={count} scheduleAt={e.scheduleAt} onClose={() => e.setConfirmOpen(false)} onSend={() => void e.send()} />

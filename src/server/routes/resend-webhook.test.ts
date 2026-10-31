@@ -220,24 +220,14 @@ describe("POST /webhooks/resend", () => {
 });
 
 describe("실제 발송 기록과 연결", () => {
-  it("자동 발송이 Resend ID·수신자·리드 생성 시각·태그를 저장하고 반송 후 발송에서 제외한다", async () => {
-    const { db, env, call } = await setup();
-    lead(db, "l1");
+  it("Cron no longer executes a legacy pending automation inline", async () => {
+    const { db, env } = await setup(); lead(db, "l1");
     db.prepare("INSERT INTO automations (id, workspace_id, name, trigger, target, delay_minutes, channel, kind, template, enabled, created_at, updated_at) VALUES ('a1', 'w1', 'rule', 'form_submitted', '{}', 0, 'email', 'info', ?, 1, 1, 1)").run(JSON.stringify({ subject: "test", preview: "", body: "test", buttonLabel: "", buttonUrl: "" }));
     db.exec("INSERT INTO automation_runs (id, automation_id, lead_id, ref_id, due_at, status, created_at) VALUES ('r1', 'a1', 'l1', 'form1', 1, 'pending', 1)");
-    const fetcher = vi.fn(async () => Response.json({ id: "email1" }));
-    vi.stubGlobal("fetch", fetcher);
-    await processMessaging(env);
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    const recorded = firstRow(db.prepare("SELECT id, provider_id, recipient_email, lead_created_at, status FROM message_logs").all());
-    expect(recorded).toMatchObject({ provider_id: "email1", recipient_email: "shared@example.com", lead_created_at: 1000, status: "sent" });
-    const request = fetcher.mock.calls[0] as unknown as [string, { body: string }];
-    expect(JSON.parse(request[1].body).tags).toEqual([{ name: "message_log_id", value: recorded.id }]);
-    expect((await call(bounce())).status).toBe(200);
-    db.exec("INSERT INTO automation_runs (id, automation_id, lead_id, ref_id, due_at, status, created_at) VALUES ('r2', 'a1', 'l1', 'form2', 1, 'pending', 1)");
-    await processMessaging(env);
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(db.prepare("SELECT status, reason FROM automation_runs WHERE id = 'r2'").all()[0]).toEqual({ status: "skipped", reason: "bounced" });
+    const fetcher = vi.fn(), sendBatch = vi.fn(async () => {}); vi.stubGlobal("fetch", fetcher); env.PIPELINE = { sendBatch } as unknown as Queue;
+    await processMessaging(env); expect(fetcher).not.toHaveBeenCalled();
+    expect(sendBatch).toHaveBeenCalledWith([{ body: { type: "message_maintenance", payload: {} } }]);
+    expect(db.prepare("SELECT count(*) n FROM message_logs").all()).toEqual([{ n: 0 }]);
   });
 
   it("Resend가 ID를 돌려주지 않는 응답을 발송 성공으로 처리하지 않는다", async () => {
