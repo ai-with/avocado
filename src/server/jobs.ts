@@ -28,22 +28,9 @@ import { contentHooks } from "./lib/contents";
 scheduledTasks.push(async (env) => void (await runDueSnapshots(env)), retryQueuedDms);
 contentHooks.onContentRegistered = (env, db, content) => scheduleSnapshots(db, env, content.id, { reset: true });
 
-// TASK-023: 인증 보조 테이블의 만료 행 정리. 15분 cron 중 하루 한 번(03:00 KST = 18:00 UTC 첫 실행)만 돈다
-const DAY_MS = 24 * 60 * 60 * 1000;
-const CLEANUP_UTC_HOUR = 18;
-const CRON_INTERVAL_MIN = 15;
-scheduledTasks.push(async (env, controller) => {
-  const at = new Date(controller.scheduledTime);
-  if (at.getUTCHours() !== CLEANUP_UTC_HOUR || at.getUTCMinutes() >= CRON_INTERVAL_MIN) return;
-  // 휴대폰 발송 한도와 로그인 시도 제한은 최대 하루 창을 보므로 하루 지난 행만 지운다
-  const dayAgo = controller.scheduledTime - DAY_MS;
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM auth_attempts WHERE created_at < ?").bind(dayAgo),
-    env.DB.prepare("DELETE FROM phone_verifications WHERE created_at < ?").bind(dayAgo),
-    env.DB.prepare("DELETE FROM oauth_states WHERE created_at < ?").bind(dayAgo),
-    env.DB.prepare("DELETE FROM password_resets WHERE expires_at < ?").bind(dayAgo),
-  ]);
-});
+// AIWITH-303: 인증 보조 테이블 정리와 테이블별 삭제 건수 기록 (03:00 KST)
+import { cleanupAuthRecords } from "./lib/auth-cleanup";
+scheduledTasks.push(cleanupAuthRecords);
 
 // TASK-029: 웹 SDK 수집 큐 소비자, 이벤트 중복 제거 기록 정리, 기존 리드 이메일 해시 채우기
 import { consumeCollect, pruneEventIds } from "./lib/collect/consume";

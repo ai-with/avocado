@@ -30,6 +30,14 @@ IG_FAKE=1             # 선택. 인스타그램 API 대신 가짜 응답 (연결
 
 Cron은 dev 서버에서 직접 부른다: `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=*/15+*+*+*+*"`
 
+인증 보조 기록 정리는 매일 03:00 KST에 실행한다. 하루 제한 창을 보존하며, 테이블별 실제 삭제 건수를 Workers 로그의 `[auth_cleanup_completed]`와 `events`에 기록한다. 운영 실행 이력은 다음으로 확인한다(시각은 epoch ms, `scheduled_at`은 예정 시각).
+
+```bash
+npx wrangler d1 execute avocado-db --remote --command "SELECT datetime(at / 1000, 'unixepoch', '+9 hours') AS completed_kst, props FROM events WHERE name = 'auth_cleanup_completed' AND workspace_id IS NULL ORDER BY at DESC LIMIT 7;"
+```
+
+정리 실패나 이력 저장 실패는 Past Cron Events에도 실패로 표시된다. 로컬·수동 실행 결과는 운영 03:00 KST 실행 증거로 대신하지 않는다.
+
 ### 데모 데이터
 
 dev 서버를 띄운 상태에서:

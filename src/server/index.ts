@@ -26,7 +26,12 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   async scheduled(controller, env, ctx) {
-    for (const task of scheduledTasks) ctx.waitUntil(task(env, controller).catch((e: unknown) => console.error("[cron]", e)));
+    for (const task of scheduledTasks) {
+      ctx.waitUntil(task(env, controller).catch((e: unknown) => {
+        console.error("[cron]", e);
+        throw e; // Past Cron Events에도 실패가 표시되도록 waitUntil에 전파한다
+      }));
+    }
   },
   async queue(batch, env) {
     const batchHandler = batchQueueHandlers[batch.queue];
