@@ -7,7 +7,7 @@ export type LeadRow = {
   name: string | null;
   company: string | null;
   phone: string | null;
-  answers: Record<string, string | string[]>;
+  answers?: Record<string, string | string[]>;
   marketingOptIn: boolean;
   alimtalkOptIn: boolean;
   unsubscribedAt: number | null;
@@ -27,7 +27,7 @@ export type Lookups = {
   contents: { id: string; label: string; name: string }[];
 };
 export type LeadDetail = {
-  lead: Omit<LeadRow, "tagIds" | "sourceTypes">;
+  lead: Omit<LeadRow, "tagIds" | "sourceTypes" | "answers"> & { answers: Record<string, string | string[]> };
   tagIds: string[];
   sources: Source[];
   views: { id: string; title: string; pages: number; maxPage: number; completed: boolean; startedAt: number; pageDwell: { page: number; dwellMs: number }[] }[];

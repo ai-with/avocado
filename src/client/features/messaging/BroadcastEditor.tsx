@@ -15,7 +15,12 @@ export function BroadcastEditor({ initial, connected, onDone }: Props) {
       <fieldset disabled={locked} className="stack-loose content-narrow fieldset-plain">
         {locked && initial?.stats && <Card>결과: {resultText(initial.stats)}</Card>}
         <ChannelSection d={d} set={set} connected={connected} />
-        <AudienceSection audience={d.audience} groups={e.groups} tags={e.tags} count={count} onToggle={e.toggleAudience} />
+        <AudienceSection audience={d.audience} groups={e.groups} tags={e.tags} count={count} onToggle={e.toggleAudience} loading={e.optionsLoading} unavailable={!!e.optionsError} />
+        <div className="row row-wrap">{e.groupCursor && <Button variant="secondary" size="sm" onClick={() => void e.more("groups")}>그룹 더 보기</Button>}{e.tagCursor && <Button variant="secondary" size="sm" onClick={() => void e.more("tags")}>태그 더 보기</Button>}</div>
+        {e.optionsLoading && <p className="text-secondary">받는 사람 선택값을 불러오고 있어요.</p>}
+        {e.optionsIncomplete && !e.optionsLoading && <p className="text-secondary">찾을 수 없는 선택 항목은 해제하거나 다시 확인해 주세요.</p>}
+        {e.optionsError && <div className="stack-tight"><p className="field-error" role="alert">{e.optionsError}</p><Button variant="secondary" size="sm" onClick={() => void e.refreshOptions()}>선택값 다시 확인</Button></div>}
+        {e.countError && <div className="stack-tight"><p className="field-error" role="alert">{e.countError}</p><Button variant="secondary" size="sm" onClick={e.retryCount}>인원 다시 확인</Button></div>}
         <KindSection d={d} set={set} />
         <ContentSection d={d} set={set} />
         <ReviewSection checks={e.checks} count={count} hasAudience={e.hasAudience} scheduleAt={e.scheduleAt} onScheduleAt={e.setScheduleAt} />
@@ -23,7 +28,7 @@ export function BroadcastEditor({ initial, connected, onDone }: Props) {
       <ActionBar status={e.savedAt && !locked ? `${dateTime(e.savedAt)} 자동 임시저장` : undefined}>
         {initial?.status === "scheduled" && <Button variant="secondary" onClick={() => void e.cancel()}>예약 취소</Button>}
         <Button variant="secondary" disabled={locked || d.channel !== "email" || e.blockedAlimtalk} onClick={() => void e.test()}>나에게 테스트 보내기</Button>
-        <Button disabled={!e.canSend} onClick={() => e.setConfirmOpen(true)}>{count?.eligible ?? 0}명에게 발송</Button>
+        <Button disabled={!e.canSend} onClick={() => e.setConfirmOpen(true)}>{count ? `${count.eligible}명에게 발송` : "받는 사람 확인 필요"}</Button>
       </ActionBar>
       <SendConfirmModal open={e.confirmOpen} d={d} count={count} scheduleAt={e.scheduleAt} onClose={() => e.setConfirmOpen(false)} onSend={() => void e.send()} />
     </>

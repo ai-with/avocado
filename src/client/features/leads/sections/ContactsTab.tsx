@@ -17,14 +17,16 @@ type Props = {
   onSelect: (ids: Set<string>) => void;
   onOpen: (id: string) => void;
   act: Act;
+  error?: string;
+  onRetry?: () => void;
 };
 
-export function ContactsTab({ leads, lk, groups, filters, onFilters, selected, onSelect, onOpen, act }: Props) {
+export function ContactsTab({ leads, lk, groups, filters, onFilters, selected, onSelect, onOpen, act, error, onRetry }: Props) {
   return (
     <div className="stack">
       <LeadFilters filters={filters} onChange={onFilters} lk={lk} groups={groups} />
       {selected.size > 0 && <BulkTagBar lk={lk} selected={selected} onSelect={onSelect} act={act} />}
-      <LeadList leads={leads} lk={lk} filters={filters} onFilters={onFilters} selected={selected} onSelect={onSelect} onOpen={onOpen} />
+      {error ? <EmptyState title="리드 목록을 불러오지 못했어요" description={error} action={<Button variant="secondary" onClick={onRetry}>다시 확인</Button>} /> : <LeadList leads={leads} lk={lk} filters={filters} onFilters={onFilters} selected={selected} onSelect={onSelect} onOpen={onOpen} />}
     </div>
   );
 }

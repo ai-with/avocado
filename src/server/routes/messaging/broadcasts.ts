@@ -8,7 +8,8 @@ import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { findOwned } from "../../lib/owned";
-import { alimtalkConnected, countAudience, runBroadcast } from "../../lib/messaging";
+import { alimtalkConnected, runBroadcast } from "../../lib/messaging";
+import { countAudienceSummary } from "../../lib/lead-query";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { allPassed } from "../../../shared/messaging";
 import { audienceSchema, channelSchema, checksFor, guardChannel, kindSchema, sendTest, templateSchema } from "./shared";
@@ -39,9 +40,9 @@ async function assertSendable(db: Db, workspaceId: string, b: Broadcast) {
   const targetOk = b.audience.groupIds.length + b.audience.tagIds.length > 0;
   const checks = await checksFor(db, workspaceId, b, targetOk);
   if (!allPassed(checks)) throw new ApiError(400, "check_failed", `보낼 수 없어요. ${checks.filter((x) => !x.ok).map((x) => x.message).join(" ")}`);
-  const { eligible } = await countAudience(db, workspaceId, b.audience, b.channel, b.kind);
-  if (eligible.length === 0) throw new ApiError(400, "no_recipients", "발송 가능한 받는 사람이 없어요.");
-  return eligible.length;
+  const { eligible } = await countAudienceSummary(db, workspaceId, b.audience, b.channel, b.kind);
+  if (eligible === 0) throw new ApiError(400, "no_recipients", "발송 가능한 받는 사람이 없어요.");
+  return eligible;
 }
 
 export const broadcastRoutes = new Hono<AppEnv>()
@@ -54,8 +55,7 @@ export const broadcastRoutes = new Hono<AppEnv>()
   .post("/audience", async (c) => {
     const body = parse(z.object({ audience: audienceSchema, channel: channelSchema, kind: kindSchema }), await c.req.json());
     const { workspace } = workspaceCtx(c);
-    const r = await countAudience(c.var.db, workspace.id, body.audience, body.channel, body.kind);
-    return c.json({ total: r.total, eligible: r.eligible.length, reasons: r.reasons });
+    return c.json(await countAudienceSummary(c.var.db, workspace.id, body.audience, body.channel, body.kind));
   })
   .get("/:id", async (c) => {
     const { workspace } = workspaceCtx(c);

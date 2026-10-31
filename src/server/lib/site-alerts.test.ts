@@ -309,7 +309,7 @@ describe("bounded durable alert mail", () => {
     const id = String(db.prepare("SELECT id FROM site_alert_mail_outbox").all()[0]!.id); counted.reset(); await sendSiteAlert({ id }, env);
     expect(counted.value().queries).toBe(8); expect(counted.value().maxParams).toBeLessThanOrEqual(100); expect(fetch).toHaveBeenCalledOnce();
     counted.reset(); const ack = vi.fn(), retry = vi.fn(); await worker.queue({ queue: "avocado-pipeline", messages: [{ body: { type: "cleanup_google_sheets", payload: {} }, ack, retry }] } as unknown as MessageBatch<PipelineMessage>, env);
-    expect(ack).toHaveBeenCalledOnce(); expect(retry).not.toHaveBeenCalled(); expect(counted.value().queries).toBe(16); // Import receipt cleanup adds one bounded SQL.
-     expect(counted.value().maxParams).toBeLessThanOrEqual(100);
+    expect(ack).toHaveBeenCalledOnce(); expect(retry).not.toHaveBeenCalled(); expect(counted.value().queries).toBe(17); // Imports + empty search scan.
+    expect(counted.value().maxParams).toBeLessThanOrEqual(100);
   });
 });

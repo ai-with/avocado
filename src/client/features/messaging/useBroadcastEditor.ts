@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
+import { useMe } from "../../lib/me";
 import { dateTime } from "../links/common";
 import { allPassed, validateTemplate, type Audience } from "../../../shared/messaging";
 import { NEW, type Broadcast, type Count, type Draft, type Group, type Named } from "./broadcast-model";
@@ -8,24 +9,54 @@ import { NEW, type Broadcast, type Count, type Draft, type Group, type Named } f
 const COUNT_DEBOUNCE_MS = 300;
 const AUTOSAVE_DEBOUNCE_MS = 5000;
 
-function useAudienceOptions() {
+function useAudienceOptions(audience: Audience) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [tags, setTags] = useState<Named[]>([]);
+  const [groupCursor, setGroupCursor] = useState<string | null>(null), [tagCursor, setTagCursor] = useState<string | null>(null), [optionsError, setOptionsError] = useState(""), [optionsLoading, setOptionsLoading] = useState(true);
+  const [groupsChecking, setGroupsChecking] = useState(false), [tagsChecking, setTagsChecking] = useState(false);
+  const { me } = useMe(), workspace = me?.workspace?.id ?? "", current = useRef(workspace), alive = useRef(true), busy = useRef(false); current.current = workspace;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const merge = <T extends Named>(old: T[], items: T[]) => { const fresh = items.filter((r) => !old.some((existing) => existing.id === r.id)); return fresh.length ? [...old, ...fresh] : old; };
+  const refreshOptions = useCallback(async () => {
+    setOptionsLoading(true); setOptionsError(""); setGroups([]); setTags([]);
+    try {
+      const [g, t] = await Promise.all([api.get<{ groups: Group[]; nextCursor?: string | null }>("/leads/groups"), api.get<{ items: Named[]; nextCursor?: string | null }>("/leads/lookups?kind=tags")]);
+      if (alive.current && current.current === workspace) { setGroups(g.groups); setTags(t.items); setGroupCursor(g.nextCursor ?? null); setTagCursor(t.nextCursor ?? null); }
+    } catch (cause) { if (alive.current && current.current === workspace) setOptionsError(errorMessage(cause)); }
+    finally { if (alive.current && current.current === workspace) setOptionsLoading(false); }
+  }, [workspace]);
+  useEffect(() => { void refreshOptions(); }, [refreshOptions]);
+  const groupKey = JSON.stringify(audience.groupIds), tagKey = JSON.stringify(audience.tagIds);
   useEffect(() => {
-    void api.get<{ groups: Group[] }>("/leads/groups").then((r) => setGroups(r.groups));
-    void api.get<{ tags: Named[] }>("/leads/tags").then((r) => setTags(r.tags));
-  }, []);
-  return { groups, tags };
+    const missing = audience.groupIds.filter((id) => !groups.some((g) => g.id === id)); if (optionsLoading || !missing.length || optionsError) { setGroupsChecking(false); return; }
+    setGroupsChecking(true); let active = true; void api.get<{ groups: Group[] }>(`/leads/groups/selected?ids=${encodeURIComponent(JSON.stringify(missing))}`).then((r) => { if (active && alive.current && current.current === workspace) setGroups((old) => merge(old, r.groups)); }, (cause: unknown) => { if (active && alive.current && current.current === workspace) setOptionsError(errorMessage(cause)); }).finally(() => { if (active && alive.current && current.current === workspace) setGroupsChecking(false); });
+    return () => { active = false; };
+  }, [groupKey, groups, optionsLoading, optionsError, workspace]);
+  useEffect(() => {
+    const missing = audience.tagIds.filter((id) => !tags.some((t) => t.id === id)); if (optionsLoading || !missing.length || optionsError) { setTagsChecking(false); return; }
+    setTagsChecking(true); let active = true; void api.get<{ items: Named[] }>(`/leads/lookups?kind=tags&selected=${encodeURIComponent(JSON.stringify(missing))}`).then((r) => { if (active && alive.current && current.current === workspace) setTags((old) => merge(old, r.items)); }, (cause: unknown) => { if (active && alive.current && current.current === workspace) setOptionsError(errorMessage(cause)); }).finally(() => { if (active && alive.current && current.current === workspace) setTagsChecking(false); });
+    return () => { active = false; };
+  }, [tagKey, tags, optionsLoading, optionsError, workspace]);
+  const more = async (kind: "groups" | "tags") => {
+    const cursor = kind === "groups" ? groupCursor : tagCursor; if (!cursor || busy.current) return; busy.current = true;
+    try {
+      if (kind === "groups") { const r = await api.get<{ groups: Group[]; nextCursor?: string | null }>(`/leads/groups?cursor=${encodeURIComponent(cursor)}`); if (alive.current && current.current === workspace) { setGroups((old) => merge(old, r.groups)); setGroupCursor(r.nextCursor ?? null); } }
+      else { const r = await api.get<{ items: Named[]; nextCursor?: string | null }>(`/leads/lookups?kind=tags&cursor=${encodeURIComponent(cursor)}`); if (alive.current && current.current === workspace) { setTags((old) => merge(old, r.items)); setTagCursor(r.nextCursor ?? null); } }
+    } catch (cause) { if (alive.current && current.current === workspace) setOptionsError(errorMessage(cause)); } finally { busy.current = false; }
+  };
+  return { groups, tags, groupCursor, tagCursor, more, optionsError, optionsLoading: optionsLoading || groupsChecking || tagsChecking, refreshOptions, optionsIncomplete: audience.groupIds.some((id) => !groups.some((g) => g.id === id)) || audience.tagIds.some((id) => !tags.some((t) => t.id === id)) };
 }
 
 // 받는 사람 실시간 집계
 function useAudienceCount(d: Draft) {
   const [count, setCount] = useState<Count | null>(null);
+  const [countError, setCountError] = useState(""), [revision, setRevision] = useState(0), { me } = useMe();
   useEffect(() => {
-    const t = setTimeout(() => void api.post<Count>("/broadcasts/audience", { audience: d.audience, channel: d.channel, kind: d.kind }).then(setCount), COUNT_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [d.audience, d.channel, d.kind]);
-  return count;
+    let active = true; setCount(null); setCountError("");
+    const t = setTimeout(() => void api.post<Count>("/broadcasts/audience", { audience: d.audience, channel: d.channel, kind: d.kind }).then((r) => { if (active) setCount(r); }, (cause: unknown) => { if (active) setCountError(errorMessage(cause)); }), COUNT_DEBOUNCE_MS);
+    return () => { active = false; clearTimeout(t); };
+  }, [d.audience, d.channel, d.kind, me?.workspace?.id, revision]);
+  return { count, countError, retryCount: () => setRevision((old) => old + 1) };
 }
 
 // 자동 임시저장 (5초 디바운스). 첫 저장에서 초안을 만든다
@@ -60,10 +91,11 @@ export function useBroadcastEditor(initial: Broadcast | null, connected: boolean
   const locked = !!initial && initial.status !== "draft";
   const draft = useDraft(initial, locked);
   const { d, set } = draft;
-  const count = useAudienceCount(d);
-  const options = useAudienceOptions();
+  const countState = useAudienceCount(d), { count } = countState;
+  const options = useAudienceOptions(d.audience);
   const [scheduleAt, setScheduleAt] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  useEffect(() => setConfirmOpen(false), [d.audience, d.channel, d.kind]);
   const hasAudience = d.audience.groupIds.length + d.audience.tagIds.length > 0;
   const checks = validateTemplate({ channel: d.channel, kind: d.kind, template: d.template, hasTarget: hasAudience, alimtalkConnected: connected, senderReady: true });
   const toggleAudience = (key: keyof Audience, value: string) => {
@@ -73,10 +105,10 @@ export function useBroadcastEditor(initial: Broadcast | null, connected: boolean
   const actions = useBroadcastActions(draft.save, initial, scheduleAt, onDone, () => setConfirmOpen(false));
   const leave = () => (draft.isDirty() && !locked ? void draft.save().then(onDone) : onDone());
   return {
-    ...draft, ...actions, ...options, count, locked, hasAudience, checks, toggleAudience, leave,
+    ...draft, ...actions, ...options, ...countState, locked, hasAudience, checks, toggleAudience, leave,
     scheduleAt, setScheduleAt, confirmOpen, setConfirmOpen,
     blockedAlimtalk: d.channel === "alimtalk" && !connected,
-    canSend: !locked && allPassed(checks) && (count?.eligible ?? 0) > 0,
+    canSend: !locked && !options.optionsError && !options.optionsLoading && !options.optionsIncomplete && allPassed(checks) && (count?.eligible ?? 0) > 0,
   };
 }
 

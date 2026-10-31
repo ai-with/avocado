@@ -303,7 +303,7 @@ receivedAt은 최초 HTTP 수신 시 서버가 기록한 시각을 유지한다.
 
 Cloudflare Queue는 [재시도 횟수를 소진하면 DLQ가 없는 메시지를 삭제한다](https://developers.cloudflare.com/queues/configuration/batching-retries/#delivery-failure). 별도 리소스를 만들지 않고 기존 정리 Queue가 pending 원장을 다시 발견한다. 한 실행에서 만료된 작업 최대 100개, 비활성 작업 본문 최대 100개를 정리하고 유효한 pending ID 최대 50개를 다시 넣는다. 24시간이 지나면 처리·복호화를 멈추고 다음 정리에서 파기한다. 물리 파기는 Queue 대기·실패·배치 상한에 따라 후속 주기로 넘어갈 수 있다. 처리 실패는 정규화된 오류 코드로 남고 Queue 재시도로 전파하며, 정리 로그에는 건수만 남긴다.
 
-기존 `avocado-collect`의 `max_batch_size`는 1로 제한한다. 50개 전환과 50개 identify는 각각 JSON bulk SQL 1개로 저장한다. 정상 집계는 최대 6개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 1회, identify 작업은 정상 13개·실패 증거 기록 포함 최대 14개 물리 SQL을 사용한다. 새 HTTP·R2 호출이나 신규 Queue는 없다. 기존 정리 consumer는 Sheets 배치·join 제한 정리·identify·급감 알림·가져오기 정리를 합쳐 6개 D1 바인딩 호출·16개 물리 SQL과 Queue 전송 최대 2회를 사용한다. 기존 24시간 이벤트 중복 제거 창은 유지한다.
+기존 `avocado-collect`의 `max_batch_size`는 1로 제한한다. 50개 전환과 50개 identify는 각각 JSON bulk SQL 1개로 저장한다. 정상 집계는 최대 6개 D1 바인딩 호출·15개 물리 SQL과 Queue 전송 1회, identify 작업은 검색 보조값 갱신을 포함해 정상 14개·실패 증거 기록 포함 최대 15개 물리 SQL을 사용한다. 새 HTTP·R2 호출이나 신규 Queue는 없다. 기존 정리 consumer는 Sheets 배치·join 제한 정리·identify·급감 알림·가져오기 정리·검색 이행을 합쳐 대기 검색 행이 있을 때 최대 9개 D1 바인딩 호출·19개 물리 SQL과 Queue 전송 최대 3회를 사용한다. 기존 24시간 이벤트 중복 제거 창은 유지한다.
 
 ### 개발
 
@@ -371,7 +371,7 @@ KST 날짜를 쓰며 매일 09:00 이후 첫 정리 Queue가 전날까지를 확
 
 네 테이블은 사이트 설정, 자기 구독/쿨다운, 숫자 검사 기록, 발송 outbox다. 주소 원문은 별도로 저장하지 않고 구독에는 도메인이 분리된 HMAC만 남긴다. 종료된 메일의 암호화 본문은 즉시 지운다. 24시간이 지난 미완료 본문은 정리 대상이 되어 다음 정리 Queue에서 지우며, 실행 중인 5분 lease는 중간에 덮지 않는다. 검사와 연락처/본문 없는 발송 영수증은 생성 30일 뒤 각 최대 100개씩 파기 대상으로 삼는다. 현재 부적격인 구독이 남았다면 설정 저장의 원자 배치 또는 정리 호출당 최대 100개를 비활성화하고 세대를 회전시킨다. 정리만 남은 backlog는 다음 15분 정리 주기에서 이어 처리하며 정확한 TTL 시각의 전체 파기를 약속하지 않는다. 삭제 사이트의 설정·구독·검사는 FK로 삭제하고, 부모 없는 발송 영수증은 불확실성을 숨기지 않도록 남긴 뒤 본문을 정리하고 같은 30일 기준으로 파기한다. 활성 설정/자기 구독과 마지막 시도 시각은 설정·쿨다운 유지에 사용한다. 로그에는 처리·실패·남은 건수만 남기고 주소·본문·provider 오류 원문을 기록하지 않는다.
 
-정상 탐지는 7개 물리 SQL+Queue 전송 1회, 메일은 8개 SQL+메일 HTTP 1회다. 오류 증거 기록/lease 해제도 각각 SQL 1회 추가 이내다. 기존 정리와 합친 consumer는 16개 SQL+Queue 전송 최대 2회이고, 별도 알림 정리는 8개 SQL+Queue 전송 1회다. 각 SQL 바인딩은 100개 이하, 기존 PIPELINE `max_batch_size=1`을 유지한다. 실제 발신 도메인·`EMAIL_FROM` 설정 후 운영 메일의 접수/수신 QA는 별도로 진행해야 한다. 로컬 회귀는 실제 SQLite와 가짜 메일 HTTP만 사용한다.
+정상 탐지는 7개 물리 SQL+Queue 전송 1회, 메일은 8개 SQL+메일 HTTP 1회다. 오류 증거 기록/lease 해제도 각각 SQL 1회 추가 이내다. 기존 정리와 합친 consumer는 검색 이행까지 최대 19개 SQL+Queue 전송 최대 3회이고, 별도 알림 정리는 8개 SQL+Queue 전송 1회다. 각 SQL 바인딩은 100개 이하, 기존 PIPELINE `max_batch_size=1`을 유지한다. 실제 발신 도메인·`EMAIL_FROM` 설정 후 운영 메일의 접수/수신 QA는 별도로 진행해야 한다. 로컬 회귀는 실제 SQLite와 가짜 메일 HTTP만 사용한다.
 
 ## CSV 가져오기 (AIWITH-395/396)
 
@@ -384,6 +384,22 @@ job은 현재 사용자·로그인 세션·워크스페이스에 묶이며, 모�
 삭제된 리드의 명시적 새 등록은 기존 개인정보 파기를 먼저 집합 단위로 수행하고 새 ID를 만든다. DB trigger가 lead birth revision과 WS privacy epoch를 기록하므로 원래 job 이후 생긴 새 세대를 덮지 않는다. 외부 soft/hard 삭제·재등록은 옛 job의 계속 쓰기를 막는다. 주소별 추가 tombstone은 만들지 않아 **같은 WS의 무관한 연락처 삭제도 이전 job을 중단할 수 있다**. 완료된 행을 확인하고 권한·동의를 다시 확인한 새 작업으로 시작해야 한다. 자기 chunk의 파기만 첫 assertion으로 권한/epoch를 증명한 같은 batch 끝에서 자신의 epoch를 갱신한다. 다른 job은 이를 자동 채택하지 않는다. live birth 메타데이터는 lead FK로 함께 파기되고, WS counter에는 주소/연락처가 없다.
 
 100행 일반 chunk는 모듈에서 제출한 물리 SQL 12개/DB API 4회, tombstone 집합이 있으면 최대 25개/4회다. 실제 Worker cookie 인증 middleware까지 포함한 재등록 경로는 27개/6회로 검증한다. 바인딩은 문장당 100개 이하이며 SQL 100KB, 요청/JSON byte와 결과 크기를 별도 계측한다. 이 물리 SQL 수는 D1에 제출한 prepared statement 수이며 DB 내부 birth/epoch trigger 작업은 포함하지 않는다. native batch 실패 후 영수증/현재 상태를 확인하는 경로는 읽기 최대 2회가 추가된다. cleanup은 물리 DELETE 1개/native batch API 1회만 더하며 새 Cron/Queue 종류나 리소스는 없다. 로컬 회귀는 실제 migrations/SQLite로 2만 행·200 chunk, 세대/권한/취소 경합, 중간 rollback, 응답 소실과 가짜 fetch를 검증한다. 실제 발송/398/사업상 quota는 이 변경 범위가 아니다.
+
+## 리드 SQL 선택과 페이지 조회 (AIWITH-397)
+
+`0033_lead_selection.sql`은 검색용 필드 4개와 이행·페이지·관계 선택 인덱스를 추가한다. 목록·그룹·HTTP 받는 사람 미리보기는 workspace의 삭제되지 않은 리드를 SQL로 선택한다. 각 출처 조건은 독립된 EXISTS이며 `neq`는 일치 행이 하나도 없다는 뜻이다. 그룹·태그 합집합은 리드 한 행을 기준으로 계산하므로 중복하지 않는다. 그룹의 boolean/날짜 값은 기존 JavaScript 변환 규칙을 유지해 정규화하고, 중복 조건과 겹치는 날짜 범위를 합친다. 알 수 없는 workspace의 그룹 필터를 무시하고 전체 리드로 넓히지 않는다.
+
+목록은 기본 50명·최대 100명의 `created_at DESC,id DESC` keyset 페이지다. 커서는 workspace·필터/그룹 규칙 hash에 묶어 서명하며 조건이 바뀌면 첫 페이지로 돌아간다. 이는 변경 중인 현재 목록이며 여러 요청을 고정한 snapshot은 아니다. 페이지 이동·필터 변경 시 체크 선택을 비우고 현재 페이지에만 적용한다. 목록에는 답변·수신 거부 토큰·이메일 해시·검색 보조값을 싣지 않는다. 페이지 ID의 출처 종류와 자기 workspace 태그만 수화한다. 선택된 페이지와 태그 참조가 1MiB 또는 태그 관계 1,000개를 넘으면 크기/필터를 좁히도록 명시적으로 거절한다. 숫자는 메모리·요청 예산을 위한 기술 상한이며 발송/요금제 quota가 아니다.
+
+필터 lookup은 종류별 100개와 현재 페이지·선택값 참조를 읽고, **필터 더 보기**로 다음 묶음을 요청한다. 각 묶음의 이름표는 256KiB까지다. 그룹도 50개씩 더 보며 조건/이름 자료가 한 묶음 512KiB를 넘으면 거절한다. 선택한 그룹이 첫 묶음 밖에 있어도 자기 workspace의 그 그룹을 별도로 가져온다. 가이드 리드 탭에도 같은 페이지 이동을 제공하고, 태그 탭·그룹 편집·리드 상세에서도 다음 lookup을 불러올 수 있다. 발송 대상 선택도 묶음별 더 보기와 저장된 선택값 복구를 사용하며 찾을 수 없는 선택을 조용히 지우지 않는다. 필터 변경마다 모든 그룹을 다시 집계하지 않는다. 목록/그룹 오류와 검색 준비 상태, 발송 대상 집계 실패를 빈 결과나 0명으로 표시하지 않는다.
+
+검색은 기존의 `trim().toLowerCase()`·필드별 부분 문자열 의미를 유지한다. [SQLite lower는 ASCII 전용](https://www.sqlite.org/lang_corefunc.html)이라 원본 email/name/company/phone을 JavaScript에서 각각 통째로 소문자 변환해 `search_*_v1`에 저장하고 BLOB instr로 비교한다. `%`·`_`는 와일드카드가 아니고 필드 경계를 넘어 일치하지 않는다. Unicode 정규화나 locale 변환은 추가하지 않는다. 새 리드는 보조값도 같이 INSERT하고, form/gate/manual 공용 merge와 SDK는 원문 변경 뒤 같은 native batch에서 보조값을 갱신한다. SDK는 기존 current_job·원문 동의·삭제/생성 시각 검사를 그대로 적용하고 작업 완료 전에 갱신한다. import bulk는 별도 import 모듈의 같은 트랜잭션에서 `leadSearchValues`/`leadSearchMergeSql` 계약으로 연결한다.
+
+DB trigger는 바뀐 원문 필드의 보조값을 NULL로 지워 이전 Worker의 늦은 변경도 낡은 검색값을 남기지 못하게 한다. NULL 보조값이 있는 후보의 텍스트 검색은 `search_preparing`으로 닫고, 기본 목록·비텍스트 그룹/집계는 계속 제공한다. 준비 확인과 실제 조회의 원자 batch에서 다시 검사하므로 이행 경합을 거짓 0건으로 돌려주지 않는다. 기존 정리 Queue가 pending ID 최대 100개를 발견해 작은 profile projection만 읽고 CAS 갱신한다. 보통 원문 합계 64KiB의 묶음이고 큰 과거 profile은 D1 행 한도 안에서 한 행씩 별도 바인딩한다. ID/workspace/createdAt/현재 원문 4개/deleted 상태를 다시 확인하며 원문 자체나 리드를 INSERT하지 않는다. soft delete는 검색 사본을 즉시 비우고 hard delete는 같은 행과 함께 파기한다. 재신청은 새 ID이므로 과거 작업이 새 프로필을 덮지 않는다. Queue 등록·처리 실패는 성공으로 숨기지 않으며 남은 NULL 행을 다음 정리에서도 발견한다. 이행 로그는 처리·실패·해당 묶음의 보류 건수만 남긴다. 보조값도 개인정보이며 원본과 같은 저장 위치·보존 기준을 따른다. D1 행 용량까지 쓰던 과거 자료는 사본 추가가 실패할 수 있고, 실패 상태의 검색을 완료로 주장하지 않는다.
+
+HTTP audience 집계는 COUNT/사유별 aggregate만 반환한다. 기존 canSend 사유 우선순위와 야간 보류를 eligible에 포함하던 의미를 유지한다. 실제 `runBroadcast`의 전체 eligible 배열·순차 발송은 398의 전달 분할 전까지 유지한다. 이 단계에서 미확정 발송 quota 숫자를 추가하지 않는다. CSV와 Google Sheets는 같은 SQL 선택 조건을 쓰되 첫 페이지만 내보내지 않는다. CSV는 여전히 전체 일치 행·관계와 전체 lookup을 메모리에 만들고, Sheets의 기존 1,000행·입력 원장 상한도 유지하므로 대형 전체 내보내기 문제가 해결됐다고 주장하지 않는다.
+
+2만 리드·50그룹×20규칙 입력에서 JS reference와 결과/사유를 비교한다. 실제 사용 SQL은 Python SQLite의 expression depth 100·SQL 100,000바이트·compound SELECT 5·반환 열 100·함수 인자 32 제한에서도 다시 실행한다. 목록+lookup+그룹 집계+HTTP audience를 함께 계측한 회귀는 25개 물리 SQL, 최대 36개 bind, 반환 약 96KB이며 SQL 4KB 미만이다. 새 발송·외부 HTTP·클라우드 리소스는 없다. [D1의 Free 호출당 50쿼리·100 bind·100KB SQL 한도](https://developers.cloudflare.com/d1/platform/limits/) 안에서 확인하며 미들웨어 비용도 별도 여유를 둔다.
 
 ## 알려진 한계
 

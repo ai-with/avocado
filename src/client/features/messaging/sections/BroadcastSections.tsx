@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, Modal, SectionCard, Stat, StatGrid } from "../../../ui";
+import { Button, Checkbox, Input, LoadingState, Modal, SectionCard, Stat, StatGrid } from "../../../ui";
 import { dateTime } from "../../links/common";
 import { CHANNEL_LABELS, DELAY_NOTICE, KIND_LABELS, type Audience, type Check } from "../../../../shared/messaging";
 import { reasonText, type Count, type Draft, type Group, type Named } from "../broadcast-model";
@@ -22,21 +22,22 @@ function PickList({ title, empty, items, selected, onToggle }: { title: string; 
       <b>{title}</b>
       <div className="msg-picks">
         {items.length === 0 && <span className="text-secondary">{empty}</span>}
-        {items.map((it) => <Checkbox key={it.id} label={it.label} checked={selected.includes(it.id)} onChange={() => onToggle(it.id)} />)}
+        {items.map((it) => <Checkbox key={it.id} label={it.label} checked={selected.includes(it.id)} disabled={!selected.includes(it.id) && selected.length >= 50} onChange={() => onToggle(it.id)} />)}
+        {selected.filter((id) => !items.some((it) => it.id === id)).map((id, index) => <Checkbox key={id} label={`찾을 수 없는 ${title} ${index + 1} · 선택 해제`} checked onChange={() => onToggle(id)} />)}
       </div>
     </div>
   );
 }
 
-type AudienceProps = { audience: Audience; groups: Group[]; tags: Named[]; count: Count | null; onToggle: (key: keyof Audience, id: string) => void };
+type AudienceProps = { audience: Audience; groups: Group[]; tags: Named[]; count: Count | null; onToggle: (key: keyof Audience, id: string) => void; loading?: boolean; unavailable?: boolean };
 
-export function AudienceSection({ audience, groups, tags, count, onToggle }: AudienceProps) {
+export function AudienceSection({ audience, groups, tags, count, onToggle, loading, unavailable }: AudienceProps) {
   return (
     <SectionCard title="2. 받는 사람">
-      <div className="msg-two">
+      {loading ? <LoadingState lines={2} label="받는 사람 선택값 확인 중" /> : unavailable ? <p className="text-secondary">받는 사람 선택값을 다시 확인해 주세요.</p> : <div className="msg-two">
         <PickList title="그룹" empty="리드 화면에서 그룹을 만들어 주세요." items={groups.map((g) => ({ id: g.id, label: `${g.name} (${g.count}명)` }))} selected={audience.groupIds} onToggle={(id) => onToggle("groupIds", id)} />
         <PickList title="태그" empty="아직 태그가 없어요." items={tags.map((t) => ({ id: t.id, label: t.name }))} selected={audience.tagIds} onToggle={(id) => onToggle("tagIds", id)} />
-      </div>
+      </div>}
       {count && (
         <StatGrid>
           <Stat label="발송 가능" value={`${count.eligible}명`} />

@@ -1,5 +1,6 @@
 import type { IdentifyEvent } from "../../../shared/sdk-events";
 import { newToken } from "../ids";
+import { leadSearchValues } from "../lead-search";
 
 export type IdentifyJob = {
   site: { id: string; workspaceId: string; collectRawEmail: boolean };
@@ -23,6 +24,7 @@ export const identifySourceIsCurrent = (alias: string) => `EXISTS (SELECT 1 FROM
   AND EXISTS (SELECT 1 FROM site_sessions ss WHERE ss.site_id = ${alias}.site_id AND ss.id = ${alias}.session_id AND ss.anon_id = ${alias}.anon_id)`;
 
 export function identifyEffectStatements(db: D1Database, job: StoredIdentifyJob, payload: IdentifyPayload, token: string, at: number): D1PreparedStatement[] {
+  const search = leadSearchValues({ email: payload.email ?? "", name: payload.name });
   const current = `WITH current_job AS (SELECT j.* FROM site_identify_jobs j WHERE j.id = ? AND j.claim_token = ? AND j.status = 'pending'
     AND j.payload_enc IS NOT NULL AND j.received_at >= ? AND j.received_at <= ? AND j.expires_at > ? AND ${identifySourceIsCurrent("j")})`;
   const statement = (sql: string, params: (string | number | null)[] = []) => db.prepare(`${current} ${sql}`).bind(job.id, token, at - MAX_IDENTIFY_AGE_MS, at, at, ...params);
@@ -31,11 +33,11 @@ export function identifyEffectStatements(db: D1Database, job: StoredIdentifyJob,
   const link = "LEFT JOIN short_links sl ON sl.id = ? AND sl.workspace_id = j.workspace_id";
   const snapshot = "json_object('type', 'site', 'guideId', sl.guide_id, 'influencerId', sl.influencer_id, 'channelKey', sl.channel_key, 'linkId', sl.id, 'at', j.received_at)";
   return [
-    statement(`INSERT INTO leads (id, workspace_id, email, name, answers, unsubscribe_token, first_source, last_source, email_hash, created_at)
-      SELECT 'identify_lead:' || j.id, j.workspace_id, ?, ?, '{}', ?, ${snapshot}, ${snapshot}, j.email_hash, j.received_at
+    statement(`INSERT INTO leads (id, workspace_id, email, name, answers, unsubscribe_token, first_source, last_source, email_hash, created_at,search_email_v1,search_name_v1,search_company_v1,search_phone_v1)
+      SELECT 'identify_lead:' || j.id, j.workspace_id, ?, ?, '{}', ?, ${snapshot}, ${snapshot}, j.email_hash, j.received_at,?,?,'',''
       FROM current_job j ${link} WHERE ? IS NOT NULL AND j.email_hash IS NOT NULL AND ${rawAllowed}
       AND NOT EXISTS (SELECT 1 FROM leads WHERE workspace_id = j.workspace_id AND email = ?)`,
-    [payload.email, payload.name, newToken(), payload.linkId, payload.email, payload.email]),
+    [payload.email, payload.name, newToken(), search.searchEmailV1, search.searchNameV1, payload.linkId, payload.email, payload.email]),
     statement(`UPDATE leads AS l SET name = coalesce(?, l.name), email_hash = j.email_hash, last_source = ${snapshot}
       FROM current_job j ${link} WHERE l.email = ? AND ${liveLead} AND ${rawAllowed}
       AND j.received_at >= coalesce(json_extract(l.last_source, '$.at'), 0)`,
@@ -82,6 +84,10 @@ export function identifyEffectStatements(db: D1Database, job: StoredIdentifyJob,
       AND c.session_id IN (SELECT id FROM site_sessions WHERE site_id = j.site_id AND anon_id = j.anon_id AND first_at <= j.received_at)
       AND EXISTS (SELECT 1 FROM site_people p WHERE p.id = j.resolved_person_id AND p.site_id = j.site_id AND p.created_at <= j.received_at
         AND (p.lead_id IS NULL OR EXISTS (SELECT 1 FROM leads l WHERE l.id = p.lead_id AND ${liveLead})))`),
+    statement(`UPDATE leads AS l SET search_email_v1=?,search_name_v1=CASE WHEN ? IS NULL THEN l.search_name_v1 ELSE ? END
+      FROM current_job j WHERE l.email=? AND ${liveLead} AND ${rawAllowed}
+      AND j.received_at>=coalesce(json_extract(l.last_source,'$.at'),0) AND (? IS NULL OR l.name IS ?)`,
+      [search.searchEmailV1, payload.name, search.searchNameV1, payload.email, payload.name, payload.name]),
     statement(`UPDATE site_identify_jobs SET status = 'done', payload_enc = NULL, claim_token = NULL, last_error = NULL, updated_at = ?
       WHERE id IN (SELECT id FROM current_job)`, [at]),
   ];

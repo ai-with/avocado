@@ -12,6 +12,7 @@ import { sheetsCsrf, sheetsAccessToken } from "./google-sheets-auth";
 import { SHEETS_SCOPE } from "./google-sheets-provider";
 import { cleanupGoogleSheetsJobs, sheetsExportValues } from "./google-sheets-export";
 import { filteredLeads, lookups } from "../routes/leads/shared";
+import { backfillLeadSearch } from "./lead-search";
 import { leadsCsv } from "../routes/leads/export";
 import { parseCsv } from "../../shared/csv";
 import { performanceCells, performanceCsv, performanceRows } from "../routes/performance";
@@ -130,7 +131,7 @@ describe("앱 자체 Google Sheets 추가 동의", () => {
 
 describe("필터와 권한을 보존한 Google Sheets 내보내기", () => {
   it("리드 CSV의 같은 행을 RAW로 쓰며 수식·전화번호 문자열과 workspace 경계를 유지한다", async () => {
-    const { call, seedConnection, orm } = await setup(); await seedConnection(); const { mock, writes, creates } = provider();
+    const { call, seedConnection, orm, env } = await setup(); await seedConnection(); await backfillLeadSearch(env); const { mock, writes, creates } = provider();
     const filters = { q: "one@" }, request = { requestId: newId(), kind: "leads", filters };
     const exported = await result(await call("/exports", request)); expect(exported).toMatchObject({ status: "done", rows: 1, retryable: false });
     expect(writes[0]!.values).toEqual(parseCsv(leadsCsv(await filteredLeads(orm, "w1", filters), await lookups(orm, "w1"))));

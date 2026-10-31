@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import { EmptyState, LoadingState, Table } from "../../ui";
-import { api } from "../../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button, EmptyState, LoadingState, Table } from "../../ui";
+import { api, errorMessage } from "../../lib/api";
+import { useMe } from "../../lib/me";
 import { countText, documentViewRate, pct, VIEW_METRICS_HELP, ZERO_HINT, type DocumentViewStats } from "../links/common";
 import { HelpHeader } from "../links/HelpHeader";
 import { LeadDrawer, LeadsTable } from "./common";
-import { EMPTY_LOOKUPS, type LeadRow, type Lookups } from "./types";
+import { type LeadRow, type Lookups } from "./types";
 import "./leads.css";
 import { SheetsExportControl } from "../google-sheets/SheetsExportControl";
+import { useLeads } from "./useLeads";
 
 type FunnelRow = DocumentViewStats & {
   influencerId: string | null;
@@ -23,20 +25,19 @@ const rate = (a: number, b: number) => (b ? pct(a / b) : "");
 
 // 가이드 상세 '리드' 탭: 묶어 보기(F-53) + 이 가이드로 들어온 리드
 export function GuideLeadsTab({ guideId }: { guideId: string }) {
-  const [funnel, setFunnel] = useState<FunnelRow[]>([]);
-  const [leads, setLeads] = useState<LeadRow[] | null>(null);
-  const [lk, setLk] = useState<Lookups>(EMPTY_LOOKUPS);
+  const [funnel, setFunnel] = useState<FunnelRow[] | null>(null), [funnelError, setFunnelError] = useState("");
+  const { leads, lk, load, error, page, hasPrevious, hasNext, nextPage, previousPage, lookupCursors, moreLookup } = useLeads({ guideId }, false);
+  const { me } = useMe(), actor = `${me?.workspace?.id ?? ""}|${guideId}`, current = useRef(actor), requests = useRef(0); current.current = actor;
   const [drawer, setDrawer] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const [f, l] = await Promise.all([api.get<{ rows: FunnelRow[] }>(`/guides/${guideId}/funnel`), api.get<{ leads: LeadRow[]; lookups: Lookups }>(`/leads?guideId=${guideId}`)]);
-    setFunnel(f.rows);
-    setLeads(l.leads);
-    setLk(l.lookups);
-  }, [guideId]);
+  const loadFunnel = useCallback(async () => {
+    if (current.current !== actor) return; const request = ++requests.current; setFunnel(null); setFunnelError("");
+    try { const value = await api.get<{ rows: FunnelRow[] }>(`/guides/${encodeURIComponent(guideId)}/funnel`); if (current.current === actor && request === requests.current) setFunnel(value.rows); }
+    catch (cause) { if (current.current === actor && request === requests.current) setFunnelError(errorMessage(cause)); }
+  }, [guideId, actor]);
   useEffect(() => {
-    void load();
-  }, [load]);
+    current.current = actor; void loadFunnel(); return () => { if (current.current === actor) current.current = ""; };
+  }, [loadFunnel]);
 
   return (
     <div className="stack-section">
@@ -45,7 +46,7 @@ export function GuideLeadsTab({ guideId }: { guideId: string }) {
         <p className="text-caption">고유 열람은 자료를 연 클릭 수이며 사람 수와는 달라요. 재열람은 같은 자료를 같은 브라우저로 다시 연 횟수의 추정값이에요. 열람률은 고유 열람을 측정 가능 클릭으로 나눠요. 직접 방문·과거 기록 등 미연결 열람은 비율에서 제외하고, 측정 기록이 없으면 -로 표시해요.</p>
         <p className="text-caption">{VIEW_METRICS_HELP.views}</p>
         <p className="text-caption">사이트 열은 스크립트를 설치한 사이트로 간 클릭만 세고, 스크롤·전환 비율은 방문이 생긴 클릭 수 기준이에요. 사람 단위 추적은 게이트·폼 제출 뒤부터예요. 어느 콘텐츠 하나 때문이라고 단정하지 않아요.</p>
-        {funnel.length === 0 ? (
+        {funnelError ? <p role="alert" className="field-error">{funnelError}</p> : !funnel ? <LoadingState pattern="table" /> : funnel.length === 0 ? (
           <EmptyState title="아직 인플루언서가 없어요" description="가이드에 인플루언서를 추가하고 리드 링크를 보내면 단계별 수가 보여요." />
         ) : (
           <FunnelTable rows={funnel} />
@@ -53,9 +54,10 @@ export function GuideLeadsTab({ guideId }: { guideId: string }) {
       </section>
       <section className="stack">
         <div className="row row-between row-wrap"><h4>이 가이드로 들어온 리드</h4><SheetsExportControl kind="leads" query={new URLSearchParams({ guideId }).toString()} /></div>
-        <GuideLeadList leads={leads} lk={lk} onOpen={setDrawer} />
+        {error ? <EmptyState title="리드 목록을 불러오지 못했어요" description={error} action={<Button variant="secondary" onClick={() => void load()}>다시 확인</Button>} /> : <GuideLeadList leads={leads} lk={lk} onOpen={setDrawer} />}
+        <div className="row row-wrap"><span className="text-caption">{page}페이지</span><Button variant="secondary" size="sm" disabled={!hasPrevious || !leads} onClick={previousPage}>이전 페이지</Button><Button variant="secondary" size="sm" disabled={!hasNext || !leads} onClick={nextPage}>다음 페이지</Button></div>
       </section>
-      {drawer && <LeadDrawer id={drawer} lk={lk} onClose={() => setDrawer(null)} onChanged={() => void load()} />}
+      {drawer && <LeadDrawer id={drawer} lk={lk} onClose={() => setDrawer(null)} onChanged={() => void Promise.all([load(), loadFunnel()])} lookupActions={lookupCursors.tags && <Button variant="ghost" size="sm" onClick={() => void moreLookup("tags")}>태그 필터 더 보기</Button>} />}
     </div>
   );
 }

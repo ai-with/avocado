@@ -43,6 +43,20 @@ function countPhysical(db: D1Database) {
 }
 
 describe("durable identify effects", () => {
+  it("SDK insert and profile merge store whole-field Unicode folds before marking the claim done", async () => {
+    const { db, env, stage } = await setup(); const firstJob = job("first", { event: { ...job().event, id: "first", name: "ΟΣ" } });
+    const [first] = await stage([firstJob]); await processIdentifyJob({ id: first! }, env);
+    expect(db.prepare("SELECT search_email_v1,search_name_v1,search_company_v1,search_phone_v1 FROM leads").all()).toEqual([{ search_email_v1: "private@example.com", search_name_v1: "ος", search_company_v1: "", search_phone_v1: "" }]);
+    const [second] = await stage([job("second", { event: { ...job().event, id: "second", name: "İ" } })]); await processIdentifyJob({ id: second! }, env);
+    expect(db.prepare("SELECT name,search_name_v1 FROM leads").all()).toEqual([{ name: "İ", search_name_v1: "i̇" }]);
+    expect(db.prepare("SELECT status,payload_enc FROM site_identify_jobs WHERE id=?").all(second!)).toEqual([{ status: "done", payload_enc: null }]);
+  });
+  it("turning off raw collection before the claim also fences the search writer", async () => {
+    const { db, env, stage } = await setup(); const [first] = await stage(); await processIdentifyJob({ id: first! }, env);
+    db.exec("UPDATE leads SET name='OLD'; UPDATE sites SET collect_raw_email=0");
+    const [second] = await stage([job("second", { event: { ...job().event, id: "second", name: "PRIVATE-NEW" } })]); await processIdentifyJob({ id: second! }, env);
+    expect(db.prepare("SELECT name,search_name_v1 FROM leads").all()).toEqual([{ name: "OLD", search_name_v1: null }]);
+  });
   it("bulk stages 50 encrypted jobs in one physical statement and sends only IDs", async () => {
     const { db, d1, env, stage, sendBatch } = await setup(); const calls = countPhysical(d1);
     const ids = await stage(Array.from({ length: 50 }, (_, i) => job(`event-${i}`)));
@@ -135,17 +149,17 @@ describe("durable identify effects", () => {
     expect(db.prepare("SELECT status, received_at, expires_at, payload_enc FROM site_identify_jobs").all()).toEqual([{ status: "expired", received_at: NOW, expires_at: NOW + MAX_IDENTIFY_AGE_MS, payload_enc: null }]);
   });
 
-  it("all effects plus receipt fit 13 physical SQL statements; completed replay needs one", async () => {
+  it("all effects plus receipt and search folds fit 14 physical SQL statements; completed replay needs one", async () => {
     const { d1, env, stage } = await setup(); const [id] = await stage(); const calls = countPhysical(d1);
-    await processIdentifyJob({ id: id! }, env); expect(calls.get()).toBe(13);
+    await processIdentifyJob({ id: id! }, env); expect(calls.get()).toBe(14);
     calls.reset(); await processIdentifyJob({ id: id! }, env); expect(calls.get()).toBe(1);
   });
 
-  it("failed effect work uses at most 14 physical statements including sanitized retry metadata", async () => {
+  it("failed effect work uses at most 15 physical statements including sanitized retry metadata", async () => {
     const { db, d1, env, stage } = await setup(); const [id] = await stage(); const calls = countPhysical(d1);
     db.exec("CREATE TRIGGER fail_identify BEFORE INSERT ON site_people BEGIN SELECT RAISE(ABORT,'PRIVATE'); END");
     await expect(processIdentifyJob({ id: id! }, env)).rejects.toThrow(/^identify_job_failed$/);
-    expect(calls.get()).toBe(14);
+    expect(calls.get()).toBe(15);
   });
 
   it("legacy duplicate people are preserved and one canonical ID is selected deterministically", async () => {

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
 import type { AfterSubmit, DestinationType, DocJson, DocumentSourceType, FormFields, GroupRules, LeadSourceType, OgCard, Utm } from "../../../shared/leads";
 import { workspaces } from "./workspaces";
@@ -167,8 +167,14 @@ export const leads = sqliteTable(
     deletedAt: integer("deleted_at"),
     // 소문자·공백 제거 이메일의 SHA-256 hex. 사이트 identify 해시 매칭용
     emailHash: text("email_hash"),
+    searchEmailV1: text("search_email_v1"),
+    searchNameV1: text("search_name_v1"),
+    searchCompanyV1: text("search_company_v1"),
+    searchPhoneV1: text("search_phone_v1"),
   },
-  (t) => [uniqueIndex("leads_ws_email_idx").on(t.workspaceId, t.email), index("leads_ws_email_hash_idx").on(t.workspaceId, t.emailHash), index("leads_purge_idx").on(t.deletedAt, t.id).where(sql`${t.deletedAt} IS NOT NULL`)],
+  (t) => [uniqueIndex("leads_ws_email_idx").on(t.workspaceId, t.email), index("leads_ws_email_hash_idx").on(t.workspaceId, t.emailHash), index("leads_purge_idx").on(t.deletedAt, t.id).where(sql`${t.deletedAt} IS NOT NULL`),
+    index("leads_live_seek_idx").on(t.workspaceId, desc(t.createdAt), desc(t.id)).where(sql`${t.deletedAt} IS NULL`),
+    index("leads_search_pending_idx").on(t.id).where(sql`${t.deletedAt} IS NULL AND (${t.searchEmailV1} IS NULL OR ${t.searchNameV1} IS NULL OR ${t.searchCompanyV1} IS NULL OR ${t.searchPhoneV1} IS NULL)`)],
 );
 
 export const leadSources = sqliteTable(
@@ -183,7 +189,9 @@ export const leadSources = sqliteTable(
     linkId: text("link_id").references(() => shortLinks.id, { onDelete: "set null" }),
     at: integer("at").notNull(),
   },
-  (t) => [index("lead_sources_lead_idx").on(t.leadId), index("lead_sources_link_idx").on(t.linkId), index("lead_sources_guide_idx").on(t.guideId)],
+  (t) => [index("lead_sources_lead_idx").on(t.leadId), index("lead_sources_link_idx").on(t.linkId), index("lead_sources_guide_idx").on(t.guideId),
+    index("lead_sources_type_match_idx").on(t.leadId, t.type), index("lead_sources_guide_match_idx").on(t.leadId, t.guideId),
+    index("lead_sources_influencer_match_idx").on(t.leadId, t.influencerId), index("lead_sources_channel_match_idx").on(t.leadId, t.channelKey), index("lead_sources_link_match_idx").on(t.leadId, t.linkId)],
 );
 
 export const leadTags = sqliteTable(
@@ -202,7 +210,7 @@ export const leadTagLinks = sqliteTable(
     leadId: text("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
     tagId: text("tag_id").notNull().references(() => leadTags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.leadId, t.tagId] })],
+  (t) => [primaryKey({ columns: [t.leadId, t.tagId] }), index("lead_tag_links_tag_match_idx").on(t.tagId, t.leadId)],
 );
 
 export const leadGroups = sqliteTable("lead_groups", {

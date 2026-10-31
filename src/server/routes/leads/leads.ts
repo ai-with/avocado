@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { documentPageViews, documentViews, documents, formSubmissions, forms, leadSources, leadTagLinks, leads } from "../../db/schema";
-import { parse } from "../../lib/errors";
+import { ApiError, parse } from "../../lib/errors";
 import { now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { csvResponse } from "../../lib/http";
@@ -13,6 +13,8 @@ import { documentOpenedAt } from "../../lib/document-metrics";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { leadsCsv } from "./export";
 import { emailSchema, filteredLeads, lookups, ownLead, publicLead } from "./shared";
+import { leadPage } from "../../lib/lead-query";
+import { boundedLeadLookups, leadLookupPage, lookupKinds, type LookupKind } from "../../lib/lead-lookups";
 
 // 리드 목록·추가·가져오기·내보내기·상세·삭제
 
@@ -50,8 +52,17 @@ export const leadCrudRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
-    const [rows, lk] = await Promise.all([filteredLeads(db, workspace.id, c.req.query()), lookups(db, workspace.id)]);
-    return c.json({ leads: rows.map(({ lead, facts }) => ({ ...publicLead(lead), tagIds: facts.tagIds, sourceTypes: [...new Set(facts.sources.map((s) => s.type))] })), lookups: lk });
+    const { rows, nextCursor } = await leadPage(db, c.env, workspace.id, c.req.query());
+    const q = c.req.query();
+    const lk = await boundedLeadLookups(db, workspace.id, { guides: [...rows.flatMap((r) => r.lead.lastSource.guideId ? [r.lead.lastSource.guideId] : []), ...(q.guideId ? [q.guideId] : [])], influencers: [...rows.flatMap((r) => r.lead.lastSource.influencerId ? [r.lead.lastSource.influencerId] : []), ...(q.influencerId ? [q.influencerId] : [])], contents: [...rows.flatMap((r) => r.lead.lastSource.linkId ? [r.lead.lastSource.linkId] : []), ...(q.contentLinkId ? [q.contentLinkId] : [])], tags: [...new Set([...rows.flatMap((r) => r.facts.tagIds), ...(q.tagId ? [q.tagId] : [])])], channels: q.channelKey ? [q.channelKey] : [] });
+    return c.json({ leads: rows.map(({ lead, facts }) => ({ ...publicLead(lead), tagIds: facts.tagIds, sourceTypes: [...new Set(facts.sources.map((s) => s.type))] })), ...lk, nextCursor });
+  })
+  .get("/lookups", async (c) => {
+    const { workspace } = workspaceCtx(c), kind = c.req.query("kind") as LookupKind;
+    if (!lookupKinds.includes(kind)) throw new ApiError(400, "invalid_lookup", "필터 목록을 확인해 주세요.");
+    let selected: string[];
+    try { selected = parse(z.array(z.string().max(200)).max(50), JSON.parse(c.req.query("selected") ?? "[]")); } catch { throw new ApiError(400, "invalid_lookup", "선택한 필터를 확인해 주세요."); }
+    return c.json(await leadLookupPage(c.var.db, workspace.id, kind, c.req.query("cursor") ?? "", selected));
   })
   .post("/", editorsOnly, async (c) => {
     const body = parse(createBody, await c.req.json());

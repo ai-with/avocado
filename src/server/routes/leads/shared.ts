@@ -1,49 +1,18 @@
 import { z } from "zod";
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 import type { Db } from "../../db";
-import { guides, influencers, leadGroups, leadTags, leads, shortLinks } from "../../db/schema";
+import { guides, influencers, leadTags, leads, shortLinks } from "../../db/schema";
 import { findLive } from "../../lib/owned";
-import { loadLeads } from "../../lib/leads";
-import { evaluateGroup } from "../../lib/lead-groups";
+import { assertSearchReady, leadPlan, queryLeadRows } from "../../lib/lead-query";
 import { ensureChannels } from "../../lib/links";
-import type { GroupCondition, GroupRules } from "../../../shared/leads";
 
 // 리드 라우트 공용
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email("이메일 형식이 아니에요."));
 
-// 목록 필터 쿼리 → 그룹 규칙 필드
-const FILTER_FIELDS: [string, GroupCondition["field"]][] = [
-  ["sourceType", "source_type"],
-  ["guideId", "guide_id"],
-  ["influencerId", "influencer_id"],
-  ["channelKey", "channel_key"],
-  ["tagId", "tag_id"],
-  ["marketing", "marketing_opt_in"],
-  ["alimtalk", "alimtalk_opt_in"],
-];
-
-// 목록 필터를 그룹 규칙으로 바꿔 같은 평가 함수를 쓴다
-function filterRules(q: Record<string, string>): GroupCondition[] {
-  const all: GroupCondition[] = [];
-  for (const [param, field] of FILTER_FIELDS) if (q[param]) all.push({ field, op: "eq", value: q[param] });
-  return all;
-}
-
 export async function filteredLeads(db: Db, workspaceId: string, q: Record<string, string>) {
-  const all = await loadLeads(db, workspaceId);
-  const rules: GroupRules = { all: filterRules(q) };
-  if (q.groupId) {
-    const g = await db.select().from(leadGroups).where(and(eq(leadGroups.id, q.groupId), eq(leadGroups.workspaceId, workspaceId))).get();
-    if (g) rules.all.push(...g.rules.all);
-  }
-  const text = (q.q ?? "").trim().toLowerCase();
-  // 콘텐츠 필터는 콘텐츠 링크 ID 하나로 고른다(그룹 규칙에는 없는 조건)
-  const fromContent = (sources: { linkId?: string | null }[]) => !q.contentLinkId || sources.some((s) => s.linkId === q.contentLinkId);
-  return all.filter(
-    ({ lead, facts }) =>
-      evaluateGroup(rules, facts) && fromContent(facts.sources) && (!text || [lead.email, lead.name, lead.company, lead.phone].some((v) => v?.toLowerCase().includes(text))),
-  );
+  const plan = await leadPlan(db, workspaceId, q); await assertSearchReady(db, plan);
+  return queryLeadRows(db, plan, true);
 }
 
 // 콘텐츠 링크 이름표. 지운 링크로 들어온 리드도 이름이 보이게 지운 것까지 포함
@@ -51,7 +20,7 @@ async function contentLookups(db: Db, workspaceId: string) {
   const rows = await db
     .select({ id: shortLinks.id, label: shortLinks.contentLabel, influencerName: influencers.displayName })
     .from(shortLinks)
-    .leftJoin(influencers, eq(influencers.id, shortLinks.influencerId))
+    .leftJoin(influencers, and(eq(influencers.id, shortLinks.influencerId), eq(influencers.workspaceId, workspaceId)))
     .where(and(eq(shortLinks.workspaceId, workspaceId), isNotNull(shortLinks.contentKey)))
     .orderBy(asc(shortLinks.createdAt));
   return rows.map((r) => ({ id: r.id, label: r.label ?? "", name: `${r.label ?? ""} · ${r.influencerName ?? "가이드 공용"}` }));
@@ -71,6 +40,6 @@ export async function lookups(db: Db, workspaceId: string) {
 export const ownLead = (db: Db, workspaceId: string, id: string) => findLive(db, leads, id, workspaceId, { code: "lead_not_found", message: "리드를 찾을 수 없어요." });
 
 export const publicLead = (l: typeof leads.$inferSelect) => {
-  const { unsubscribeToken: _t, workspaceId: _w, deletedAt: _d, ...rest } = l;
+  const { unsubscribeToken: _t, workspaceId: _w, deletedAt: _d, searchEmailV1: _se, searchNameV1: _sn, searchCompanyV1: _sc, searchPhoneV1: _sp, ...rest } = l;
   return rest;
 };

@@ -53,6 +53,7 @@ import { checkSiteAlert, maintainSiteAlerts } from "./lib/site-alerts";
 import { sendSiteAlert } from "./lib/site-alert-mail";
 
 import { cleanupLeadImports } from "./lib/lead-imports";
+import { backfillLeadSearch } from "./lib/lead-search";
 queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
 queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
 queueHandlers.cleanup_google_sheets = async (_payload, env) => {
@@ -62,7 +63,9 @@ queueHandlers.cleanup_google_sheets = async (_payload, env) => {
   await maintainSiteAlerts(env);
 
   await cleanupLeadImports(env);
+  await backfillLeadSearch(env);
 };
+queueHandlers.lead_search_backfill = (payload, env) => backfillLeadSearch(env, payload);
 queueHandlers.check_site_alert = checkSiteAlert;
 queueHandlers.send_site_alert = sendSiteAlert;
 queueHandlers.site_alert_maintenance = (_payload, env) => maintainSiteAlerts(env);

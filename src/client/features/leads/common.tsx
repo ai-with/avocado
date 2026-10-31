@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Badge, Button, Checkbox, Drawer, LoadingState, Stat, StatGrid, Table, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { channelLabel, SOURCE_TYPE_LABELS } from "../../../shared/leads";
@@ -65,10 +65,10 @@ function LeadTableRow({ lead: l, lk, checked, onToggle, onOpen }: RowProps) {
 const ConsentBadge = ({ on, off }: { on: boolean; off: boolean }) =>
   off ? <Badge tone="danger">수신 거부</Badge> : on ? <Badge tone="success">동의</Badge> : <Badge>없음</Badge>;
 
-type DrawerProps = { id: string; lk: Lookups; onClose: () => void; onChanged: () => void };
+type DrawerProps = { id: string; lk: Lookups; onClose: () => void; onChanged: () => void; lookupActions?: ReactNode };
 
 // 리드 상세 드로어: 동의 상태, 태그, 출처 누적, 열람 기록, 제출 답변, 발송 기록 자리
-export function LeadDrawer({ id, lk, onClose, onChanged }: DrawerProps) {
+export function LeadDrawer({ id, lk, onClose, onChanged, lookupActions }: DrawerProps) {
   const toast = useToast();
   const [d, setD] = useState<LeadDetail | null>(null);
   const load = () => void api.get<LeadDetail>(`/leads/${id}`).then(setD);
@@ -94,6 +94,7 @@ export function LeadDrawer({ id, lk, onClose, onChanged }: DrawerProps) {
         <Stat label="알림톡 수신" value={status(l.alimtalkOptIn)} />
       </StatGrid>
       <LeadTags tagIds={d.tagIds} lk={lk} onRemove={removeTag} />
+      {lookupActions}
       <SourceList sources={d.sources} lk={lk} />
       <ViewList views={d.views} />
       <AnswerList submissions={d.submissions} answers={l.answers} />

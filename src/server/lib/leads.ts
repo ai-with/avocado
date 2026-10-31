@@ -5,6 +5,7 @@ import type { LeadSourceType } from "../../shared/leads";
 import type { LeadFacts } from "./lead-groups";
 import { newId, newToken, now, sha256Hex } from "./ids";
 import { leadPurgeStatements } from "./lead-purge";
+import { leadSearchValues } from "./lead-search";
 
 export type LeadInput = {
   workspaceId: string;
@@ -61,10 +62,11 @@ async function revive(db: Db, prev: Lead, email: string, fresh: Fresh, snap: Sou
   const cleanup = leadPurgeStatements(d1,
     "SELECT id, workspace_id, ? AS email_hash FROM leads WHERE id = ? AND workspace_id = ? AND created_at = ? AND deleted_at = ?",
     [fresh.emailHash, prev.id, prev.workspaceId, prev.createdAt, prev.deletedAt], currentViewId ?? null);
-  const insert = d1.prepare(`INSERT INTO leads (id, workspace_id, email, name, company, phone, answers, marketing_opt_in, alimtalk_opt_in, unsubscribe_token, first_source, last_source, email_hash, created_at)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  const search = leadSearchValues({ email, ...fresh });
+  const insert = d1.prepare(`INSERT INTO leads (id, workspace_id, email, name, company, phone, answers, marketing_opt_in, alimtalk_opt_in, unsubscribe_token, first_source, last_source, email_hash, created_at,search_email_v1,search_name_v1,search_company_v1,search_phone_v1)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?
     WHERE NOT EXISTS (SELECT 1 FROM leads WHERE workspace_id = ? AND email = ?)`)
-    .bind(id, prev.workspaceId, email, fresh.name, fresh.company, fresh.phone, JSON.stringify(fresh.answers), fresh.marketingOptIn ? 1 : 0, fresh.alimtalkOptIn ? 1 : 0, newToken(), JSON.stringify(snap), JSON.stringify(snap), fresh.emailHash, snap.at, prev.workspaceId, email);
+    .bind(id, prev.workspaceId, email, fresh.name, fresh.company, fresh.phone, JSON.stringify(fresh.answers), fresh.marketingOptIn ? 1 : 0, fresh.alimtalkOptIn ? 1 : 0, newToken(), JSON.stringify(snap), JSON.stringify(snap), fresh.emailHash, snap.at, search.searchEmailV1, search.searchNameV1, search.searchCompanyV1, search.searchPhoneV1, prev.workspaceId, email);
   const statements = [...cleanup.map((entry) => entry.statement), insert];
   if (currentViewId) statements.push(d1.prepare(`UPDATE document_views SET lead_id = ? WHERE id = ?
     AND document_id IN (SELECT id FROM documents WHERE workspace_id = ?)
@@ -86,16 +88,22 @@ export async function upsertLead(db: Db, input: LeadInput): Promise<{ leadId: st
     let leadId: string | null;
     if (!prev) {
       leadId = newId();
-      const inserted = await db.insert(leads).values({ id: leadId, workspaceId: input.workspaceId, email, ...fresh, unsubscribeToken: newToken(), firstSource: snap, lastSource: snap, createdAt: snap.at }).onConflictDoNothing().returning({ id: leads.id });
+      const inserted = await db.insert(leads).values({ id: leadId, workspaceId: input.workspaceId, email, ...fresh, ...leadSearchValues({ email, ...fresh }), unsubscribeToken: newToken(), firstSource: snap, lastSource: snap, createdAt: snap.at }).onConflictDoNothing().returning({ id: leads.id });
       if (!inserted.length) continue;
     } else if (prev.deletedAt !== null) {
       leadId = await revive(db, prev, email, fresh, snap, input.currentViewId);
       if (!leadId) continue;
     } else {
       leadId = prev.id;
-      const updated = await db.update(leads).set(mergedValues(prev, fresh, snap))
-        .where(and(eq(leads.id, leadId), eq(leads.createdAt, prev.createdAt), isNull(leads.deletedAt))).returning({ id: leads.id });
-      if (!updated.length) continue;
+      const merged = mergedValues(prev, fresh, snap), search = leadSearchValues({ email, ...merged });
+      const update = db.update(leads).set(merged)
+        .where(and(eq(leads.id, leadId), eq(leads.createdAt, prev.createdAt), isNull(leads.deletedAt))).returning({ id: leads.id }).toSQL();
+      const updated = await db.$client.batch([
+        db.$client.prepare(update.sql).bind(...update.params),
+        db.$client.prepare(`UPDATE leads SET search_email_v1=?,search_name_v1=?,search_company_v1=?,search_phone_v1=? WHERE id=? AND workspace_id=? AND created_at=? AND deleted_at IS NULL AND email IS ? AND name IS ? AND company IS ? AND phone IS ?`)
+          .bind(search.searchEmailV1, search.searchNameV1, search.searchCompanyV1, search.searchPhoneV1, leadId, input.workspaceId, prev.createdAt, email, merged.name, merged.company, merged.phone),
+      ]);
+      if (!updated[0]!.results.length) continue;
     }
     await db.insert(leadSources).values({ id: newId(), leadId, ...snap });
     return { leadId, created: !prev || prev.deletedAt !== null };
@@ -103,7 +111,7 @@ export async function upsertLead(db: Db, input: LeadInput): Promise<{ leadId: st
   throw new Error("리드 등록 상태가 바뀌었어요. 다시 시도해 주세요.");
 }
 
-// ponytail: 워크스페이스 리드 전체를 읽어 메모리에서 필터·그룹 평가. 수만 건이 되면 SQL 조건으로 옮긴다
+// Legacy delivery-only selection. HTTP list/count use lead-query; 398 splits delivery.
 export async function loadLeads(db: Db, workspaceId: string) {
   const [rows, sources, tagLinks] = await Promise.all([
     db.select().from(leads).where(and(eq(leads.workspaceId, workspaceId), isNull(leads.deletedAt))).orderBy(desc(leads.createdAt)),

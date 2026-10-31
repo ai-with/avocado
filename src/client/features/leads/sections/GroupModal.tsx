@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, Input, Modal, Select, TextField, useToast, SelectMenu } from "../../../ui";
 import { api, errorMessage } from "../../../lib/api";
 import type { GroupCondition, GroupField } from "../../../../shared/leads";
@@ -7,17 +7,19 @@ import type { Group } from "../useLeads";
 import type { Lookups } from "../types";
 import "../../links/lead-tools.css";
 
-type Props = { group: Partial<Group>; lk: Lookups; onClose: () => void; onSaved: () => void };
+type Props = { group: Partial<Group>; lk: Lookups; onClose: () => void; onSaved: () => void; lookupActions?: ReactNode };
 const NEW_RULE: GroupCondition = { field: "marketing_opt_in", op: "eq", value: "true" };
 
 // 그룹 규칙 편집기. 저장 전에 현재 인원 수를 보여 준다
-export function GroupModal({ group, lk, onClose, onSaved }: Props) {
+export function GroupModal({ group, lk, onClose, onSaved, lookupActions }: Props) {
   const toast = useToast();
   const [name, setName] = useState(group.name ?? "");
   const [rules, setRules] = useState<GroupCondition[]>(group.rules?.all ?? []);
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
-    void api.post<{ count: number }>("/leads/groups/preview", { rules: { all: rules } }).then((r) => setCount(r.count), () => setCount(null));
+    let active = true; setCount(null);
+    void api.post<{ count: number }>("/leads/groups/preview", { rules: { all: rules } }).then((r) => { if (active) setCount(r.count); }, () => { if (active) setCount(null); });
+    return () => { active = false; };
   }, [rules]);
   const update = (i: number, patch: Partial<GroupCondition>) => setRules(rules.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const save = async () => {
@@ -38,7 +40,8 @@ export function GroupModal({ group, lk, onClose, onSaved }: Props) {
         <Input label="그룹 이름" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 인플루언서 A 유입 + 마케팅 동의" />
         <span className="field-label">모든 조건을 만족하는 사람</span>
         {rules.map((r, i) => <RuleRow key={i} rule={r} lk={lk} onChange={(patch) => update(i, patch)} onRemove={() => setRules(rules.filter((_, j) => j !== i))} />)}
-        <div><Button size="sm" variant="secondary" onClick={() => setRules([...rules, NEW_RULE])}>조건 추가</Button></div>
+        <div><Button size="sm" variant="secondary" disabled={rules.length >= 20} onClick={() => setRules([...rules, NEW_RULE])}>조건 추가</Button></div>
+        {lookupActions}
       </div>
     </Modal>
   );
