@@ -45,7 +45,7 @@ describe("개인정보 Queue 실행", () => {
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
     expect(counted.getCalls()).toBe(11); // 기존10회 + 전역 FX Queue 선점1회; 사이트별 조회는 없다.
     expect(messages.filter((message) => message.body.type === "site_fx_refresh")).toEqual([{ body: { type: "site_fx_refresh", payload: {} } }]);
-    const expectedCalls = [5, 4, 4];
+    const expectedCalls = [5, 4, 5]; // media는 retired audio tombstone 발견 batch 1회 포함
     for (const [i, message] of privacy.entries()) {
       counted.reset();
       const result = await queued(env, message.body);

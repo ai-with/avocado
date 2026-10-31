@@ -54,13 +54,18 @@ async function requeueIfEarly(ctx: Ctx, payload: Payload) {
 
 async function queueStages(ctx: Ctx, stages: JobStage[], retry: readonly JobStage[]) {
   const generation = ctx.analysis!.generation;
-  const results = await analysisWrite(ctx, [...stages.map((stage) => ctx.db
+  const requestId = ctx.analysis!.requestId;
+  const firstRequest = sql`EXISTS(SELECT 1 FROM submission_analysis_retries r WHERE r.submission_id=${ctx.sub.id} AND r.request_id=${requestId}
+    AND r.first_claim_token=${ctx.analysis!.token})`;
+  const results = await analysisWrite(ctx, [sql`INSERT INTO submission_analysis_retries(submission_id,request_id,generation,seen_at,first_claim_token)
+    SELECT ${ctx.sub.id},${requestId},${generation},${now()},${ctx.analysis!.token} WHERE ${requestId} IS NOT NULL ON CONFLICT DO NOTHING`, ...stages.map((stage) => ctx.db
       .insert(processingJobs)
-      .values({ id: newId(), submissionId: ctx.sub.id, stage, status: "queued", analysisGeneration: generation })
-      .onConflictDoUpdate({ target: [processingJobs.submissionId, processingJobs.stage], set: { status: "queued", attempts: 0, startedAt: null, finishedAt: null, error: null, analysisGeneration: generation },
-        setWhere: retry.includes(stage) ? undefined : sql`${processingJobs.analysisGeneration}<>${generation} OR ${processingJobs.status} IN ('queued','running')` }).returning({ stage: processingJobs.stage })),
-    ctx.db.update(submissions).set({ status: "processing" }).where(eq(submissions.id, ctx.sub.id))]);
-  return stages.filter((_, index) => results[index + 1]!.results.length > 0);
+      .values({ id: newId(), submissionId: ctx.sub.id, stage, status: "queued", analysisGeneration: generation, stageRequestId: requestId })
+      .onConflictDoUpdate({ target: [processingJobs.submissionId, processingJobs.stage], set: { status: "queued", attempts: 0, startedAt: null, finishedAt: null, error: null, analysisGeneration: generation, stageRequestId: requestId },
+        setWhere: sql`${processingJobs.analysisGeneration}<>${generation} OR ${processingJobs.status} IN ('queued','running') OR (${retry.includes(stage) ? 1 : 0}=1 AND ${firstRequest})` }).returning({ stage: processingJobs.stage })),
+    ctx.db.update(submissions).set({ status: "processing" }).where(and(eq(submissions.id, ctx.sub.id), sql`EXISTS(SELECT 1 FROM processing_jobs
+      WHERE submission_id=${ctx.sub.id} AND analysis_generation=${generation} AND status IN ('queued','running') AND stage IN(SELECT value FROM json_each(${JSON.stringify(stages)})))`))]);
+  return stages.filter((_, index) => results[index + 2]!.results.length > 0);
 }
 
 export async function processSubmission(raw: unknown, env: Env) {
@@ -83,7 +88,7 @@ export async function processSubmission(raw: unknown, env: Env) {
       ? [...new Set<JobStage>(["transcribe", "translate", ...requested])] : requested ?? [...JOB_STAGES];
     const pending = await queueStages(ctx, stages, payload.stages ?? []);
     for (const stage of pending) { await renewAnalysis(ctx); await runStage(ctx, stage); }
-    await finishAnalysis(ctx);
+    await finishAnalysis(ctx, pending.length > 0);
   } catch (error) {
     if (error instanceof StaleAnalysis) return; // Never cancel a newer generation's jobs.
     if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);

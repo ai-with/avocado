@@ -316,11 +316,30 @@ describe("동의 철회 미디어 파기", () => {
     const r2Calls = list.mock.calls.length + remove.mock.calls.length + multipart.mock.calls.length;
     expect(d1Calls).toBeLessThanOrEqual(failCommit ? 45 : 40); // D1 제품별 Free 50회
     expect(d1Calls).toBeGreaterThan(0);
-    expect(r2Calls).toBeLessThanOrEqual(15);
+    expect(r2Calls).toBeLessThanOrEqual(20); // 프레임·hash audio prefix 각1 + delete/MPU, 최대5제출물
     expect(d1Calls + r2Calls).toBeLessThan(1000); // Free 내부 서비스 한도, 외부 fetch는 없다.
     expect(failCommit ? retry : ack).toHaveBeenCalledTimes(1);
     expect(failCommit ? ack : retry).not.toHaveBeenCalled();
     expect(row(db, "media_purges").every((job) => job.completed_at !== null)).toBe(!failCommit);
+  });
+
+  it.each([false, true])("hashed audio와 180프레임의 5제출물 파기도 D1 Free50회 안에 든다(실패=%s)", async (failCommit) => {
+    const { db, d1, env, orm, r2, sub, withdraw } = await setup();
+    for (let n = 1; n <= 5; n++) {
+      const id = `s${n}`; if (n > 1) sub(id);
+      const key = `audio/${id}/${"a".repeat(64)}/${crypto.randomUUID()}.wav`;
+      db.prepare("INSERT INTO audio_tracks(id,submission_id,key,sample_rate,duration_s) VALUES(?,?,?,16000,1) ON CONFLICT(submission_id) DO UPDATE SET key=excluded.key").run(`hash${n}`, id, key);
+      await rememberMedia(orm, id, { key, kind: "object" }); db.prepare("UPDATE media_purge_objects SET audio_committed_at=? WHERE key=?").run(NOW, key); r2.objects.add(key);
+      for (let frame = n === 1 ? 1 : 0; frame < 180; frame++) {
+        const image = `frames/${id}/${frame}.jpg`; db.prepare("INSERT INTO frames(id,submission_id,t_ms,image_key,source) VALUES(?,?,?,?,'fps')").run(`hashframe${n}-${frame}`, id, frame, image); r2.objects.add(image);
+      }
+    }
+    await withdraw(); await purgeSubmissionMedia(env, "s5");
+    if (failCommit) db.exec("CREATE TRIGGER fail_hash_purge BEFORE UPDATE OF media_purged_at ON submissions BEGIN SELECT RAISE(ABORT,'test'); END");
+    const counted = countD1Calls(d1); env.DB = counted.d1;
+    const list = vi.spyOn(r2, "list"), remove = vi.spyOn(r2, "delete"), multipart = vi.spyOn(r2, "resumeMultipartUpload");
+    if (failCommit) await expect(runMediaPurges(env)).rejects.toThrow("media_purge_failed"); else await runMediaPurges(env);
+    expect(counted.getCalls()).toBeLessThanOrEqual(50); expect(list.mock.calls.length + remove.mock.calls.length + multipart.mock.calls.length).toBeLessThanOrEqual(21);
   });
 
   it.each(["transcribe", "translate"])("%s AI가 철회 뒤 완료되어도 전사·번역 결과를 복원하지 않는다", async (stage) => {

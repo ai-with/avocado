@@ -2,13 +2,14 @@ import { Hono } from "hono";
 import { count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { AppEnv } from "../../types";
-import { audioTracks, frames } from "../../db/schema";
+import { frames } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { UPLOAD_LIMITS } from "../../../shared/guides";
 import { findSubmission, uploadCtx } from "./shared";
 import { assertMediaWritable, withMediaWrite } from "../../lib/media-purge";
-import { analysisSqlBatch, audioHash, writableSql } from "../../pipeline/analysis";
+import { analysisSqlBatch, writableSql } from "../../pipeline/analysis";
+import { storeAudio } from "../../lib/audio-write";
 import { AUDIO_UNAVAILABLE_REASONS, NO_AUDIO_PROOF } from "../../../shared/audio-analysis";
 
 // 업로드 완료 뒤 브라우저가 뽑아 보내는 분석 재료 (프레임, 오디오)
@@ -88,12 +89,7 @@ export const mediaRoutes = new Hono<AppEnv>()
     const sampleRate = Number(form.get("sampleRate"));
     const durationS = Number(form.get("durationS"));
     if (!(audio instanceof File) || audio.size > MAX_AUDIO_BYTES || !Number.isFinite(durationS)) throw new ApiError(400, "bad_audio", "오디오 형식이 올바르지 않아요.");
-    const bytes = await audio.arrayBuffer(), contentHash = await audioHash(bytes);
-    const key = `audio/${s.id}.wav`;
-    await withMediaWrite(c.env, db, s.id, { key, kind: "object" },
-      async () => c.env.FILES.put(key, bytes, { httpMetadata: { contentType: "audio/wav" } }),
-      async () => { await db.insert(audioTracks).values({ id: newId(), submissionId: s.id, key, sampleRate, durationS, contentHash })
-        .onConflictDoUpdate({ target: audioTracks.submissionId, set: { key, sampleRate, durationS, contentHash } }); });
+    await storeAudio(c.env, db, s.id, await audio.arrayBuffer(), sampleRate, durationS);
     await wake(c.env, s.id);
     return c.json({ ok: true }, 201);
   });

@@ -11,7 +11,8 @@ import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { postUrlBody } from "./shared";
 import { assertMediaWritable } from "../../lib/media-purge";
 
-// 키 모양: originals/{guideId}/..., frames/{submissionId}/..., audio/{submissionId}.wav
+// 키 모양: originals/{guideId}/..., frames/{submissionId}/...,
+// audio/{submissionId}/{hash}/{writeId}.wav (legacy audio/{submissionId}.wav도 지원)
 async function guideIdOfKey(db: Db, key: string) {
   const kind = key.split("/", 1)[0];
   let subId: string | undefined;

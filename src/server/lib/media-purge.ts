@@ -88,10 +88,43 @@ export async function withdrawMedia(db: Db, giId: string, consentId: string, at:
 export function validMediaKey(submissionId: string, key: string): boolean {
   if (!TOKEN.test(submissionId) || /[\\\u0000-\u0020\u007f]/.test(key)) return false;
   if (key === `audio/${submissionId}.wav`) return true;
+  if (managedAudioKey(submissionId, key)) return true;
   const frame = key.match(/^frames\/([\w-]+)\/(\d+)\.jpg$/);
   if (frame) return frame[1] === submissionId;
   const original = key.match(/^originals\/([\w-]+)\/([\w-]+)\/([\w-]+)\.(mp4|mov|webm)$/);
   return original?.[3] === submissionId;
+}
+
+export function managedAudioKey(submissionId: string, key: string): boolean {
+  const match = key.match(/^audio\/([\w-]+)\/[a-f0-9]{64}\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.wav$/);
+  return TOKEN.test(submissionId) && match?.[1] === submissionId;
+}
+
+// Object identities are never reused. Retirement is a DB barrier against a late
+// commit before deletion, not a claim that an uncertain PUT has already stopped.
+export async function retireAudioWrite(db: Db, submissionId: string, key: string) {
+  if (!managedAudioKey(submissionId, key)) throw new Error("invalid_media_key");
+  await db.run(sql`UPDATE media_purge_objects AS p SET retired_at=coalesce(retired_at,${now()})
+    WHERE submission_id=${submissionId} AND key=${key} AND kind='object'
+    AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)`);
+}
+
+export async function cleanupRetiredAudio(env: Env, db: Db, submissionId?: string): Promise<number> {
+  const at = now(), scope = submissionId ?? null;
+  const result = await mediaBatch(db, [sql`UPDATE media_purge_objects AS p SET retired_at=${at}
+    WHERE id IN(SELECT id FROM media_purge_objects WHERE audio_write_until<=${at} AND audio_committed_at IS NULL AND retired_at IS NULL
+      AND (${scope} IS NULL OR submission_id=${scope}) ORDER BY audio_write_until,id LIMIT 100)
+    AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)`,
+    sql`SELECT p.id,p.submission_id AS submissionId,p.key FROM media_purge_objects p WHERE p.retired_at IS NOT NULL AND p.kind='object'
+      AND (${scope} IS NULL OR p.submission_id=${scope})
+      AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)
+      ORDER BY p.deleted_at,p.retired_at,p.id LIMIT 100`]);
+  const objects = result[1]!.results as { id: string; submissionId: string; key: string }[];
+  if (objects.some((object) => !managedAudioKey(object.submissionId, object.key))) throw new Error("invalid_media_key");
+  if (!objects.length) return 0;
+  await env.FILES.delete(objects.map((object) => object.key));
+  await db.run(sql`UPDATE media_purge_objects SET deleted_at=${at} WHERE id IN(SELECT value FROM json_each(${JSON.stringify(objects.map((object) => object.id))}))`);
+  return objects.length;
 }
 
 async function snapshotResources(env: Env, db: Db, submissionId: string) {
@@ -109,12 +142,14 @@ async function snapshotResources(env: Env, db: Db, submissionId: string) {
     if (row.uploadId) add({ key: row.key, kind: "multipart", uploadId: row.uploadId });
   }
   // 원장을 쓴 뒤 중단된 put이나 DB 참조 없이 남은 프레임도 정확한 제출물 prefix 안에서만 찾는다.
-  let cursor: string | undefined;
-  do {
-    const page = await env.FILES.list({ prefix: `frames/${submissionId}/`, cursor });
-    for (const object of page.objects) add({ key: object.key, kind: "object" });
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
+  for (const prefix of [`frames/${submissionId}/`, `audio/${submissionId}/`]) {
+    let cursor: string | undefined;
+    do {
+      const page = await env.FILES.list({ prefix, cursor });
+      for (const object of page.objects) add({ key: object.key, kind: "object" });
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+  }
   add({ key: `audio/${submissionId}.wav`, kind: "object" });
   const consentId = await mediaConsent(db, submissionId);
   await mediaBatch(db, [...resources.values()].map((resource) => rememberQuery(submissionId, consentId, resource)));
@@ -176,7 +211,7 @@ export async function runMediaPurges(env: Env) {
   const pending = await db.all<{ submissionId: string }>(sql`SELECT submission_id AS submissionId FROM media_purges WHERE completed_at IS NULL AND due_at<=${at} AND next_attempt_at<=${at} ORDER BY checked_at,submission_id LIMIT ${PENDING_BATCH}`);
   const completed = await db.all<{ submissionId: string }>(sql`SELECT submission_id AS submissionId FROM media_purges WHERE completed_at IS NOT NULL AND due_at<=${at} AND next_attempt_at<=${at} ORDER BY checked_at,submission_id LIMIT ${COMPLETED_BATCH}`);
   const jobs = [...pending, ...completed];
-  const summary = { attempted: jobs.length, succeeded: 0, failed: 0, objectsProcessed: 0, multipartProcessed: 0, transcriptsDeleted: 0, pending: 0, overdue: 0, unknownMultipart: 0 };
+  const summary = { attempted: jobs.length, succeeded: 0, failed: 0, objectsProcessed: 0, multipartProcessed: 0, transcriptsDeleted: 0, pending: 0, overdue: 0, unknownMultipart: 0, retiredAudioProcessed: 0, retiredAudioFailed: 0 };
   for (const job of jobs) {
     try {
       const result = await purgeSubmissionMedia(env, job.submissionId);
@@ -188,9 +223,10 @@ export async function runMediaPurges(env: Env) {
     coalesce(sum(CASE WHEN due_at<=${at} THEN 1 ELSE 0 END),0) AS overdue,
     coalesce(sum(CASE WHEN last_error='multipart_upload_id_unknown' THEN 1 ELSE 0 END),0) AS unknownMultipart FROM media_purges WHERE completed_at IS NULL`);
   Object.assign(summary, remaining[0]);
+  try { summary.retiredAudioProcessed = await cleanupRetiredAudio(env, db); } catch { summary.retiredAudioFailed = 1; }
   console.log("[media_purge_run]", JSON.stringify(summary));
   await db.run(sql`INSERT INTO events (id,workspace_id,name,props,at) VALUES (${newId()},NULL,'media_purge_run',${JSON.stringify(summary)},${at})`);
-  if (summary.failed) throw new Error(`media_purge_failed:${summary.failed}`);
+  if (summary.failed || summary.retiredAudioFailed) throw new Error(`media_purge_failed:${summary.failed + summary.retiredAudioFailed}`);
 }
 
 // R2 쓰기 intent는 먼저 영속화하고, 철회와 겹친 완료는 즉시 파기를 재예약·보상한다.

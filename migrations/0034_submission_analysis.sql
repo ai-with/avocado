@@ -1,6 +1,12 @@
 -- AIWITH-381: positive no-audio receipt and generation-fenced pipeline claims.
 ALTER TABLE audio_tracks ADD content_hash text;
 ALTER TABLE processing_jobs ADD analysis_generation integer NOT NULL DEFAULT 0;
+ALTER TABLE processing_jobs ADD stage_request_id text;
+ALTER TABLE media_purge_objects ADD audio_write_until integer;
+ALTER TABLE media_purge_objects ADD audio_committed_at integer;
+ALTER TABLE media_purge_objects ADD retired_at integer;
+CREATE INDEX media_retired_audio_idx ON media_purge_objects(deleted_at,retired_at,id) WHERE retired_at IS NOT NULL;
+CREATE INDEX media_audio_writes_idx ON media_purge_objects(audio_write_until,id) WHERE audio_write_until IS NOT NULL AND audio_committed_at IS NULL AND retired_at IS NULL;
 CREATE TABLE submission_analysis (
  submission_id text PRIMARY KEY NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
  audio_state text NOT NULL DEFAULT 'unknown' CHECK(audio_state IN ('unknown','none','present')),
@@ -10,7 +16,7 @@ CREATE TABLE submission_analysis (
 );
 CREATE TABLE submission_analysis_retries (
  submission_id text NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
- request_id text NOT NULL, generation integer NOT NULL, completed_at integer NOT NULL,
+ request_id text NOT NULL, generation integer NOT NULL, seen_at integer NOT NULL, first_claim_token text NOT NULL, completed_at integer,
  PRIMARY KEY(submission_id,request_id)
 );
 INSERT INTO submission_analysis(submission_id,audio_state,completed_generation)
@@ -28,6 +34,10 @@ WHEN NEW.content_hash IS NOT OLD.content_hash OR NEW.key IS NOT OLD.key OR NEW.s
 BEGIN
  UPDATE submission_analysis SET audio_state='present',audio_reason=NULL,generation=generation+1,
  claim_token=NULL,claim_until=NULL WHERE submission_id=NEW.submission_id;
+END;
+CREATE TRIGGER analysis_audio_object_removed AFTER DELETE ON audio_tracks BEGIN
+ UPDATE media_purge_objects SET retired_at=coalesce(retired_at,CAST(strftime('%s','now') AS integer)*1000)
+ WHERE submission_id=OLD.submission_id AND key=OLD.key AND kind='object' AND audio_committed_at IS NOT NULL;
 END;
 CREATE TRIGGER analysis_generation_changed AFTER UPDATE OF generation ON submission_analysis
 WHEN NEW.generation<>OLD.generation BEGIN

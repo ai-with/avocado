@@ -216,5 +216,7 @@ export const submissionAnalysisRetries = sqliteTable("submission_analysis_retrie
   submissionId: text("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
   requestId: text("request_id").notNull(),
   generation: integer("generation").notNull(),
-  completedAt: integer("completed_at").notNull(),
+  seenAt: integer("seen_at").notNull(),
+  firstClaimToken: text("first_claim_token").notNull(),
+  completedAt: integer("completed_at"),
 }, (t) => [primaryKey({ columns: [t.submissionId, t.requestId] })]);

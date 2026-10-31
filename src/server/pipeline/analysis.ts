@@ -50,7 +50,7 @@ export async function claimAnalysis(ctx: Ctx, requestId: string | null) {
   const rows = await ctx.db.all<{ generation: number; completed_generation: number }>(sql`UPDATE submission_analysis SET claim_token=${token},claim_until=${at + CLAIM_MS}
     WHERE submission_id=${ctx.sub.id} AND ${writableSql(ctx.sub.id)} AND (claim_token IS NULL OR claim_until<=${at})
     AND ((${requestId} IS NULL AND completed_generation<generation) OR (${requestId} IS NOT NULL AND NOT EXISTS(
-      SELECT 1 FROM submission_analysis_retries r WHERE r.submission_id=${ctx.sub.id} AND r.request_id=${requestId}))) RETURNING generation,completed_generation`);
+      SELECT 1 FROM submission_analysis_retries r WHERE r.submission_id=${ctx.sub.id} AND r.request_id=${requestId} AND r.completed_at IS NOT NULL))) RETURNING generation,completed_generation`);
   if (rows[0]) { ctx.analysis = { generation: rows[0].generation, token, requestId, pendingGeneration: rows[0].completed_generation < rows[0].generation }; return "claimed" as const; }
   await assertMediaWritable(ctx.db, ctx.sub.id);
   const state = await ctx.db.get<{ claim_token: string | null; claim_until: number | null }>(sql`SELECT claim_token,claim_until FROM submission_analysis WHERE submission_id=${ctx.sub.id}`);
@@ -64,10 +64,10 @@ export async function releaseAnalysis(ctx: Ctx) {
   await ctx.db.run(sql`UPDATE submission_analysis SET claim_token=NULL,claim_until=NULL WHERE submission_id=${ctx.sub.id}
     AND generation=${ctx.analysis.generation} AND claim_token=${ctx.analysis.token} AND ${writableSql(ctx.sub.id)}`);
 }
-export async function finishAnalysis(ctx: Ctx) {
+export async function finishAnalysis(ctx: Ctx, performed = true) {
   await analysisWrite(ctx, [sql`UPDATE submissions SET status='ready' WHERE id=${ctx.sub.id}`,
-    sql`INSERT INTO submission_analysis_retries(submission_id,request_id,generation,completed_at)
-      SELECT ${ctx.sub.id},${ctx.analysis?.requestId ?? null},${ctx.analysis?.generation ?? 0},${now()} WHERE ${ctx.analysis?.requestId ?? null} IS NOT NULL ON CONFLICT DO NOTHING`,
+    sql`UPDATE submission_analysis_retries SET completed_at=coalesce(completed_at,${now()}) WHERE submission_id=${ctx.sub.id} AND request_id=${ctx.analysis?.requestId ?? null}`,
     sql`UPDATE submission_analysis SET completed_generation=CASE WHEN ${ctx.analysis?.requestId ?? null} IS NULL THEN generation ELSE completed_generation END,
-    completed_request_id=coalesce(${ctx.analysis?.requestId ?? null},completed_request_id),claim_token=NULL,claim_until=NULL WHERE submission_id=${ctx.sub.id}`]);
+    completed_request_id=CASE WHEN ${performed ? 1 : 0}=1 THEN coalesce(${ctx.analysis?.requestId ?? null},completed_request_id)
+      ELSE coalesce(completed_request_id,${ctx.analysis?.requestId ?? null}) END,claim_token=NULL,claim_until=NULL WHERE submission_id=${ctx.sub.id}`]);
 }

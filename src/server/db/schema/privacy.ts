@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 // R2 작업은 부모 행 삭제 후에도 키와 실패 상태를 잃지 않도록 FK cascade를 두지 않는다.
 export const mediaPurges = sqliteTable("media_purges", {
@@ -22,4 +23,9 @@ export const mediaPurgeObjects = sqliteTable("media_purge_objects", {
   kind: text("kind").$type<"object" | "multipart">().notNull(),
   uploadId: text("upload_id"),
   deletedAt: integer("deleted_at"),
-}, (t) => [uniqueIndex("media_purge_objects_key_idx").on(t.submissionId, t.key, t.kind), index("media_purge_objects_submission_idx").on(t.submissionId, t.deletedAt)]);
+  audioWriteUntil: integer("audio_write_until"),
+  audioCommittedAt: integer("audio_committed_at"),
+  retiredAt: integer("retired_at"),
+}, (t) => [uniqueIndex("media_purge_objects_key_idx").on(t.submissionId, t.key, t.kind), index("media_purge_objects_submission_idx").on(t.submissionId, t.deletedAt),
+  index("media_retired_audio_idx").on(t.deletedAt, t.retiredAt, t.id).where(sql`${t.retiredAt} IS NOT NULL`),
+  index("media_audio_writes_idx").on(t.audioWriteUntil, t.id).where(sql`${t.audioWriteUntil} IS NOT NULL AND ${t.audioCommittedAt} IS NULL AND ${t.retiredAt} IS NULL`)]);
