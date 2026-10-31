@@ -3,20 +3,14 @@ import { Hono } from "hono";
 import type { AppEnv } from "../../types";
 import { getDb } from "../../db";
 import { ApiError, errorBody } from "../../lib/errors";
-import { base64url } from "../../lib/ids";
+import { base64url, sha256Hex } from "../../lib/ids";
 import type { Jwk } from "../../lib/jwt";
 import { loadSession } from "../../middleware/auth";
 import { inviteRoutes } from "../invites";
 import { googleRoutes } from "./google";
+import { createSqliteD1, type TestSqlite } from "../../test/sqlite-d1";
 
-type Value = string | number | null;
-type Row = Record<string, Value>;
-type Sqlite = {
-  exec(sql: string): void;
-  close(): void;
-  prepare(sql: string): { run(...params: Value[]): { changes: number }; all(...params: Value[]): Row[] };
-};
-const databases: Sqlite[] = [];
+const databases: TestSqlite[] = [];
 const NOW = Date.parse("2026-10-31T06:00:00Z");
 const INVITE = "/invite/invite-token";
 let keys: Jwk[];
@@ -38,54 +32,51 @@ afterEach(() => {
 });
 
 async function setup(phoneVerified = false) {
-  const sqlite = (await import("node:sqlite" as string)) as { DatabaseSync: new (path: string) => Sqlite };
-  const fs = (await import("node:fs" as string)) as { readdirSync(path: string): string[]; readFileSync(path: string, encoding: string): string };
-  const db = new sqlite.DatabaseSync(":memory:");
+  const { db, d1: native } = await createSqliteD1();
   databases.push(db);
-  db.exec("PRAGMA foreign_keys = ON");
-  for (const file of fs.readdirSync("migrations").filter((f) => f.endsWith(".sql")).sort()) db.exec(fs.readFileSync(`migrations/${file}`, "utf8"));
-  const prepare = (sql: string, params: Value[] = []): unknown => ({
-    bind: (...values: Value[]) => prepare(sql, values),
-    run: async () => ({ success: true, results: [], meta: { changes: Number(db.prepare(sql).run(...params).changes) } }),
-    all: async () => ({ success: true, results: db.prepare(sql).all(...params), meta: {} }),
-    raw: async () => {
-      // D1.raw처럼 JOIN의 중복 컬럼 이름도 선택 순서대로 보존한다(Node 23 SQLite는 객체만 반환).
-      const arraySql = sql.replace(/^select (.*?) from /i, "select json_array($1) as raw_row from ");
-      return db.prepare(arraySql).all(...params).map((row) => JSON.parse(String(row.raw_row)));
-    },
-  });
-  const d1 = { prepare, batch: async (statements: { run(): Promise<unknown> }[]) => {
-    db.exec("BEGIN");
-    try {
-      const results = [];
-      for (const statement of statements) results.push(await statement.run());
-      db.exec("COMMIT");
-      return results;
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  } } as unknown as D1Database;
+  let afterStateRead: (() => Promise<void>) | undefined;
+  let beforeQuery: ((sql: string) => void) | undefined;
+  const wrap = (statement: D1PreparedStatement, sql: string): D1PreparedStatement => new Proxy(statement, { get(target, key) {
+    if (key === "bind") return (...values: unknown[]) => wrap(target.bind(...values), sql);
+    if (key === "raw" || key === "all") return async () => {
+      const result = key === "raw" ? await target.raw() : await target.all();
+      if (/^select\b/i.test(sql) && sql.includes('from "oauth_states"')) await afterStateRead?.();
+      return result;
+    };
+    return Reflect.get(target, key);
+  } });
+  const d1 = { ...native, prepare: (sql: string) => { beforeQuery?.(sql); return wrap(native.prepare(sql), sql); } } as D1Database;
   db.prepare("INSERT INTO users (id, email, password_hash, name, created_at, phone_verified_at) VALUES ('u1', 'invited@example.com', '', '초대받은 사람', ?, ?)").run(NOW, phoneVerified ? NOW : null);
   db.exec("INSERT INTO workspaces (id, name, created_at) VALUES ('w1', '초대한 팀', 1)");
   db.prepare("INSERT INTO invites (id, workspace_id, email, role, token, expires_at, created_at) VALUES ('i1', 'w1', 'invited@example.com', 'editor', 'invite-token', ?, ?)").run(NOW + 60_000, NOW);
-  const env = { DB: d1, APP_URL: "https://app.example.com", GOOGLE_CLIENT_ID: "client", GOOGLE_CLIENT_SECRET: "test-secret" } as Env;
+  const env = { DB: d1, APP_ENV: "production", APP_URL: "https://app.example.com", GOOGLE_CLIENT_ID: "client", GOOGLE_CLIENT_SECRET: "test-secret" } as Env;
   const app = new Hono<AppEnv>();
   app.use("*", async (c, next) => { c.set("db", getDb(c.env.DB)); await next(); });
   app.use("*", loadSession);
   app.route("/api/auth", googleRoutes);
   app.route("/api/invites", inviteRoutes);
   app.onError((error, c) => error instanceof ApiError ? c.json(errorBody(error.code, error.message), error.status) : c.text("internal error", 500));
-  const call = (path: string, init?: RequestInit, bindings = env) => app.request(path, init, bindings);
+  const cookies = new Map<string, string>();
+  const call = async (path: string, init?: RequestInit, bindings = env) => {
+    const headers = new Headers(init?.headers);
+    if (!headers.has("cookie")) headers.set("cookie", [...cookies].map(([key, value]) => `${key}=${value}`).join("; "));
+    const response = await app.request(path, { ...init, headers }, bindings);
+    for (const cookie of response.headers.getSetCookie()) {
+      const first = cookie.split(";", 1)[0]!, equal = first.indexOf("=");
+      if (/Max-Age=0\b/i.test(cookie)) cookies.delete(first.slice(0, equal));
+      else cookies.set(first.slice(0, equal), first.slice(equal + 1));
+    }
+    return response;
+  };
   const start = async (next = INVITE) => {
     const response = await call(`/api/auth/google/start?next=${encodeURIComponent(next)}`);
     expect(response.status).toBe(302);
     const target = new URL(response.headers.get("location")!);
     const state = target.searchParams.get("state")!;
     const saved = db.prepare("SELECT nonce, redirect_next FROM oauth_states WHERE state = ?").all(state)[0]!;
-    return { state, nonce: String(saved.nonce), next: saved.redirect_next };
+    return { state, nonce: String(saved.nonce), next: saved.redirect_next, cookies: response.headers.getSetCookie(), url: target };
   };
-  return { db, env, call, start };
+  return { db, env, call, start, cookies, setAfterStateRead: (fn: () => Promise<void>) => { afterStateRead = fn; }, setBeforeQuery: (fn?: (sql: string) => void) => { beforeQuery = fn; } };
 }
 
 async function token(nonce: string, extra: Record<string, unknown> = {}) {
@@ -105,7 +96,118 @@ function googleFetch(idToken: string) {
   return fetcher;
 }
 const targetOf = (response: Response) => new URL(response.headers.get("location")!, "https://app.example.com");
-const sessionCookie = (response: Response) => response.headers.get("set-cookie")!.split(";", 1)[0]!;
+const sessionCookie = (response: Response) => response.headers.getSetCookie().find((cookie) => cookie.startsWith("sid="))!.split(";", 1)[0]!;
+
+describe("Google OAuth의 브라우저 바인딩·원자적 state 소비", () => {
+  it("운영은 state별 Host cookie에 nonce를 묶고 기존 scope·PKCE·Google 요청 계약을 유지한다", async () => {
+    const { db, call, start } = await setup(true); const saved = await start();
+    const cookie = saved.cookies[0]!;
+    expect(cookie).toMatch(/^__Host-google-oauth-/); expect(cookie).toContain(`=${saved.nonce};`);
+    expect(cookie).toContain("HttpOnly"); expect(cookie).toContain("Secure"); expect(cookie).toContain("Path=/"); expect(cookie).toContain("SameSite=Lax"); expect(cookie).toContain("Max-Age=900"); expect(cookie).not.toContain("Domain=");
+    expect(cookie.split("=", 1)[0]).not.toContain(saved.state);
+    expect(saved.url.origin + saved.url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+    expect(saved.url.searchParams.get("scope")).toBe("openid email profile"); expect(saved.url.searchParams.get("nonce")).toBe(saved.nonce);
+    expect(saved.url.searchParams.get("code_challenge_method")).toBe("S256"); expect(saved.url.searchParams.get("prompt")).toBe("select_account");
+    const verifier = String(db.prepare("SELECT code_verifier FROM oauth_states").all()[0]!.code_verifier);
+    expect(saved.url.searchParams.get("code_challenge")).toBe(base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)))));
+    const fetcher = googleFetch(await token(saved.nonce)); await call(`/api/auth/google/callback?state=${saved.state}&code=normal-code`);
+    const request = fetcher.mock.calls.find(([url]) => String(url) === "https://oauth2.googleapis.com/token")!;
+    const body = new URLSearchParams(String((request as unknown as [string, RequestInit])[1]?.body));
+    expect(body.get("code_verifier")).toBe(verifier); expect(body.get("redirect_uri")).toBe("https://app.example.com/api/auth/google/callback");
+  });
+
+  it("개발 HTTP는 Host 접두사와 Secure 없이 별도 cookie 이름을 쓴다", async () => {
+    const { env, start } = await setup(); env.APP_ENV = "development";
+    const saved = await start(); expect(saved.cookies[0]).toMatch(/^google-oauth-/); expect(saved.cookies[0]).not.toContain("Secure");
+    expect(saved.cookies[0]).toContain("HttpOnly"); expect(saved.cookies[0]).toContain("SameSite=Lax");
+  });
+
+  it("다른 브라우저의 callback은 로그인시키거나 원래 브라우저의 state를 소모하지 않는다", async () => {
+    const { db, call, start } = await setup(true); const saved = await start();
+    const fetcher = googleFetch(await token(saved.nonce));
+    const callback = `/api/auth/google/callback?state=${saved.state}&code=attacker-code`;
+    const foreign = await call(callback, { headers: { cookie: "" } });
+    expect(targetOf(foreign).searchParams.get("error")).toBe("google_state");
+    expect(fetcher).not.toHaveBeenCalled(); expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(0);
+    expect(db.prepare("SELECT * FROM oauth_states WHERE state=?").all(saved.state)).toHaveLength(1);
+    expect((await call(callback)).headers.get("location")).toBe(INVITE);
+    expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(1);
+  });
+
+  it("다른 nonce·탭의 cookie로는 유효 state를 지우거나 저장된 invite next를 노출하지 않는다", async () => {
+    const { db, call, start } = await setup(true); const a = await start(), b = await start("/dashboard");
+    const fetcher = googleFetch(await token(a.nonce)), name = a.cookies[0]!.split("=", 1)[0]!;
+    for (const nonce of ["A".repeat(32), b.nonce]) {
+      const response = await call(`/api/auth/google/callback?state=${a.state}&code=foreign`, { headers: { cookie: `${name}=${nonce}` } });
+      expect(targetOf(response).searchParams.get("error")).toBe("google_state"); expect(targetOf(response).searchParams.get("next")).toBe("/dashboard");
+    }
+    expect(db.prepare("SELECT * FROM oauth_states").all()).toHaveLength(2); expect(fetcher).not.toHaveBeenCalled();
+    expect((await call(`/api/auth/google/callback?state=${a.state}&code=normal`)).headers.get("location")).toBe(INVITE);
+  });
+
+  it("동시 callback도 state를 한 번만 소모하고 token 교환·세션 생성을 한 번만 한다", async () => {
+    const { db, call, start, setAfterStateRead } = await setup(true);
+    db.exec("UPDATE users SET google_sub='google-user'");
+    const saved = await start(), fetcher = googleFetch(await token(saved.nonce));
+    let reads = 0, release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    setAfterStateRead(async () => { if (++reads === 2) release(); await gate; });
+    const results = await Promise.all([call(`/api/auth/google/callback?state=${saved.state}&code=code-one`), call(`/api/auth/google/callback?state=${saved.state}&code=code-two`)]);
+    expect(results.filter((response) => response.headers.get("location") === INVITE)).toHaveLength(1);
+    expect(fetcher.mock.calls.filter(([url]) => String(url) === "https://oauth2.googleapis.com/token")).toHaveLength(1);
+    expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(1);
+  });
+
+  it("여러 탭의 cookie는 독립적이고 취소는 해당 탭만 정리하며 다른 탭·replay를 로그인시키지 않는다", async () => {
+    const { db, call, start, cookies } = await setup(true); const a = await start(), b = await start("/dashboard?tab=two");
+    const nameA = a.cookies[0]!.split("=", 1)[0]!, nameB = b.cookies[0]!.split("=", 1)[0]!;
+    expect(nameA).not.toBe(nameB); expect(cookies.has(nameA) && cookies.has(nameB)).toBe(true);
+    const fetcher = googleFetch(await token(b.nonce));
+    const cancelled = await call(`/api/auth/google/callback?state=${a.state}&error=access_denied&code=ignored`);
+    expect(targetOf(cancelled).searchParams.get("error")).toBe("google_cancelled"); expect(targetOf(cancelled).searchParams.get("next")).toBe(INVITE);
+    expect(cookies.has(nameA)).toBe(false); expect(cookies.has(nameB)).toBe(true); expect(fetcher).not.toHaveBeenCalled();
+    const response = await call(`/api/auth/google/callback?state=${b.state}&code=normal`); expect(response.headers.get("location")).toBe("/dashboard?tab=two");
+    expect(cookies.has(nameB)).toBe(false); const count = fetcher.mock.calls.length;
+    const replay = await call(`/api/auth/google/callback?state=${b.state}&code=replay`, { headers: { cookie: b.cookies[0]!.split(";", 1)[0]! } });
+    expect(targetOf(replay).searchParams.get("error")).toBe("google_state"); expect(fetcher.mock.calls).toHaveLength(count);
+    expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(1);
+  });
+
+  it("인증 TTL 경계에서 거절하되 원래 브라우저의 만료 안내 유예 동안 invite next를 보존한다", async () => {
+    const { db, call, start } = await setup(); const saved = await start();
+    vi.mocked(Date.now).mockReturnValue(NOW + 10 * 60_000);
+    const other = await start("/dashboard"); // 다른 시작이 유예 중 state를 삭제하지 않는다.
+    const fetcher = googleFetch(""); const response = await call(`/api/auth/google/callback?state=${saved.state}&code=expired`);
+    expect(targetOf(response).searchParams.get("error")).toBe("google_state"); expect(targetOf(response).searchParams.get("next")).toBe(INVITE);
+    expect(fetcher).not.toHaveBeenCalled(); expect(db.prepare("SELECT state FROM oauth_states").all()).toEqual([{ state: other.state }]);
+  });
+
+  it("취소·잘못된 callback은 기존 로그인 cookie와 세션 행을 유지한다", async () => {
+    const { db, call, start, cookies } = await setup(); const existing = await sha256Hex("existing-login");
+    db.prepare("INSERT INTO sessions(id,user_id,expires_at,created_at) VALUES(?,'u1',?,?)").run(existing, NOW + 3_600_000, NOW);
+    cookies.set("sid", "existing-login"); const before = db.prepare("SELECT * FROM sessions").all(), saved = await start();
+    const invalid = await call(`/api/auth/google/callback?state=${saved.state}&code=other-browser`, { headers: { cookie: "sid=existing-login" } });
+    expect(targetOf(invalid).searchParams.get("error")).toBe("google_state");
+    const cancelled = await call(`/api/auth/google/callback?state=${saved.state}&error=access_denied`);
+    expect(cancelled.headers.getSetCookie().every((cookie) => !cookie.startsWith("sid="))).toBe(true);
+    expect(cookies.get("sid")).toBe("existing-login"); expect(db.prepare("SELECT * FROM sessions").all()).toEqual(before);
+  });
+
+  it.each(["provider", "start_db", "callback_db"])("%s 원문 code/state/nonce/token/SQL cause는 응답·로그에 남기지 않는다", async (stage) => {
+    const { db, call, start, setBeforeQuery } = await setup(true);
+    const saved = stage === "start_db" ? null : await start(), fetcher = googleFetch("private-id-token");
+    if (stage === "provider") fetcher.mockResolvedValueOnce(new Response("private-code private-id-token private-cookie", { status: 400 }));
+    else setBeforeQuery((sql) => {
+      if ((stage === "start_db" && /^insert into "oauth_states"/i.test(sql)) || (stage === "callback_db" && /^delete from "oauth_states"/i.test(sql) && sql.includes('"nonce"'))) throw new Error(`private-code private-id-token private-cookie ${saved?.state ?? "private-state"} ${saved?.nonce ?? "private-nonce"}`, { cause: new Error("private-cause") });
+    });
+    const response = stage === "start_db" ? await call(`/api/auth/google/start?next=${encodeURIComponent(INVITE)}`) : await call(`/api/auth/google/callback?state=${saved!.state}&code=private-code`);
+    expect(targetOf(response).searchParams.get("error")).toBe("google_failed");
+    const output = JSON.stringify(vi.mocked(console.error).mock.calls) + response.headers.get("location");
+    for (const secret of ["private-code", "private-id-token", "private-cookie", "private-cause", saved?.state, saved?.nonce]) if (secret) expect(output).not.toContain(secret);
+    expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(0);
+    if (stage === "callback_db") expect(db.prepare("SELECT * FROM oauth_states").all()).toHaveLength(1);
+  });
+});
 
 describe("Google 로그인으로 팀 초대 이어가기", () => {
   it("인증된 계정은 초대로 복귀하고 수락 버튼의 POST 전에는 가입시키지 않는다", async () => {
@@ -163,7 +265,8 @@ describe("Google 로그인으로 팀 초대 이어가기", () => {
     expect(targetOf(response).pathname).toBe("/login");
     expect(targetOf(response).searchParams.get("error")).toBe(failure === "cancelled" ? "google_cancelled" : "google_failed");
     expect(targetOf(response).searchParams.get("next")).toBe(INVITE);
-    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(response.headers.getSetCookie()).toHaveLength(1);
+    expect(response.headers.getSetCookie()[0]).toMatch(/^__Host-google-oauth-.*Max-Age=0/);
     expect(db.prepare("SELECT * FROM sessions").all()).toHaveLength(0);
     expect(db.prepare("SELECT * FROM members").all()).toHaveLength(0);
     expect(db.prepare("SELECT * FROM oauth_states").all()).toHaveLength(0);

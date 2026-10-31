@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { oauthStates, users } from "../../db/schema";
-import { base64url, newId, newToken, now } from "../../lib/ids";
+import { base64url, newId, newToken, now, sha256Hex } from "../../lib/ids";
 import { googleAction, googleKeys, verifyGoogleIdToken, type GoogleClaims } from "../../lib/jwt";
 import { createSession } from "../../middleware/auth";
 import { MIN } from "./shared";
@@ -12,8 +13,12 @@ import { safeAuthNext } from "../../../shared/auth-redirect";
 // 구글 로그인 (OAuth 2.0 + OIDC, PKCE S256). 패키지 없이 fetch 와 Web Crypto 로 처리한다
 
 const STATE_TTL = 10 * MIN;
+// 인증은 10분. 마지막 5분은 원래 브라우저에 만료 안내와 안전한 next를 돌려주는 데만 쓴다.
+const COOKIE_TTL = 15 * MIN;
 const googleEnabled = (env: Env) => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 const redirectUri = (env: Env) => `${env.APP_URL}/api/auth/google/callback`;
+const stateCookie = async (env: Env, state: string) => `${env.APP_ENV === "production" ? "__Host-" : ""}google-oauth-${(await sha256Hex(state)).slice(0, 16)}`;
+const cookieOptions = (env: Env) => ({ path: "/", secure: env.APP_ENV === "production", httpOnly: true, sameSite: "Lax" as const });
 type SavedState = typeof oauthStates.$inferSelect;
 const loginError = (code: string, next?: string) => `/login?error=${code}&next=${encodeURIComponent(safeAuthNext(next))}`;
 
@@ -49,7 +54,8 @@ async function exchangeCode(env: Env, code: string, saved: SavedState) {
     body: new URLSearchParams({ code, client_id: env.GOOGLE_CLIENT_ID!, client_secret: env.GOOGLE_CLIENT_SECRET!, redirect_uri: redirectUri(env), grant_type: "authorization_code", code_verifier: saved.codeVerifier }),
   });
   if (!tokenRes.ok) {
-    console.error("[google:token]", tokenRes.status, await tokenRes.text());
+    console.error("[google:token]", tokenRes.status);
+    await tokenRes.body?.cancel();
     return null;
   }
   return (await tokenRes.json<{ id_token?: string }>()).id_token ?? "";
@@ -63,17 +69,15 @@ async function verifyClaims(env: Env, idToken: string, saved: SavedState): Promi
       if (e instanceof Error && e.message === "jwt_kid") return verifyGoogleIdToken(idToken, { ...opts, keys: await googleKeys(true) });
       throw e;
     });
-  } catch (e) {
-    console.error("[google:id_token]", e);
+  } catch {
+    console.error("[google:id_token]", "ID 토큰 검증에 실패했어요.");
     return null;
   }
 }
 
-// state 는 한 번만 쓴다. 꺼내면서 지운다
-async function takeState(db: Db, state: string) {
-  const saved = await db.select().from(oauthStates).where(eq(oauthStates.state, state)).get();
-  if (saved) await db.delete(oauthStates).where(eq(oauthStates.state, state));
-  return saved;
+// 원래 브라우저의 nonce가 맞는 요청 한 건만 원자적으로 꺼낸다. 다른 브라우저는 state를 소모하지 않는다.
+async function takeState(db: Db, state: string, browserNonce: string) {
+  return db.delete(oauthStates).where(and(eq(oauthStates.state, state), eq(oauthStates.nonce, browserNonce))).returning().get();
 }
 
 export const googleRoutes = new Hono<AppEnv>()
@@ -81,31 +85,49 @@ export const googleRoutes = new Hono<AppEnv>()
   .get("/google/start", async (c) => {
     const next = safeAuthNext(c.req.query("next"));
     if (!googleEnabled(c.env)) return c.redirect(loginError("google_disabled", next));
-    const state = newToken(24);
-    const nonce = newToken(24);
-    const codeVerifier = newToken(48);
-    const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier))));
-    const db = c.var.db;
-    await db.delete(oauthStates).where(lt(oauthStates.createdAt, now() - STATE_TTL));
-    await db.insert(oauthStates).values({ state, nonce, codeVerifier, redirectNext: next, createdAt: now() });
-    const q = new URLSearchParams({ client_id: c.env.GOOGLE_CLIENT_ID!, redirect_uri: redirectUri(c.env), response_type: "code", scope: "openid email profile", state, nonce, code_challenge: challenge, code_challenge_method: "S256", prompt: "select_account" });
-    return c.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${q}`);
+    try {
+      const state = newToken(24);
+      const nonce = newToken(24);
+      const codeVerifier = newToken(48);
+      const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier))));
+      const db = c.var.db;
+      await db.delete(oauthStates).where(lt(oauthStates.createdAt, now() - COOKIE_TTL));
+      await db.insert(oauthStates).values({ state, nonce, codeVerifier, redirectNext: next, createdAt: now() });
+      setCookie(c, await stateCookie(c.env, state), nonce, { ...cookieOptions(c.env), maxAge: COOKIE_TTL / 1000 });
+      const q = new URLSearchParams({ client_id: c.env.GOOGLE_CLIENT_ID!, redirect_uri: redirectUri(c.env), response_type: "code", scope: "openid email profile", state, nonce, code_challenge: challenge, code_challenge_method: "S256", prompt: "select_account" });
+      return c.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${q}`);
+    } catch {
+      // Drizzle 오류의 bound params에도 state/nonce가 있으므로 원문·cause를 상위 logger로 넘기지 않는다.
+      console.error("[google:start]", "로그인 요청을 시작하지 못했어요.");
+      return c.redirect(loginError("google_failed", next));
+    }
   })
   .get("/google/callback", async (c) => {
-    const db = c.var.db;
-    const saved = await takeState(db, c.req.query("state") ?? "");
-    const next = safeAuthNext(saved?.redirectNext);
+    let next = safeAuthNext(undefined);
     const fail = (code: string) => c.redirect(loginError(code, next));
-    if (!googleEnabled(c.env)) return fail("google_disabled");
-    if (!saved || saved.createdAt < now() - STATE_TTL) return fail("google_state");
-    const code = c.req.query("code");
-    if (!code) return fail("google_cancelled");
-    const idToken = await fetchIdToken(c.env, code, saved);
-    const claims = idToken === null ? null : await verifyClaims(c.env, idToken, saved);
-    if (!claims) return fail("google_failed");
-    const user = await findOrCreateGoogleUser(db, claims);
-    if (user === "email_unverified") return fail("google_email_unverified");
-    await createSession(c, user.id, null);
-    const row = await db.select({ verifiedAt: users.phoneVerifiedAt }).from(users).where(eq(users.id, user.id)).get();
-    return c.redirect(row?.verifiedAt ? next : `/verify-phone?next=${encodeURIComponent(next)}`);
+    try {
+      const db = c.var.db, state = c.req.query("state") ?? "";
+      if (!/^[\w-]{32}$/.test(state)) return fail("google_state");
+      const name = await stateCookie(c.env, state), browserNonce = getCookie(c, name);
+      if (!browserNonce || !/^[\w-]{32}$/.test(browserNonce)) return fail("google_state");
+      const saved = await takeState(db, state, browserNonce);
+      if (!saved) return fail("google_state");
+      deleteCookie(c, name, cookieOptions(c.env));
+      next = safeAuthNext(saved.redirectNext);
+      if (!googleEnabled(c.env)) return fail("google_disabled");
+      if (saved.createdAt <= now() - STATE_TTL) return fail("google_state");
+      const code = c.req.query("code");
+      if (!code || c.req.query("error")) return fail("google_cancelled");
+      const idToken = await fetchIdToken(c.env, code, saved);
+      const claims = idToken === null ? null : await verifyClaims(c.env, idToken, saved);
+      if (!claims) return fail("google_failed");
+      const user = await findOrCreateGoogleUser(db, claims);
+      if (user === "email_unverified") return fail("google_email_unverified");
+      await createSession(c, user.id, null);
+      const row = await db.select({ verifiedAt: users.phoneVerifiedAt }).from(users).where(eq(users.id, user.id)).get();
+      return c.redirect(row?.verifiedAt ? next : `/verify-phone?next=${encodeURIComponent(next)}`);
+    } catch {
+      console.error("[google:callback]", "로그인 요청을 완료하지 못했어요.");
+      return fail("google_failed");
+    }
   });
