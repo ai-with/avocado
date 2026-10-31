@@ -64,7 +64,9 @@ export function dailyDelta(d: SessionDelta, conversions: ConversionEvent[], prev
     pageviews: d.pageviews,
     scroll: newScrollSteps(prevMax ?? 0, d.maxScroll),
     conversions: conversions.length,
-    conversionValue: value,
+    // The currency ledger keeps explicit unpriced coverage. Do not send
+    // Infinity/NaN through D1's JSON binding for this legacy cached field.
+    conversionValue: Number.isFinite(value) ? value : 0,
     membersExcluded: 0,
   };
 }

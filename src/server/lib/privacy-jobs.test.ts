@@ -43,7 +43,8 @@ describe("개인정보 Queue 실행", () => {
     expect(messages.filter((message) => message.body.type === "cleanup_google_sheets")).toHaveLength(1);
     expect(messages.filter((message) => message.body.type === "ig_connection_maintenance")).toEqual([{ body: { type: "ig_connection_maintenance", payload: {} } }]);
     expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
-    expect(counted.getCalls()).toBe(10); // 기존 조회 7회 + 03시 인증 정리 2회 + NULL 해시 보완 1회
+    expect(counted.getCalls()).toBe(11); // 기존10회 + 전역 FX Queue 선점1회; 사이트별 조회는 없다.
+    expect(messages.filter((message) => message.body.type === "site_fx_refresh")).toEqual([{ body: { type: "site_fx_refresh", payload: {} } }]);
     const expectedCalls = [5, 4, 4];
     for (const [i, message] of privacy.entries()) {
       counted.reset();

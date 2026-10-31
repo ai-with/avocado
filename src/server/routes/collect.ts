@@ -32,7 +32,13 @@ async function readBody(c: Context<AppEnv>): Promise<string | null> {
   return buf.byteLength > MAX_BODY_BYTES ? null : new TextDecoder().decode(buf);
 }
 
-async function enqueue(c: Context<AppEnv>, site: Site, envelope: Envelope) {
+export function freezeConversionCurrency(envelope: Envelope, currency: string): Envelope {
+  return { ...envelope, events: envelope.events.map((event) => event.t === "conversion" && event.currency === undefined ? { ...event, currency } : event) };
+}
+
+async function enqueue(c: Context<AppEnv>, site: Site, incoming: Envelope) {
+  // Freeze the accepted source unit before site settings can change in Queue.
+  const envelope = freezeConversionCurrency(incoming, site.currency);
   writeEvents(c.env.SITE_EVENTS, site.id, envelope);
   const ua = c.req.header("user-agent");
   const payload: CollectMessage = {

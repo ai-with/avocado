@@ -6,6 +6,7 @@ import { newToken } from "../../lib/ids";
 import { findLive } from "../../lib/owned";
 import { normalizeDomain } from "../../lib/collect/origin";
 import { kstDay } from "../../lib/collect/aggregate";
+import { conversionTotals, type CurrencySnapshot } from "../../lib/site-fx";
 
 // 사이트 분석 라우트 공용
 
@@ -49,11 +50,12 @@ export function snippetOf(site: Pick<Site, "siteKey" | "consentMode">, appUrl: s
   ].join("\n");
 }
 
-export type SiteSummary = { sessions: number; pageviews: number; conversions: number; conversionValue: number };
-const EMPTY: SiteSummary = { sessions: 0, pageviews: 0, conversions: 0, conversionValue: 0 };
+export type SiteSummary = { sessions: number; pageviews: number; conversions: number; conversionValue: number; conversionValuePending: number; conversionValueConverted: number };
+const EMPTY: SiteSummary = { sessions: 0, pageviews: 0, conversions: 0, conversionValue: 0, conversionValuePending: 0, conversionValueConverted: 0 };
 
 // 최근 N일(한국 시간 일자 기준, 오늘 포함) 사이트별 합계
-export async function summaries(db: Db, siteIds: string[], days = SUMMARY_DAYS): Promise<Map<string, SiteSummary>> {
+export async function summaries(db: Db, sites: CurrencySnapshot[], days = SUMMARY_DAYS): Promise<Map<string, SiteSummary>> {
+  const siteIds = sites.map((site) => site.id);
   if (siteIds.length === 0) return new Map();
   const since = kstDay(Date.now() - (days - 1) * DAY_MS);
   const rows = await db
@@ -62,12 +64,15 @@ export async function summaries(db: Db, siteIds: string[], days = SUMMARY_DAYS):
       sessions: sum(siteDailyStats.sessions).mapWith(Number),
       pageviews: sum(siteDailyStats.pageviews).mapWith(Number),
       conversions: sum(siteDailyStats.conversions).mapWith(Number),
-      conversionValue: sum(siteDailyStats.conversionValue).mapWith(Number),
     })
     .from(siteDailyStats)
     .where(and(inArray(siteDailyStats.siteId, siteIds), gte(siteDailyStats.day, since)))
     .groupBy(siteDailyStats.siteId);
-  return new Map(siteIds.map((id) => [id, rows.find((r) => r.siteId === id) ?? EMPTY]));
+  const values = await conversionTotals(db, sites, since);
+  return new Map(siteIds.map((id) => {
+    const value = values.find((r) => r.siteId === id);
+    return [id, { ...EMPTY, ...rows.find((r) => r.siteId === id), conversionValue: value?.value ?? 0, conversionValuePending: value?.pending ?? 0, conversionValueConverted: value?.converted ?? 0 }];
+  }));
 }
 
 export function toClient(site: Site, appUrl: string, summary: SiteSummary) {

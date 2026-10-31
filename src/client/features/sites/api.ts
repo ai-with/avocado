@@ -3,7 +3,7 @@ import { api } from "../../lib/api";
 // /api/sites 호출과 응답 타입 (서버: src/server/routes/sites)
 
 export type ConsentMode = "auto" | "require";
-export type SiteSummary = { sessions: number; pageviews: number; conversions: number; conversionValue: number };
+export type SiteSummary = { sessions: number; pageviews: number; conversions: number; conversionValue: number; conversionValuePending: number; conversionValueConverted: number };
 export type Site = {
   id: string;
   name: string;

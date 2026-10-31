@@ -26,7 +26,7 @@ export const siteRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const rows = await db.select().from(sites).where(and(eq(sites.workspaceId, workspace.id), isNull(sites.deletedAt))).orderBy(desc(sites.createdAt));
-    const sums = await summaries(db, rows.map((s) => s.id));
+    const sums = await summaries(db, rows);
     return c.json({ sites: rows.map((s) => toClient(s, c.env.APP_URL, sums.get(s.id)!)) });
   })
   .post("/", editorsOnly, async (c) => {
@@ -38,13 +38,13 @@ export const siteRoutes = new Hono<AppEnv>()
     await db.insert(sites).values(row);
     await logEvent(db, workspace.id, "site_created", { site_id: row.id, domain_count: domains.length });
     const site = await ownSite(db, workspace.id, row.id);
-    return c.json({ site: toClient(site, c.env.APP_URL, (await summaries(db, [site.id])).get(site.id)!) }, 201);
+    return c.json({ site: toClient(site, c.env.APP_URL, (await summaries(db, [site])).get(site.id)!) }, 201);
   })
   .get("/:id", async (c) => {
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const site = await ownSite(db, workspace.id, c.req.param("id"));
-    const [sums, daily] = await Promise.all([summaries(db, [site.id]), dailyRows(db, site.id)]);
+    const [sums, daily] = await Promise.all([summaries(db, [site]), dailyRows(db, site.id)]);
     return c.json({ site: toClient(site, c.env.APP_URL, sums.get(site.id)!), daily });
   })
   .patch("/:id", editorsOnly, async (c) => {

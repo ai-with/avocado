@@ -56,7 +56,7 @@ function writesFor(db: D1Database, state: SiteState, m: CollectMessage, d: Sessi
   state.sessions.set(env.sess, { ...known, maxScroll: Math.max(known.maxScroll, d.maxScroll) });
   return [
     upsertSession(db, key, d, { attr: known.attr, isMember: known.isMember, country: m.country, device: m.device }),
-    ...conversions.map((c) => insertConversion(db, key, known.attr.linkId, c, state.site.currency, correctedTs(c.ts, env, m.receivedAt))),
+    ...conversions.map((c) => insertConversion(db, key, known.attr.linkId, c, state.site.currency, correctedTs(c.ts, env, m.receivedAt), m.receivedAt, !known.isMember)),
     upsertDaily(db, state.site.id, kstDay(m.receivedAt), known.attr.linkId, daily),
   ];
 }

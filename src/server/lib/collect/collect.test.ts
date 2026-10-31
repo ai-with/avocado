@@ -113,6 +113,7 @@ describe("세션 집계", () => {
     const d = sessionDelta(env, 3_000, new Set())!;
     const usd = { ...d.conversions[0]!, currency: "USD" };
     expect(dailyDelta(d, d.conversions, null, false, "KRW")).toEqual({ sessions: 1, pageviews: 1, scroll: [25, 50], conversions: 1, conversionValue: 39_000, membersExcluded: 0 });
+    expect(dailyDelta(d, [{ ...d.conversions[0]!, value: 1e308 }, { ...d.conversions[0]!, value: 1e308 }], null, false, "KRW").conversionValue).toBe(0);
     expect(dailyDelta(d, [usd], 50, false, "KRW")).toMatchObject({ sessions: 0, scroll: [], conversions: 1, conversionValue: 0 });
     expect(dailyDelta(d, d.conversions, null, true, "KRW")).toEqual({ sessions: 0, pageviews: 0, scroll: [], conversions: 0, conversionValue: 0, membersExcluded: 1 });
   });

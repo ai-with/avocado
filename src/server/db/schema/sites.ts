@@ -71,12 +71,16 @@ export const siteConversions = sqliteTable(
     currency: text("currency").notNull(),
     orderId: text("order_id"),
     at: integer("at").notNull(),
+    receivedAt: integer("received_at"),
+    eligibleAtCapture: integer("eligible_at_capture", { mode: "boolean" }),
   },
   (t) => [
     uniqueIndex("site_conversions_order_idx").on(t.siteId, t.orderId),
     index("site_conversions_session_idx").on(t.siteId, t.sessionId),
     index("site_conversions_link_idx").on(t.linkId),
     index("site_conversions_person_idx").on(t.siteId, t.personId),
+    index("site_conversions_received_idx").on(t.siteId, t.receivedAt),
+    index("site_conversions_legacy_at_idx").on(t.siteId, t.at).where(sql`${t.receivedAt} IS NULL`),
   ],
 );
 

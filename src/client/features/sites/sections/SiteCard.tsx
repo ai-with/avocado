@@ -12,13 +12,14 @@ function InstallStatus({ site }: { site: Site }) {
 }
 
 function Summary({ site }: { site: Site }) {
-  const { sessions, pageviews, conversions, conversionValue } = site.summary;
+  const { sessions, pageviews, conversions, conversionValue, conversionValuePending, conversionValueConverted } = site.summary;
   const empty = "스크립트를 설치하면 쌓여요";
+  const valueHint = [won(conversionValue, site.currency), conversionValueConverted ? "ECB 참조 환율 적용" : "", conversionValuePending ? `환산 대기 ${conversionValuePending}건` : ""].filter(Boolean).join(" · ");
   return (
     <StatGrid>
       <Stat label="최근 7일 세션" value={sessions} hint={sessions ? "구성원 방문 제외" : empty} />
       <Stat label="페이지뷰" value={pageviews} />
-      <Stat label="전환" value={conversions} hint={conversions ? won(conversionValue, site.currency) : undefined} />
+      <Stat label="전환" value={conversions} hint={conversions ? valueHint : undefined} />
     </StatGrid>
   );
 }

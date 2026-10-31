@@ -25,13 +25,13 @@ export function upsertSession(db: D1Database, k: SessionKey, d: SessionDelta, m:
     .bind(k.siteId, k.sessionId, k.anonId, k.siteId, k.anonId, m.attr.linkId, m.attr.clickToken, m.attr.match, d.firstAt, d.lastAt, d.pageviews, d.maxScroll, d.visibleMs, d.clicks, m.isMember ? 1 : 0, m.country, m.device);
 }
 
-export function insertConversion(db: D1Database, k: SessionKey, linkId: string | null, e: ConversionEvent, currency: string, at: number) {
+export function insertConversion(db: D1Database, k: SessionKey, linkId: string | null, e: ConversionEvent, currency: string, at: number, receivedAt = at, eligibleAtCapture?: boolean) {
   return db
     .prepare(
-      `INSERT OR IGNORE INTO site_conversions (id, site_id, session_id, person_id, link_id, kind, name, value, currency, order_id, at)
-       VALUES (?, ?, ?, (SELECT person_id FROM site_sessions WHERE site_id = ? AND id = ?), ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO site_conversions (id, site_id, session_id, person_id, link_id, kind, name, value, currency, order_id, at, received_at, eligible_at_capture)
+       VALUES (?, ?, ?, (SELECT person_id FROM site_sessions WHERE site_id = ? AND id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(newId(), k.siteId, k.sessionId, k.siteId, k.sessionId, linkId, e.kind, e.name ?? null, e.value ?? null, e.currency ?? currency, e.orderId ?? null, at);
+    .bind(newId(), k.siteId, k.sessionId, k.siteId, k.sessionId, linkId, e.kind, e.name ?? null, e.value ?? null, e.currency ?? currency, e.orderId ?? null, at, receivedAt, eligibleAtCapture === undefined ? null : eligibleAtCapture ? 1 : 0);
 }
 
 export function upsertDaily(db: D1Database, siteId: string, day: string, linkId: string | null, d: DailyDelta) {

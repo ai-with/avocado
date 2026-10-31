@@ -67,3 +67,8 @@ const instagramQueue = (handler: QueueHandler): QueueHandler => async (payload, 
 queueHandlers.ig_connection_maintenance = instagramQueue(processIgConnectionMaintenance);
 queueHandlers.check_ig_connection = instagramQueue(processIgConnectionCheck);
 queueHandlers.ig_disconnect_mail = instagramQueue(processIgDisconnectMail);
+
+// AIWITH-388: public reference rates are fetched outside collect/request paths.
+import { enqueueFxRefresh, refreshFxRates } from "./lib/site-fx";
+scheduledTasks.push(enqueueFxRefresh);
+queueHandlers.site_fx_refresh = refreshFxRates;
