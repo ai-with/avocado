@@ -212,7 +212,7 @@ DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착
 
 부재 probe를 먼저 하므로 큰 무음 파일도 파일 전체를 읽지 않고 처리할 수 있다. 기존 500MiB는 이후 전체 오디오 디코딩의 메모리 상한이다. 상한 초과·미지원·decode 실패는 무음이 아니다. [WebAudio decode 오류](https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata)는 MIME/codec/손상 등의 실패도 포함한다. 서버 ffmpeg나 새 유료 처리 인프라는 추가하지 않는다.
 
-프레임을 모두 전송한 뒤 `POST /api/public/upload/:token/analysis-complete`가 제출물·기존 동의·실제 frame 수를 확인하고 결과 receipt를 보관한다. 확정 부재만 전사·번역을 같은 transaction에서 skipped로 남기고 기존 Queue를 즉시 깨워 3분 대기를 우회한다. 동일 receipt의 재시도는 세대를 다시 늘리지 않고 wake만 재시도한다. 프레임 실패·확인 불가는 기존 3분 대기와 부분 검수 흐름을 유지한다. WAV가 없거나 R2 객체를 확인하지 못한 경우도 ‘음성 없음’으로 확정하지 않는다.
+프레임을 모두 전송한 뒤 `POST /api/public/upload/:token/analysis-complete`가 제출물·기존 동의·실제 frame 수를 확인하고 결과 receipt를 보관한다. 이 경로만 선택적 세션 조회보다 먼저 실제 stream 8KiB 상한으로 읽고, 초과하면 즉시 cancel/413, 잘못된 UTF8·JSON은 400으로 닫는다. `Content-Length`가 없거나 작게 표시돼도 실제 bytes를 검사한다. 정상 입력은 같은 Request에서 재사용하되 기존 세션·토큰·동의 검사는 유지한다. 확정 부재만 전사·번역을 같은 transaction에서 skipped로 남기고 기존 Queue를 즉시 깨워 3분 대기를 우회한다. 동일 receipt의 재시도는 세대를 다시 늘리지 않고 wake만 재시도한다. 프레임 실패·확인 불가는 기존 3분 대기와 부분 검수 흐름을 유지한다. WAV가 없거나 R2 객체를 확인하지 못한 경우도 ‘음성 없음’으로 확정하지 않는다.
 
 `0034_submission_analysis.sql`을 먼저 적용한다. 제출물별 오디오 상태·분석 세대·15분 claim과 명시적 재요청 영수증을 기존 D1에 보관한다. 실제 오디오는 부재 receipt보다 우선하고, WAV hash가 같은 재전송은 기존 선택 객체와 세대를 유지한다. 새 오디오 세대는 이전 claim을 무효화한다. 전사·번역·후보·작업 상태·최종 ready 쓰기는 동의/파기 조건과 현재 세대/claim을 같은 native batch에서 검사한다. 구세대 중단이 새 작업을 철회 취소하지 않으며, 이미 완료한 같은 세대의 단계는 일반 Queue 재전달로 다시 실행하지 않는다. 명시 재요청의 pending seen 표식과 단계 request ID도 단계 reset과 같은 batch에 저장한다. 처음 본 명시 요청만 terminal을 reset하고, 같은 요청의 finish 실패 복구나 A 실패→새 B 완료→A 재전달은 current-generation terminal을 보존한다. queued/running은 다시 처리할 수 있다. 알려진 처리 실패는 자기 claim만 해제하고, 실행이 중단되어 남은 claim은 lease 만료 뒤 재개한다.
 

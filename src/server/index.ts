@@ -6,6 +6,7 @@ import { loadSession } from "./middleware/auth";
 import { registerRoutes } from "./routes";
 import { batchQueueHandlers, queueHandlers, scheduledTasks, type PipelineMessage } from "./jobs";
 import { isPublicGuideJoinRequest } from "./lib/guide-join";
+import { isPublicAnalysisCompleteRequest, readAnalysisReceipt } from "./routes/public-guide/media";
 
 const app = new Hono<AppEnv>();
 
@@ -14,6 +15,7 @@ app.use("*", async (c, next) => {
   await next();
 });
 app.use("/api/*", async (c, next) => {
+  if (isPublicAnalysisCompleteRequest(c.req.method, c.req.path)) await readAnalysisReceipt(c.req.raw);
   if (isPublicGuideJoinRequest(c.req.method, c.req.path)) { c.set("auth", null); await next(); }
   else await loadSession(c, next);
 });

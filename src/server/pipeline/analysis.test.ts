@@ -9,6 +9,7 @@ import { reviewListRoutes } from "../routes/reviews/list";
 import { processSubmission } from "./run";
 import { NO_AUDIO_PROOF } from "../../shared/audio-analysis";
 import { cleanupRetiredAudio, managedAudioKey, runMediaPurges, validMediaKey, withdrawMedia } from "../lib/media-purge";
+import worker from "../index";
 
 const NOW = 1_800_000_000_000, databases: TestSqlite[] = [];
 beforeEach(() => {
@@ -58,8 +59,49 @@ async function setup() {
   const state = () => db.prepare("SELECT * FROM submission_analysis WHERE submission_id='s'").all()[0]!;
   const jobs = () => db.prepare("SELECT stage,status,error FROM processing_jobs WHERE submission_id='s' ORDER BY stage").all();
   const full = () => processSubmission({ submissionId: "s" }, env);
-  return { db, env, frame, complete, audio, state, jobs, full, calls, objects, loseAudioCommit: () => { loseAudioCommit = true; }, review: () => app.request("/api/reviews/s", {}, env), maxBindings: () => maxBindings, before: (hook: (sql: string[]) => Promise<void>) => { beforeBatch = hook; }, beforeReceipt: (hook: () => Promise<void>) => { beforeStatement = hook; } };
+  const rawReceipt = (body: string | Uint8Array | ReadableStream<Uint8Array>, headers: Record<string, string> = {}) => worker.fetch(new Request("https://app.test/api/public/upload/upload/analysis-complete", {
+    method: "POST", headers: { "Content-Type": "application/json", Cookie: "sid=unknown-session", ...headers }, body, duplex: "half",
+  } as RequestInit), env, { waitUntil: vi.fn(), passThroughOnException: vi.fn(), props: {} } as unknown as ExecutionContext);
+  return { db, env, frame, complete, audio, state, jobs, full, calls, objects, rawReceipt, loseAudioCommit: () => { loseAudioCommit = true; }, review: () => app.request("/api/reviews/s", {}, env), maxBindings: () => maxBindings, before: (hook: (sql: string[]) => Promise<void>) => { beforeBatch = hook; }, beforeReceipt: (hook: () => Promise<void>) => { beforeStatement = hook; } };
 }
+
+describe("공개 receipt 8KiB 실제 byte 제한", () => {
+  const valid = JSON.stringify({ submissionId: "s", frameCount: 1, outcome: { kind: "no_audio", proof: NO_AUDIO_PROOF } });
+  function noIO(env: Env, calls: { getCalls(): number }) {
+    expect(calls.getCalls()).toBe(0); expect(env.PIPELINE.send).not.toHaveBeenCalled(); expect(env.FILES.get).not.toHaveBeenCalled(); expect(env.FILES.put).not.toHaveBeenCalled(); expect(env.FILES.list).not.toHaveBeenCalled(); expect(env.FILES.delete).not.toHaveBeenCalled(); expect(env.AI.run).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  }
+  it("알려진 초과 본문은 읽지 않고 cancel/413하며 세션 cookie가 있어도0IO다", async () => {
+    const { env, calls, rawReceipt } = await setup(); let cancelled = false;
+    let reads = 0;
+    const stream = new ReadableStream<Uint8Array>({ pull(controller) { if (++reads === 1) controller.enqueue(new Uint8Array(9000)); else controller.close(); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+    const response = await rawReceipt(stream, { "Content-Length": "9000" }); expect(response.status).toBe(413); expect(cancelled).toBe(true); expect(reads).toBe(0); noIO(env, calls);
+  });
+  it.each([undefined, "1"])("숨긴 stream 초과(Content-Length=%s)는 초과 chunk에서 즉시cancel/413/0IO다", async (declared) => {
+    const { env, calls, rawReceipt } = await setup(); let reads = 0, cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({ pull(controller) { reads++; if (reads <= 2) controller.enqueue(new Uint8Array(reads === 1 ? 6000 : 3000)); else controller.close(); }, cancel() { cancelled = true; return new Promise<void>(() => {}); } }, { highWaterMark: 0 });
+    const response = await rawReceipt(stream, declared === undefined ? {} : { "Content-Length": declared });
+    expect(response.status).toBe(413); expect(cancelled).toBe(true); expect(reads).toBe(2); noIO(env, calls);
+  });
+  it("UTF8 문자의 수가 아니라 실제 byte 수가8KiB를 넘으면413이다", async () => {
+    const { env, calls, rawReceipt } = await setup(); const text = JSON.stringify({ ...JSON.parse(valid), extra: "가".repeat(3000) });
+    expect(text.length).toBeLessThan(8192); expect((await rawReceipt(text)).status).toBe(413); noIO(env, calls);
+  });
+  it.each(["utf8", "json", "stream"])("잘못된 %s는400으로 닫고 권한조회 전0IO다", async (kind) => {
+    const { env, calls, rawReceipt } = await setup(); const badUtf8 = new TextEncoder().encode(valid); badUtf8[valid.indexOf('"s"') + 1] = 0xff;
+    const body = kind === "utf8" ? badUtf8 : kind === "json" ? "{" : new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error("private stream failure")); } });
+    const response = await rawReceipt(body); expect(response.status).toBe(400); expect(await response.json()).toMatchObject({ error: { code: "invalid_json" } }); noIO(env, calls);
+  });
+  it("정확한8192byte 정상 receipt는 기존 스키마/권한 검사와 상태 변경을 유지한다", async () => {
+    const { env, frame, calls, rawReceipt, state } = await setup(); frame(); const body = valid.padEnd(8192, " ");
+    expect(new TextEncoder().encode(body).byteLength).toBe(8192); expect((await rawReceipt(body, { "Content-Length": "1" })).status).toBe(200);
+    expect(calls.getCalls()).toBeGreaterThan(0); expect(state()).toMatchObject({ audio_state: "none", generation: 1 }); expect(env.PIPELINE.send).toHaveBeenCalledTimes(1);
+  });
+  it("다른 method에는 새 본문 preflight를 적용하지 않고 기존 세션 middleware를 유지한다", async () => {
+    const { env, calls } = await setup();
+    const response = await worker.fetch(new Request("https://app.test/api/public/upload/upload/analysis-complete", { headers: { Cookie: "sid=unknown-session" } }), env, {} as ExecutionContext);
+    expect(response.status).toBe(404); expect(calls.getCalls()).toBe(1);
+  });
+});
 
 describe("hash/write-ID audio 객체 보상과 파기", () => {
   it("unknown PUT의 늦은 객체를 tombstone으로 다시 지우며 같은 WAV는 새 write ID로 재시도한다", async () => {

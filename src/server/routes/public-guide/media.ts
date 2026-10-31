@@ -20,6 +20,39 @@ const MAX_AUDIO_BYTES = 30 * MB;
 const receiptBody = z.object({ submissionId: z.string().min(1).max(100), frameCount: z.number().int().min(1).max(UPLOAD_LIMITS.maxFrames),
   outcome: z.discriminatedUnion("kind", [z.object({ kind: z.literal("no_audio"), proof: z.literal(NO_AUDIO_PROOF) }).strict(),
     z.object({ kind: z.literal("unavailable"), reason: z.enum(AUDIO_UNAVAILABLE_REASONS) }).strict()]) }).strict();
+const MAX_RECEIPT_BYTES = 8 * 1024;
+const receiptCache = new WeakMap<Request, Promise<z.infer<typeof receiptBody>>>();
+const largeReceipt = () => new ApiError(413, "request_too_large", "분석 결과가 너무 커요. 다시 시도해 주세요.");
+const invalidReceipt = () => new ApiError(400, "invalid_json", "분석 결과 형식을 확인해 주세요.");
+export const isPublicAnalysisCompleteRequest = (method: string, path: string) => method === "POST" && /^\/api\/public\/upload\/[^/]+\/analysis-complete$/.test(path);
+async function parseReceipt(request: Request) {
+  const declared = request.headers.get("Content-Length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > MAX_RECEIPT_BYTES) {
+    void request.body?.cancel().catch(() => {}); throw largeReceipt();
+  }
+  const reader = request.body?.getReader();
+  if (!reader) throw invalidReceipt();
+  let size = 0;
+  const bytes = new Uint8Array(MAX_RECEIPT_BYTES);
+  try {
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      if (value.byteLength > MAX_RECEIPT_BYTES - size) { void reader.cancel().catch(() => {}); throw largeReceipt(); }
+      bytes.set(value, size); size += value.byteLength;
+    }
+    return parse(receiptBody, JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes.subarray(0, size))));
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    void reader.cancel().catch(() => {}); throw invalidReceipt();
+  } finally { reader.releaseLock(); }
+}
+// Preflight precedes even optional session IO; the handler reuses that exact
+// request's validated input and still performs its existing token/consent checks.
+export function readAnalysisReceipt(request: Request) {
+  let pending = receiptCache.get(request);
+  if (!pending) { pending = parseReceipt(request); receiptCache.set(request, pending); }
+  return pending;
+}
 async function wake(env: Env, submissionId: string) {
   try { await env.PIPELINE.send({ type: "process_submission", payload: { submissionId } }); }
   catch { throw new ApiError(503, "analysis_queue_unavailable", "분석 요청을 확인하지 못했어요. 다시 시도해 주세요."); }
@@ -28,7 +61,7 @@ async function wake(env: Env, submissionId: string) {
 export const mediaRoutes = new Hono<AppEnv>()
   // This receipt is sent only after all extracted frames have been uploaded.
   .post("/upload/:token/analysis-complete", async (c) => {
-    const body = parse(receiptBody, await c.req.json()), db = c.var.db;
+    const body = await readAnalysisReceipt(c.req.raw), db = c.var.db;
     const { gi } = await uploadCtx(c), s = await findSubmission(db, gi, body.submissionId);
     if (!s.originalKey || !["uploaded", "processing", "ready", "failed"].includes(s.status)) throw new ApiError(409, "analysis_not_ready", "영상 업로드를 먼저 완료해 주세요.");
     const reason = body.outcome.kind === "no_audio" ? NO_AUDIO_PROOF : body.outcome.reason;

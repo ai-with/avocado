@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { probeAudioTracks } from "./audio-probe";
 import { extractAudioWav } from "./extract";
 import { NO_AUDIO_PROOF } from "../../../shared/audio-analysis";
+import { readFileSync } from "node:fs";
 
 const join = (...parts: Uint8Array[]) => { const bytes = new Uint8Array(parts.reduce((n, part) => n + part.length, 0)); let offset = 0; parts.forEach((part) => { bytes.set(part, offset); offset += part.length; }); return bytes; };
 const str = (value: string) => new TextEncoder().encode(value);
@@ -34,6 +35,10 @@ const file = (bytes = mp4Fixture()) => new File([bytes], "video.mp4", { type: "v
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("정적 MP4/MOV positive no-audio probe", () => {
+  it.each(["hero-reel", "review", "guide", "feedback"])("저장소 제공 %s MP4의 실제 container도 무트랙으로 확인한다", async (name) => {
+    const bytes = new Uint8Array(readFileSync(`public/videos/${name}.mp4`));
+    expect(await probeAudioTracks(new Blob([bytes]))).toEqual({ kind: "no_audio", proof: NO_AUDIO_PROOF });
+  });
   it.each([{ }, { tailMovie: true }, { extended: true }, { co64: true }])("완전한 정적 트랙 목록·sample 범위 %j만 부재로 확인한다", async (options) => {
     expect(await probeAudioTracks(file(mp4Fixture(options)))).toEqual({ kind: "no_audio", proof: NO_AUDIO_PROOF });
   });
