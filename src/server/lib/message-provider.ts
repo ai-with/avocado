@@ -1,6 +1,6 @@
 import { messageConfigured, MESSAGE_RETRY } from "./message-delivery-common";
 
-export type QueuedEmailResult = { kind: "accepted"; id: string } | { kind: "retry" | "uncertain" | "rejected" | "conflict"; code: string; retryAt?: number };
+export type QueuedEmailResult = { kind: "accepted"; id: string } | { kind: "retry"; code: string; retryAt?: number; definitiveRejection?: true } | { kind: "uncertain" | "rejected" | "conflict"; code: string; retryAt?: number };
 export type QueuedEmailProvider = (env: Env, body: string, deliveryId: string) => Promise<QueuedEmailResult>;
 const errorCodes = new Set(["concurrent_idempotent_requests", "invalid_idempotent_request", "rate_limit_exceeded", "daily_quota_exceeded", "monthly_quota_exceeded", "validation_error", "restricted_api_key", "missing_api_key", "suspended_api_key", "application_error", "service_unavailable"]);
 async function boundedJson(response: Response): Promise<Record<string, unknown> | null> {
@@ -23,10 +23,11 @@ export const sendQueuedEmail: QueuedEmailProvider = async (env, body, deliveryId
   const code = errorCodes.has(raw) ? raw : "provider_error";
   if (response.status === 409 && code === "invalid_idempotent_request") return { kind: "conflict", code };
   if (response.status === 409 && code === "concurrent_idempotent_requests") return { kind: "retry", code, retryAt: Date.now() + MESSAGE_RETRY };
+  if (response.status === 409) return { kind: "uncertain", code };
   if (response.status === 429) {
     const after = response.headers.get("Retry-After") ?? "", seconds = Number(after);
     const retryAt = after && Number.isFinite(seconds) && seconds >= 0 ? Date.now() + Math.min(86_400_000, seconds * 1000) : Date.parse(after);
-    return { kind: "retry", code, retryAt: Number.isFinite(retryAt) && retryAt > Date.now() ? retryAt : Date.now() + MESSAGE_RETRY };
+    return { kind: "retry", code, definitiveRejection: true, retryAt: Number.isFinite(retryAt) && retryAt > Date.now() ? retryAt : Date.now() + MESSAGE_RETRY };
   }
   if (response.status >= 500 || response.status >= 300 && response.status < 400) return { kind: "uncertain", code };
   return { kind: "rejected", code };

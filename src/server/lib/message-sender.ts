@@ -115,10 +115,10 @@ export function createMessageSender(policy: MessagePolicy, provider: QueuedEmail
           WHERE d.id=? AND d.lease_token=? AND d.status='claimed' AND (d.first_http_at IS NULL OR (d.first_http_at>? AND d.first_http_at<=?)) AND ${deliveryAuthority()}
           AND EXISTS(SELECT 1 FROM leads l JOIN message_runs r ON r.id=d.run_id WHERE l.id=d.lead_id AND l.email=? AND ${eligibilitySql()}='eligible') AND (${condition.sql}) RETURNING first_http_at`)
           .bind(readyAt, readyAt, readyAt, id, lease, readyAt - MESSAGE_WINDOW, readyAt + 60_000, lead.email, ...condition.params),
-        env.DB.prepare(`INSERT INTO message_delivery_receipts(delivery_id,request_hash,provider_fingerprint,first_http_at,status,expires_at,updated_at)
-          SELECT id,request_hash,provider_fingerprint,first_http_at,'attempting',?,? FROM message_deliveries WHERE id=? AND lease_token=? AND status='sending'
-          ON CONFLICT(delivery_id) DO UPDATE SET updated_at=excluded.updated_at WHERE request_hash=excluded.request_hash AND provider_fingerprint=excluded.provider_fingerprint`)
-          .bind(readyAt + MESSAGE_RECEIPT_RETENTION, readyAt, id, lease),
+        env.DB.prepare(`INSERT INTO message_delivery_receipts(delivery_id,request_hash,provider_fingerprint,first_http_at,status,has_uncertain_attempt,expires_at,updated_at)
+          SELECT id,request_hash,provider_fingerprint,first_http_at,'attempting',?,?,? FROM message_deliveries WHERE id=? AND lease_token=? AND status='sending'
+          ON CONFLICT(delivery_id) DO UPDATE SET updated_at=excluded.updated_at,has_uncertain_attempt=max(has_uncertain_attempt,excluded.has_uncertain_attempt) WHERE request_hash=excluded.request_hash AND provider_fingerprint=excluded.provider_fingerprint RETURNING has_uncertain_attempt`)
+          .bind(d.first_http_at !== null && ["sending","claimed"].includes(d.status) ? 1 : 0, readyAt + MESSAGE_RECEIPT_RETENTION, readyAt, id, lease),
         env.DB.prepare(sqlAssertion("NOT EXISTS(SELECT 1 FROM message_deliveries WHERE id=? AND lease_token=? AND status='sending') OR EXISTS(SELECT 1 FROM message_delivery_receipts WHERE delivery_id=? AND request_hash=? AND provider_fingerprint=?)")).bind(id, lease, id, frozen.requestHash, fingerprint),
       ]);
       if (!ready[0]!.results.length) {
@@ -156,17 +156,38 @@ export function createMessageSender(policy: MessagePolicy, provider: QueuedEmail
           env.DB.prepare("DELETE FROM email_bounce_pending WHERE delivery_id=? AND provider_id=?").bind(id, result.id),
         ]);
       } else if (result.kind === "rejected" || result.kind === "conflict") {
-        await mark(env, d, result.kind === "conflict" ? "delivery_unknown" : "provider_error", result.kind === "conflict" ? "unknown" : "failed", lease);
-        await env.DB.prepare("UPDATE message_delivery_receipts SET status=?,error_code=?,updated_at=? WHERE delivery_id=? AND status='attempting' AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.id=delivery_id AND d.status=? AND d.request_hash=message_delivery_receipts.request_hash AND d.provider_fingerprint=message_delivery_receipts.provider_fingerprint)").bind(result.kind === "conflict" ? "unknown" : "failed", result.code, Date.now(), id, result.kind === "conflict" ? "unknown" : "failed").run();
+        // A later rejection disproves only this attempt, never an earlier
+        // timeout/response loss. The sticky fact and outcome share one batch.
+        const conflict = result.kind === "conflict";
+        await env.DB.batch([
+          env.DB.prepare(`UPDATE message_delivery_receipts SET status=CASE WHEN has_uncertain_attempt=1 OR ?=1 THEN 'unknown' ELSE 'failed' END,has_uncertain_attempt=max(has_uncertain_attempt,?),error_code=?,updated_at=? WHERE delivery_id=? AND status='attempting'
+            AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.id=delivery_id AND d.lease_token=? AND d.status='sending' AND d.request_hash=message_delivery_receipts.request_hash AND d.provider_fingerprint=message_delivery_receipts.provider_fingerprint)`)
+            .bind(conflict ? 1 : 0,conflict ? 1 : 0,result.code,Date.now(),id,lease),
+          env.DB.prepare(`UPDATE message_deliveries SET status=(SELECT status FROM message_delivery_receipts WHERE delivery_id=?),reason=CASE WHEN (SELECT status FROM message_delivery_receipts WHERE delivery_id=?)='unknown' THEN 'delivery_unknown' ELSE 'provider_error' END,payload_enc=NULL,recipient_hmac=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=? AND lease_token=? AND status='sending'
+            AND EXISTS(SELECT 1 FROM message_delivery_receipts WHERE delivery_id=? AND status IN('failed','unknown') AND request_hash=? AND provider_fingerprint=?)`)
+            .bind(id,id,Date.now(),id,lease,id,frozen.requestHash,fingerprint),
+        ]);
       } else {
-        await env.DB.prepare("UPDATE message_deliveries SET status='retry',reason=NULL,lease_token=NULL,lease_until=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=? AND status='sending'")
-          .bind(Math.min(result.retryAt ?? Date.now() + MESSAGE_RETRY, firstHttp + MESSAGE_WINDOW), Date.now(), id, lease).run();
-        await env.DB.prepare("UPDATE message_delivery_receipts SET error_code=?,updated_at=? WHERE delivery_id=? AND status='attempting'").bind(result.code, Date.now(), id).run();
+        // Explicit429 is a rejected current request;409 concurrent and all
+        // unconfirmed outcomes can have accepted. Never clear earlier proof.
+        const possibleAcceptance = result.kind === "retry" ? !result.definitiveRejection : true;
+        await env.DB.batch([
+          env.DB.prepare(`UPDATE message_delivery_receipts SET has_uncertain_attempt=max(has_uncertain_attempt,?),error_code=?,updated_at=? WHERE delivery_id=? AND status='attempting'
+            AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.id=delivery_id AND d.lease_token=? AND d.status='sending' AND d.request_hash=message_delivery_receipts.request_hash AND d.provider_fingerprint=message_delivery_receipts.provider_fingerprint)`)
+            .bind(possibleAcceptance ? 1 : 0,result.code,Date.now(),id,lease),
+          env.DB.prepare("UPDATE message_deliveries SET status='retry',reason=NULL,lease_token=NULL,lease_until=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=? AND status='sending'")
+            .bind(Math.min(result.retryAt ?? Date.now() + MESSAGE_RETRY, firstHttp + MESSAGE_WINDOW), Date.now(), id, lease),
+        ]);
       }
       lease = null;
     } catch {
-      if (d && lease) await env.DB.prepare("UPDATE message_deliveries SET status='retry',reason=NULL,lease_token=NULL,lease_until=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=? AND status IN('claimed','sending')")
-        .bind(Date.now() + MESSAGE_RETRY, Date.now(), d.id, lease).run().catch(() => {});
+      if (d && lease) await env.DB.batch([
+        env.DB.prepare(`UPDATE message_delivery_receipts SET has_uncertain_attempt=1,error_code='provider_unconfirmed',updated_at=? WHERE delivery_id=? AND status='attempting'
+          AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.id=delivery_id AND d.lease_token=? AND d.first_http_at IS NOT NULL AND (d.status='sending' OR ?=1))`)
+          .bind(Date.now(),d.id,lease,d.first_http_at !== null && ["sending","claimed"].includes(d.status) ? 1 : 0),
+        env.DB.prepare("UPDATE message_deliveries SET status='retry',reason=NULL,lease_token=NULL,lease_until=NULL,next_attempt_at=?,updated_at=? WHERE id=? AND lease_token=? AND status IN('claimed','sending')")
+          .bind(Date.now() + MESSAGE_RETRY, Date.now(), d.id, lease),
+      ]).catch(() => {});
       throw new Error("message_delivery_failed");
     }
   }
@@ -176,7 +197,7 @@ export function createMessageSender(policy: MessagePolicy, provider: QueuedEmail
       env.DB.prepare(`UPDATE message_deliveries SET status='unknown',reason='delivery_unknown',payload_enc=NULL,recipient_hmac=NULL,lease_token=NULL,lease_until=NULL,updated_at=?
         WHERE id IN(SELECT id FROM message_deliveries WHERE first_http_at IS NOT NULL AND first_http_at<=? AND status NOT IN('accepted','skipped','failed','unknown','cancelled') AND (lease_until IS NULL OR lease_until<=?) ORDER BY first_http_at,id LIMIT ?)`)
         .bind(at, at - MESSAGE_WINDOW, at, MESSAGE_PAGE),
-      env.DB.prepare("UPDATE message_delivery_receipts SET status='unknown',error_code='delivery_unknown',updated_at=? WHERE delivery_id IN(SELECT delivery_id FROM message_delivery_receipts WHERE status='attempting' AND first_http_at<=? ORDER BY first_http_at,delivery_id LIMIT ?)").bind(at, at - MESSAGE_WINDOW, MESSAGE_PAGE),
+      env.DB.prepare("UPDATE message_delivery_receipts SET status='unknown',has_uncertain_attempt=1,error_code='delivery_unknown',updated_at=? WHERE delivery_id IN(SELECT delivery_id FROM message_delivery_receipts WHERE status='attempting' AND first_http_at<=? ORDER BY first_http_at,delivery_id LIMIT ?)").bind(at, at - MESSAGE_WINDOW, MESSAGE_PAGE),
       env.DB.prepare("DELETE FROM email_bounce_pending WHERE rowid IN(SELECT rowid FROM email_bounce_pending WHERE expires_at<=? ORDER BY expires_at LIMIT 1000)").bind(at),
       env.DB.prepare("DELETE FROM message_delivery_receipts WHERE delivery_id IN(SELECT delivery_id FROM message_delivery_receipts WHERE expires_at<=? ORDER BY expires_at,delivery_id LIMIT 1000)").bind(at),
       env.DB.prepare("DELETE FROM message_runs WHERE id IN(SELECT id FROM message_runs WHERE status IN('completed','cancelled') AND updated_at<=? ORDER BY updated_at,id LIMIT 100)").bind(at - MESSAGE_RECEIPT_RETENTION),

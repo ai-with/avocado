@@ -23,3 +23,13 @@ it("missing/oversized success ID or timeout never proves success", async () => {
   const fetcher = vi.fn().mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(Response.json({ id: "x".repeat(17000) })).mockRejectedValueOnce(new Error("private transport")); vi.stubGlobal("fetch", fetcher);
   for (let i = 0; i < 3; i++) expect(await sendQueuedEmail(env, body, "d")).toMatchObject({ kind: "uncertain" });
 });
+
+it.each(["{", "", JSON.stringify({ name:"unknown_conflict", message:"private-provider-message" }), "x".repeat(17_000)])("an unclassified409 body never proves rejection", async (raw) => {
+  vi.stubGlobal("fetch", vi.fn(async()=>new Response(raw,{status:409})));
+  expect(await sendQueuedEmail(env,body,"delivery")).toEqual({kind:"uncertain",code:"provider_error"});
+});
+it("an unreadable409 stream is uncertain and explicit429 proves only the current rejection", async()=>{
+  const fetcher=vi.fn().mockResolvedValueOnce(new Response(new ReadableStream({start(controller){controller.error(new Error("private-reader"));}}),{status:409})).mockResolvedValueOnce(Response.json({name:"rate_limit_exceeded"},{status:429})); vi.stubGlobal("fetch",fetcher);
+  expect(await sendQueuedEmail(env,body,"delivery")).toEqual({kind:"uncertain",code:"provider_error"});
+  expect(await sendQueuedEmail(env,body,"delivery")).toMatchObject({kind:"retry",definitiveRejection:true});
+});

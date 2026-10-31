@@ -61,6 +61,7 @@ CREATE INDEX message_deliveries_ws_idx ON message_deliveries(workspace_id,id);
 CREATE TABLE message_delivery_receipts (
  delivery_id text PRIMARY KEY NOT NULL,request_hash text NOT NULL,provider_fingerprint text NOT NULL,
  first_http_at integer NOT NULL,status text NOT NULL CHECK(status IN('attempting','accepted','failed','unknown')),
+ has_uncertain_attempt integer NOT NULL DEFAULT 0 CHECK(has_uncertain_attempt IN(0,1)),
  provider_id text,error_code text,expires_at integer NOT NULL,updated_at integer NOT NULL
 );
 CREATE INDEX message_delivery_receipts_expiry_idx ON message_delivery_receipts(expires_at,delivery_id);
@@ -122,10 +123,10 @@ WHEN NEW.status IN('completed','cancelled') BEGIN
 END;
 CREATE TRIGGER message_delivery_unknown_receipt AFTER UPDATE OF status ON message_deliveries
 WHEN NEW.status='unknown' BEGIN
- UPDATE message_delivery_receipts SET status='unknown',error_code=coalesce(NEW.reason,'delivery_unknown') WHERE delivery_id=NEW.id AND status='attempting';
+ UPDATE message_delivery_receipts SET status='unknown',has_uncertain_attempt=1,error_code=coalesce(NEW.reason,'delivery_unknown') WHERE delivery_id=NEW.id AND status='attempting';
 END;
 CREATE TRIGGER message_delivery_delete BEFORE DELETE ON message_deliveries BEGIN
- UPDATE message_delivery_receipts SET status='unknown',error_code='parent_removed' WHERE delivery_id=OLD.id AND status='attempting';
+ UPDATE message_delivery_receipts SET status='unknown',has_uncertain_attempt=1,error_code='parent_removed' WHERE delivery_id=OLD.id AND status='attempting';
  DELETE FROM email_bounce_pending WHERE delivery_id=OLD.id;
 END;
 

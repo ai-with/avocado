@@ -239,7 +239,7 @@ m=0
 for sql,args in p:
  rows=d.execute('EXPLAIN '+sql,args).fetchall(); m=max(m,len(rows))
 print(json.dumps({'statements':len(p),'maxVdbe':m}))`], { cwd: process.cwd(), input: JSON.stringify([...counted.statements]), encoding: "utf8" });
-    expect(proof.status, proof.stderr).toBe(0); const compiled = JSON.parse(proof.stdout); expect(compiled.statements).toBeGreaterThan(10); expect(compiled.maxVdbe).toBeLessThan(21504);
+    expect(proof.status, proof.stderr).toBe(0); const compiled = JSON.parse(proof.stdout); expect(compiled.statements).toBeGreaterThan(10); expect(compiled.maxVdbe).toBeLessThan(2000);
     expect(maximum).toMatchObject({ physical:17, calls:11, bind:15 });
     const pending = [...counted.statements].find(([sql]) => sql.startsWith("UPDATE leads AS l"))!;
     const plan = s.db.prepare("EXPLAIN QUERY PLAN "+pending[0]).all(...pending[1] as (string|number|null)[]);
@@ -332,6 +332,62 @@ print(json.dumps({'statements':len(p),'maxVdbe':m}))`], { cwd: process.cwd(), in
     const size=s.db.prepare("SELECT length(payload_enc) bytes FROM message_deliveries").all()[0]!.bytes; expect(Number(size)).toBeGreaterThan(1_000_000); expect(Number(size)).toBeLessThan(1_500_000);
     vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY); await s.engine.send({id:s.delivery()},s.env);
     expect(s.sent).toHaveBeenCalledTimes(2); expect(s.sent.mock.calls[0]![1]).toBe(s.sent.mock.calls[1]![1]); expect(s.db.prepare("SELECT status FROM message_deliveries").all()).toEqual([{status:"accepted"}]);
+  });
+
+  it.each(["provider_unconfirmed","service_unavailable","provider_response_invalid"])("%s evidence survives a later401 and never reports failed after possible acceptance",async(code)=>{
+    const s=await setup(); await s.stage(); const id=s.delivery(),accepted=new Set<string>();
+    s.sent.mockImplementationOnce(async(_env,_body,key)=>{accepted.add(key);return {kind:"uncertain",code};}).mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});
+    await s.engine.send({id},s.env); expect(s.db.prepare("SELECT has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{has_uncertain_attempt:1}]);
+    vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY); await s.engine.send({id},s.env);
+    expect(accepted.has(id)).toBe(true); expect(s.sent.mock.calls[0]![1]).toBe(s.sent.mock.calls[1]![1]); expect(s.sent.mock.calls[0]![2]).toBe(s.sent.mock.calls[1]![2]);
+    expect(s.db.prepare("SELECT status,reason,payload_enc FROM message_deliveries").all()).toEqual([{status:"unknown",reason:"delivery_unknown",payload_enc:null}]);
+    expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:"unknown",has_uncertain_attempt:1}]);
+    expect(s.db.prepare("SELECT failed_count,unknown_count,completed_count FROM message_runs").all()).toEqual([{failed_count:0,unknown_count:1,completed_count:1}]);
+  });
+  it.each(["validation_error","suspended_api_key"])("a definitive first %s response is failed without invented prior uncertainty",async(code)=>{
+    const s=await setup(); await s.stage(); s.sent.mockResolvedValueOnce({kind:"rejected",code}); await s.engine.send({id:s.delivery()},s.env);
+    expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:"failed",has_uncertain_attempt:0}]);
+    expect(s.db.prepare("SELECT failed_count,unknown_count FROM message_runs").all()).toEqual([{failed_count:1,unknown_count:0}]);
+  });
+  it.each([false,true])("explicit429 never clears sticky prior uncertainty=%s",async(prior)=>{
+    const s=await setup(); await s.stage(); const id=s.delivery();
+    if(prior){s.sent.mockResolvedValueOnce({kind:"uncertain",code:"provider_unconfirmed"});await s.engine.send({id},s.env);vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY);}
+    s.sent.mockResolvedValueOnce({kind:"retry",code:"rate_limit_exceeded",definitiveRejection:true});await s.engine.send({id},s.env);
+    expect(s.db.prepare("SELECT has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{has_uncertain_attempt:prior?1:0}]);
+    vi.mocked(Date.now).mockReturnValue(NOW+2*MESSAGE_RETRY);s.sent.mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});await s.engine.send({id},s.env);
+    expect(s.db.prepare("SELECT status FROM message_deliveries").all()).toEqual([{status:prior?"unknown":"failed"}]);
+  });
+  it("409 concurrent is uncertain evidence even if the next response is a clear rejection",async()=>{
+    const s=await setup(); await s.stage(); const id=s.delivery();s.sent.mockResolvedValueOnce({kind:"retry",code:"concurrent_idempotent_requests"}).mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});
+    await s.engine.send({id},s.env);vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY);await s.engine.send({id},s.env);
+    expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:"unknown",has_uncertain_attempt:1}]);
+  });
+  it.each([false,true])("abandoned claimed lease recovery distinguishes earlier HTTP evidence=%s",async(prior)=>{
+    const s=await setup();await s.stage();const id=s.delivery();
+    if(prior){s.sent.mockResolvedValueOnce({kind:"uncertain",code:"provider_unconfirmed"});await s.engine.send({id},s.env);vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY);}
+    const base=s.env.DB;let resume!:()=>void,waiting=false;
+    s.env.DB={...base,batch:async(statements:D1PreparedStatement[])=>{if(statements.length===3&&!waiting){waiting=true;await new Promise<void>((resolve)=>{resume=resolve;});}return base.batch(statements);}} as D1Database;
+    const abandoned=s.engine.send({id},s.env);await vi.waitFor(()=>expect(waiting).toBe(true));
+    expect(s.db.prepare("SELECT status,first_http_at FROM message_deliveries").all()).toEqual([{status:"claimed",first_http_at:prior?NOW:null}]);
+    s.env.DB=base;vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_LEASE+2*MESSAGE_RETRY);s.sent.mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});await s.engine.send({id},s.env);resume();await abandoned;
+    expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:prior?"unknown":"failed",has_uncertain_attempt:prior?1:0}]);
+    expect(s.sent).toHaveBeenCalledTimes(prior?2:1);
+  });
+  it("provider accepted but DB rollback retains uncertainty atomically for a later rejected retry",async()=>{
+    const s=await setup();await s.stage();const id=s.delivery(),accepted=new Set<string>();
+    s.sent.mockImplementationOnce(async(_env,_body,key)=>{accepted.add(key);return {kind:"accepted",id:"accepted-unrecorded"};});
+    s.db.exec("CREATE TRIGGER local_accepted_rollback BEFORE INSERT ON message_logs BEGIN SELECT RAISE(ABORT,'local'); END");
+    await expect(s.engine.send({id},s.env)).rejects.toThrow("message_delivery_failed");
+    expect(accepted.has(id)).toBe(true);expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:"attempting",has_uncertain_attempt:1}]);
+    s.db.exec("DROP TRIGGER local_accepted_rollback");vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_RETRY);s.sent.mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});await s.engine.send({id},s.env);
+    expect(s.db.prepare("SELECT status FROM message_deliveries").all()).toEqual([{status:"unknown"}]);expect(s.sent.mock.calls[0]![1]).toBe(s.sent.mock.calls[1]![1]);expect(s.sent.mock.calls[0]![2]).toBe(s.sent.mock.calls[1]![2]);
+  });
+  it("uncertain result persistence and compensation failure leave sending proof for the next lease owner",async()=>{
+    const s=await setup();await s.stage();const id=s.delivery();s.sent.mockResolvedValueOnce({kind:"uncertain",code:"provider_unconfirmed"});
+    s.db.exec("CREATE TRIGGER local_uncertain_rollback BEFORE UPDATE OF has_uncertain_attempt ON message_delivery_receipts WHEN NEW.has_uncertain_attempt=1 BEGIN SELECT RAISE(ABORT,'local'); END");
+    await expect(s.engine.send({id},s.env)).rejects.toThrow("message_delivery_failed");expect(s.db.prepare("SELECT status,first_http_at FROM message_deliveries").all()).toEqual([{status:"sending",first_http_at:NOW}]);
+    s.db.exec("DROP TRIGGER local_uncertain_rollback");vi.mocked(Date.now).mockReturnValue(NOW+MESSAGE_LEASE+1);s.sent.mockResolvedValueOnce({kind:"rejected",code:"suspended_api_key"});await s.engine.send({id},s.env);
+    expect(s.db.prepare("SELECT status,has_uncertain_attempt FROM message_delivery_receipts").all()).toEqual([{status:"unknown",has_uncertain_attempt:1}]);
   });
 
 });
