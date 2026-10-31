@@ -31,10 +31,11 @@ function SelectLgControlled() {
 
 function Sizes() {
   return (
-    <Group title="크기 sm · md · lg" note="TextField, Select, SelectMenu 공용. 기본 md = TDS box 56 / r14 / 17px. sm 32는 표 안·필터 줄·툴바. lg는 md와 같은 모양(Select lg만 직접 그린 목록)">
+    <Group title="크기 sm · md · lg" note="TextField, Select, SelectMenu 공용. 기본 md = TDS box 56 / r14 / 17px. sm 32는 표 안·필터 줄·툴바. lg는 md와 같은 모양. Select는 모든 크기가 직접 그린 목록">
       <Specimen label="sm 32px"><TextField label="작게" size="sm" placeholder="표 안 입력" /></Specimen>
       <Specimen label="md 56px (기본)"><TextField label="기본" placeholder="대부분의 폼" /></Specimen>
       <Specimen label="lg 56px"><TextField label="크게" size="lg" placeholder="공개 화면 주 입력" /></Specimen>
+      <Specimen label="Select sm"><Select aria-label="진행 상태" size="sm" defaultValue="a"><option value="a">대기</option><option value="b">진행 중</option><option value="c">완료</option></Select></Specimen>
       <Specimen label="Select lg"><Select label="크게" size="lg" defaultValue="a"><option value="a">첫째</option><option value="b">둘째</option><option value="c" disabled>셋째(마감)</option></Select></Specimen>
       <Specimen label="Select lg 제어"><SelectLgControlled /></Specimen>
       <Specimen label="Select lg 비활성"><Select label="크게" size="lg" disabled defaultValue="a"><option value="a">첫째</option></Select></Specimen>

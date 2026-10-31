@@ -28,6 +28,8 @@ type Base = FieldProps & {
   emptyText?: string;
   searchPlaceholder?: string;
   id?: string;
+  /** 칸(테두리 묶음)에 더할 클래스 */
+  className?: string;
   /** 라벨을 보이지 않을 때(표 안) 화면 낭독기 이름 */
   "aria-label"?: string;
 };
@@ -43,7 +45,7 @@ const SIZE_CLASS: Record<ControlSize, string> = { sm: "control-sm", md: "", lg: 
 const valuesOf = (p: SelectMenuProps) => (p.multiple ? p.value : p.value === null ? [] : [p.value]);
 const emit = (p: SelectMenuProps, next: string[]) => (p.multiple ? p.onChange(next) : p.onChange(next[0] ?? null));
 
-// 선택 드롭다운(직접 그린 목록). 검색·설명 줄·묶음·비활성·다중 선택이 필요할 때 쓴다. 단순 선택은 네이티브 Select 가 낫다
+// 선택 드롭다운(직접 그린 목록). 검색·설명 줄·묶음·비활성·다중 선택이 필요할 때 쓴다. option 자식으로 쓰는 단순 선택은 Select
 // 목록은 body 에 fixed 로 붙어 표·모달 안에서도 잘리지 않고, 휴대폰 폭(599 이하)에서는 바텀시트로 열린다
 export function SelectMenu(props: SelectMenuProps) {
   const { label, hint, error, size = "md", disabled, required, clearable, id } = props;
@@ -60,7 +62,7 @@ export function SelectMenu(props: SelectMenuProps) {
   const insideRefs = useMemo(() => [rootRef, popRef], []);
   useOutsideClose(menu.open && !mobile, insideRefs, close);
   const placement = usePopoverPosition(menu.open && !mobile, rootRef, popRef, lost);
-  const groupCls = ["control control-group select-menu", SIZE_CLASS[size], menu.open && "is-open", disabled && "is-disabled", error && "is-invalid"].filter(Boolean).join(" ");
+  const groupCls = ["control control-group select-menu", SIZE_CLASS[size], menu.open && "is-open", disabled && "is-disabled", error && "is-invalid", props.className].filter(Boolean).join(" ");
   const name = label ?? props["aria-label"] ?? "선택";
   return (
     <Field id={fid} label={label} hint={hint} error={error} required={required} fit={size === "sm"}>

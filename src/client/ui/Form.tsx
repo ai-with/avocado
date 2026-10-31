@@ -1,8 +1,8 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { useId, useLayoutEffect, useRef } from "react";
 import { describedBy, Field, type FieldProps } from "./Field";
 import { countChars } from "./format";
-import { SelectLarge, type SelectLargeProps } from "./SelectLarge";
+import { SelectCustom } from "./SelectCustom";
 import "./Form.css";
 
 // size="sm": 표 안·필터 줄·툴바 같은 촘촘한 자리(32). 기본은 TDS box 56
@@ -39,21 +39,9 @@ export function Textarea({ label, hint, error, id, autoGrow, showCount, classNam
   );
 }
 
-type SelectSize = "sm" | "md" | "lg";
-const SELECT_CLASS: Record<SelectSize, string> = { sm: "control control-sm", md: "control", lg: "control control-lg" };
-
-// size="sm": 표 안·줄 안에 놓는 작은 선택칸. 폭은 내용에 맞고 화살표 자리는 항상 확보된다. size="lg": TextField lg 와 같은 높이
-// size="lg" 는 시스템 목록이 아니라 SelectMenu 의 직접 그린 목록으로 열린다
-export function Select({ label, hint, error, id, size = "md", children, ...rest }: Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & FieldProps & { size?: SelectSize }) {
-  const auto = useId();
-  const fid = id ?? auto;
-  if (size === "lg") return <SelectLarge label={label} hint={hint} error={error} id={id} {...(rest as SelectLargeProps)}>{children}</SelectLarge>;
-  return (
-    <Field id={fid} label={label} hint={hint} error={error} required={rest.required} fit={size === "sm"}>
-      <select id={fid} className={SELECT_CLASS[size]} aria-invalid={!!error} aria-describedby={describedBy(fid, { hint, error })} {...rest}>{children}</select>
-    </Field>
-  );
-}
+// 모든 크기가 시스템 목록이 아니라 SelectMenu 의 직접 그린 목록으로 열린다(다른 드롭다운과 같은 모양)
+// size="sm": 표 안·줄 안에 놓는 작은 선택칸(32, 폭은 내용만큼). 기본 md(56). size="lg": TextField lg 와 같은 높이
+export const Select = SelectCustom;
 
 type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; description?: ReactNode; indeterminate?: boolean };
 

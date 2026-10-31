@@ -18,7 +18,7 @@ function TextFields() {
       <Specimen label="Input 비활성"><Input label="아이디" value="locked" disabled readOnly /></Specimen>
       <Specimen label="Textarea 기본"><Textarea label="메모" placeholder="내용" /></Specimen>
       <Specimen label="Textarea 오류"><Textarea label="메모" error="내용을 입력해 주세요." /></Specimen>
-      <Specimen label="Select 기본">
+      <Specimen label="Select 기본 (직접 그린 목록)">
         <Select label="분류" defaultValue="a"><option value="a">첫째</option><option value="b">둘째</option></Select>
       </Specimen>
       <Specimen label="Select 오류"><Select label="분류" error="하나를 골라 주세요."><option value="">선택</option></Select></Specimen>

@@ -21,23 +21,10 @@
 .control[aria-invalid="true"] { border-color: var(--color-danger); }
 .control[aria-invalid="true"]:focus { border-color: var(--color-danger); box-shadow: var(--focus-ring-control-danger); }
 .control-textarea { height: auto; min-height: 96px; padding: var(--control-padding-y) var(--control-padding-x); resize: vertical; }
-/* 네이티브 select 유지, 화살표만 chevron 아이콘(Lucide chevron-down)으로 */
-select.control {
-  appearance: none; padding-right: var(--space-9);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2378756f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right var(--space-6) center; background-size: 16px;
-}
 /* 작은 크기(32): 표 안·필터 줄·툴바. 버튼 sm과 같은 높이·모서리·글자 */
 .control.control-sm { height: var(--control-height-sm); padding: 0 var(--control-padding-x-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh); }
-/* 작은 크기: 오른쪽 여백 = 왼쪽 여백 + 화살표 폭 + 간격. 글자와 화살표가 겹치지 않는다 */
 .field-fit { width: fit-content; max-width: 100%; }
-select.control-sm {
-  width: auto; min-width: 72px; height: var(--control-height-sm); border-radius: var(--radius-control-sm); font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh);
-  padding-left: var(--control-padding-x-sm); padding-right: calc(var(--space-4) + var(--icon-size-sm) + var(--space-3));
-  background-position: right var(--space-4) center; background-size: var(--icon-size-sm);
-}
-select.control[multiple] { background-image: none; padding-right: var(--space-5); }
-/* lg: 기본(md)과 같은 TDS box 56. Select lg는 시스템 목록 대신 직접 그린 목록으로 열린다 */
+/* lg: 기본(md)과 같은 TDS box 56 */
 .control-lg { height: var(--input-height); }
 /* 글자 수: 도움말·오류 줄 오른쪽 */
 .field-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); }
@@ -68,4 +55,3 @@ select.control[multiple] { background-image: none; padding-right: var(--space-5)
 .checkbox-described input { margin-top: var(--space-1); }
 .checkbox-text { display: flex; flex-direction: column; gap: var(--space-1); }
 .checkbox-desc { font-size: var(--text-help-size); line-height: var(--text-help-lh); color: var(--color-text-tertiary); }
-@media (max-width: 599px) { select.control-sm { font-size: var(--text-input-min-size); } }

@@ -1,6 +1,6 @@
 import { createElement as h } from "react";
 import { describe, expect, it } from "vitest";
-import { optionsFromChildren } from "./selectLargeLogic";
+import { optionsFromChildren, shownValue } from "./selectLargeLogic";
 
 describe("optionsFromChildren", () => {
   it("option 을 선택지로 바꾼다(value 없으면 글자, disabled 유지)", () => {
@@ -16,5 +16,16 @@ describe("optionsFromChildren", () => {
   });
   it("그 밖의 자식은 무시한다", () => {
     expect(optionsFromChildren(["텍스트", null, h("div", null, "x")])).toEqual([]);
+  });
+});
+
+describe("shownValue", () => {
+  const opts = [{ value: "", label: "선택", disabled: true }, { value: "a", label: "첫째" }, { value: "b", label: "둘째" }];
+  it("값이 선택지에 있으면 그대로", () => expect(shownValue(opts, "b")).toBe("b"));
+  it("없으면 네이티브처럼 첫 활성 선택지", () => expect(shownValue(opts, "zz")).toBe("a"));
+  it("비활성이어도 값과 같으면 그 선택지", () => expect(shownValue(opts, "")).toBe(""));
+  it("선택지가 없거나 모두 비활성이면 null", () => {
+    expect(shownValue([], "a")).toBeNull();
+    expect(shownValue([{ value: "x", label: "x", disabled: true }], "a")).toBeNull();
   });
 });

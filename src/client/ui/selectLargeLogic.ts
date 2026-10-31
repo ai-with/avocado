@@ -27,3 +27,9 @@ export function optionsFromChildren(children: ReactNode): SelectOption[] {
   }
   return out;
 }
+
+// 네이티브 select 처럼 값이 선택지에 없으면 첫 활성 선택지를 보여 준다(선택지가 없으면 null)
+export function shownValue(options: SelectOption[], current: string): string | null {
+  if (options.some((o) => o.value === current)) return current;
+  return options.find((o) => !o.disabled)?.value ?? null;
+}

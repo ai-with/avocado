@@ -340,9 +340,9 @@ AIWITH-542(findings 8.3·8.4)에서 PC 대시보드라는 이유로 둔 타협(�
 
 ### 4.3 Input, Textarea, Select, Checkbox (`ui/Form.tsx`)
 
-- props: `Input`은 `InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string; error?: string }`. `Textarea`, `Select`도 각 HTML 속성 + 같은 `{ label?, hint?, error? }`. `Textarea`는 `autoGrow?: boolean`(내용만큼 높이가 늘어남, 손잡이 없음), `showCount?: boolean`(아래 오른쪽 글자 수, `maxLength`가 있으면 "n/최대", 넘으면 빨강)이 더 있다. `Select`는 `size?: "sm" | "md" | "lg"`(기본 `md`)가 더 있다. `lg`는 높이 56px(TDS box). `sm`은 높이 32px, 폭은 내용에 맞고(최소 72px) 오른쪽에 화살표 자리가 항상 확보된다. 표 안·줄 안 선택칸에 쓰고, 화면 CSS로 `.control` 여백을 덮어쓰지 않는다. `Checkbox`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; description?: ReactNode; indeterminate?: boolean }`. `description`은 라벨 아래 작은 글씨(`aria-describedby` 연결), `indeterminate`는 "일부만 고름"(전체 선택 칸).
+- props: `Input`은 `InputHTMLAttributes<HTMLInputElement> & { label?: string; hint?: string; error?: string }`. `Textarea`, `Select`도 각 HTML 속성 + 같은 `{ label?, hint?, error? }`. `Textarea`는 `autoGrow?: boolean`(내용만큼 높이가 늘어남, 손잡이 없음), `showCount?: boolean`(아래 오른쪽 글자 수, `maxLength`가 있으면 "n/최대", 넘으면 빨강)이 더 있다. `Select`는 `size?: "sm" | "md" | "lg"`(기본 `md`)가 더 있다. `lg`는 높이 56px(TDS box). `sm`은 높이 32px, 폭은 내용에 맞고(최소 112px, SelectMenu sm과 같음) 오른쪽에 화살표 자리가 항상 확보된다. 표 안·줄 안 선택칸에 쓰고, 화면 CSS로 `.control` 여백을 덮어쓰지 않는다. `Checkbox`는 `Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; description?: ReactNode; indeterminate?: boolean }`. `description`은 라벨 아래 작은 글씨(`aria-describedby` 연결), `indeterminate`는 "일부만 고름"(전체 선택 칸).
 - 모양(TDS box 그대로, findings 8.5): 높이 56, 바탕 `surface-subtle`, 아주 옅은 테두리(`--color-border`), 그림자 없음, 17px. 포커스(마우스 클릭 포함)면 면은 그대로 두고 테두리가 브랜드 색 + 같은 색 1px 링, 오류 칸은 오류 색. 비활성은 `surface-muted`. 라벨 13px 보통 굵기 secondary 색, 도움말·오류 13px. `Input`도 `size="sm"`(32)을 받는다.
-- `Select size="lg"`는 네이티브 목록이 아니라 `SelectMenu`의 직접 그린 목록으로 열린다(`ui/SelectLarge.tsx`). `<option>`·`<optgroup label>` 자식, `value`/`defaultValue`, `onChange(e.target.value)`, `name`(숨은 input)은 그대로 쓴다. sm·md는 네이티브.
+- `Select`는 모든 크기(sm·md·lg)가 OS 목록이 아니라 `SelectMenu`의 직접 그린 목록으로 열린다(`ui/SelectCustom.tsx`, AIWITH-564). 다른 드롭다운과 같은 목록 모양이고, 휴대폰 폭에서는 바텀시트. `<option>`·`<optgroup label>` 자식, `disabled` option, `value`/`defaultValue`, `onChange(e.target.value)`, `required`, `disabled`, `aria-label`, `className`(칸에 붙음), `name`(숨은 input)은 그대로 쓴다. 값이 선택지에 없으면 네이티브처럼 첫 활성 선택지를 보여 준다. 그 밖의 select 속성(onBlur 등)은 받지 않는다.
 - 앞뒤 단위·지우기·글자 수·크기·읽기 전용 모양이 필요하면 `TextField`(4.21). `Input`은 그대로 둔다.
 - 검색·설명 줄·묶음·다중 선택이 필요한 선택은 `SelectMenu`(4.32). 고르는 기준은 4.32.
 - `required`를 주면 라벨 옆에 "필수"가 붙는다. `hint`·`error`는 `aria-describedby`로 연결되고, `error`가 있으면 hint 대신 빨간 문구 + 빨간 테두리.
@@ -770,9 +770,9 @@ const TABS: { value: Tab; label: string }[] = [{ value: "contacts", label: "연�
 - 위치: 목록은 `document.body`에 `position: fixed`로 붙어(`--z-select-menu`) 표·모달·드로어의 overflow에 잘리지 않는다. 아래 공간이 모자라면 위로 열리고, 스크롤하면 따라가며, 칸이 화면 밖으로 나가면 닫힌다.
 - 휴대폰 폭(599 이하)에서는 `Drawer side="bottom"` 바텀시트로 연다. 다중 선택은 아래 고정 "완료"로 닫는다.
 - 크기: `sm`(표 안·줄 안, 폭은 내용만큼), `md`, `lg`(공개 화면 주 입력, 56). 칸 모양은 TextField와 같다(채움형).
-- **Select(네이티브)와 고르는 기준**
-  - `Select`: 선택지가 짧고(대략 7개 이하) 이름만 있으면 된다. 휴대폰 OS 선택기를 그대로 쓰고 가장 가볍다. 필터 줄, 폼의 단순 선택.
-  - `SelectMenu`: 검색이 필요할 만큼 많거나, 선택지에 설명 줄·묶음·비활성 이유를 보여야 하거나, 여러 개를 고르거나, 지우기 단추가 필요할 때.
+- **Select와 고르는 기준**: 둘 다 같은 직접 그린 목록으로 열린다. 다른 것은 쓰는 방법과 기능이다.
+  - `Select`: 선택지가 짧고 이름만 있으면 된다. `<option>` 자식과 `onChange(e.target.value)`로 네이티브 select처럼 쓴다. 검색칸은 없다(글자 이동은 된다). 필터 줄, 폼의 단순 선택.
+  - `SelectMenu`: `options` 배열과 값 콜백으로 쓴다. 검색이 필요할 만큼 많거나, 선택지에 설명 줄·묶음 제목·비활성 이유를 보여야 하거나, 여러 개를 고르거나, 지우기 단추·placeholder가 필요할 때.
   - `ChoiceChips`·`RadioGroup`: 2~6개를 펼쳐 보여 주는 편이 나을 때. `Dropdown`: 값이 아니라 동작 목록.
 
 ```tsx

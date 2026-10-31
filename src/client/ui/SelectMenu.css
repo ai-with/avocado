@@ -17,7 +17,7 @@
   font-size: var(--text-control-sm-size); line-height: var(--text-control-sm-lh);
 }
 .select-menu-more { flex: none; font-size: var(--text-control-sm-size); color: var(--color-text-secondary); }
-/* 작은 크기(표 안): 폭은 내용만큼, 최소 폭은 네이티브 Select sm 과 같게 */
+/* 작은 크기(표 안): 폭은 내용만큼, 짧은 값도 칸이 너무 좁아지지 않게 최소 폭 */
 .field-fit .select-menu.control-sm { width: auto; min-width: var(--space-14); padding-right: var(--space-4); }
 
 .select-menu-pop {
