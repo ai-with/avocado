@@ -1,4 +1,5 @@
 import { maskPhone, toKrLocal } from "./phone";
+import { sha256Hex } from "./ids";
 
 export type SmsResult = { delivered: true } | { delivered: false; reason: "no_provider" | "provider_error" };
 
@@ -25,7 +26,7 @@ export async function sendSms(env: Env, to: string, text: string): Promise<SmsRe
     },
     body: JSON.stringify({ messages: [{ to: toKrLocal(to), from: env.SMS_FROM.replace(/\D/g, ""), text }] }),
   });
-  return judgeResponse(res, to);
+  return judgeResponse(res, to, env.SOLAPI_API_KEY);
 }
 
 type SolapiFailure = { statusCode?: string; statusMessage?: string };
@@ -41,9 +42,10 @@ async function errorDetail(res: Response): Promise<{ errorCode?: string; errorMe
 }
 
 // HTTP 200이어도 failedMessageList가 비어 있지 않으면 발송 실패다
-async function judgeResponse(res: Response, to: string): Promise<SmsResult> {
-  const fail = (detail: unknown) => {
-    console.error("[sms:provider_error]", JSON.stringify({ to: maskPhone(to), status: res.status, detail }));
+async function judgeResponse(res: Response, to: string, apiKey: string): Promise<SmsResult> {
+  const fail = async (detail: unknown) => {
+    const key_fingerprint = (await sha256Hex(apiKey)).slice(0, 12);
+    console.error("[sms:provider_error]", JSON.stringify({ to: maskPhone(to), status: res.status, detail, key_fingerprint }));
     return { delivered: false, reason: "provider_error" } as const;
   };
   if (!res.ok) return fail(await errorDetail(res));

@@ -6,11 +6,11 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 function mockFetch(res: Response) {
   const fn = vi.fn().mockResolvedValue(res);
-  globalThis.fetch = fn as unknown as typeof fetch;
+  vi.stubGlobal("fetch", fn);
   return fn;
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("sendSms", () => {
   it("설정이 없으면 no_provider", async () => {
@@ -65,5 +65,43 @@ describe("sendSms", () => {
     mockFetch(new Response("not json", { status: 200 }));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(await sendSms(env, "+821012345678", "hi")).toEqual({ delivered: false, reason: "provider_error" });
+  });
+
+  it("오류 로그의 지문은 같은 키에 일치하고 다른 키와 구별되며 비밀 원문을 포함하지 않는다", async () => {
+    const configured = { ...env, APP_ENV: "production", SOLAPI_API_KEY: "fake-solapi-key-for-fingerprint", SOLAPI_API_SECRET: "fake-secret-for-log-test" } as Env;
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const signatures: string[] = [];
+    for (const response of [
+      json({ errorCode: "Forbidden", errorMessage: "허용되지 않은 IP로 접근" }, 403),
+      json({ failedMessageList: [{ to: "01000000000", statusCode: "1030", statusMessage: "발송 실패", text: "인증번호 654321" }] }),
+      new Response("invalid json", { status: 200 }),
+    ]) {
+      const fetcher = mockFetch(response);
+      expect(await sendSms(configured, "+821000000000", "인증번호 654321")).toEqual({ delivered: false, reason: "provider_error" });
+      const init = fetcher.mock.calls[0]![1] as RequestInit;
+      signatures.push((init.headers as Record<string, string>).Authorization!.match(/signature=([0-9a-f]{64})/)![1]!);
+    }
+    mockFetch(json({ errorCode: "Forbidden" }, 403));
+    await sendSms({ ...configured, SOLAPI_API_KEY: "another-fake-solapi-key" }, "+821000000000", "인증번호 654321");
+    const records = err.mock.calls.map(([label, value]) => {
+      expect(label).toBe("[sms:provider_error]");
+      return JSON.parse(String(value)) as { key_fingerprint: string; status: number };
+    });
+    // 합성 fixture 키에 대한 알려진 SHA-256 앞 12자리. 발송 방식·응답은 바꾸지 않는다.
+    expect(records.map((record) => record.key_fingerprint)).toEqual(["992730875885", "992730875885", "992730875885", "362109d0b606"]);
+    expect(records[0]?.status).toBe(403);
+    const logged = JSON.stringify(err.mock.calls);
+    for (const value of [configured.SOLAPI_API_KEY!, configured.SOLAPI_API_SECRET!, "another-fake-solapi-key", "+821000000000", "01000000000", "654321", ...signatures]) expect(logged).not.toContain(value);
+  });
+
+  it("성공과 제공자 미설정 경로에서는 키 지문을 계산하지 않는다", async () => {
+    const digest = vi.spyOn(crypto.subtle, "digest");
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    mockFetch(json({ failedMessageList: [] }));
+    expect(await sendSms(env, "+821000000000", "합성 테스트 메시지")).toEqual({ delivered: true });
+    expect(await sendSms({ APP_ENV: "production" } as Env, "+821000000000", "합성 테스트 메시지")).toEqual({ delivered: false, reason: "no_provider" });
+    expect(digest).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
   });
 });
