@@ -6,10 +6,8 @@ import { useMe } from "../../lib/me";
 import { BRAND } from "../../pages/landing/copy";
 import { WorkspaceStep } from "./sections/WorkspaceStep";
 import { SurveyStep } from "./sections/SurveyStep";
+import { safeAuthNext } from "../../../shared/auth-redirect";
 import "./onboarding.css";
-
-// 앱 안 경로만 next 로 받는다 (//다른도메인 으로 튀지 않게)
-const safeNext = (raw: string | null) => (raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard");
 
 function TopBar({ email, onLogout }: { email: string; onLogout: () => void }) {
   return (
@@ -27,7 +25,7 @@ export function OnboardingPage() {
   const { me, loading, refresh } = useMe();
   // 1단계를 거쳐 온 사람에게만 "2/2"를 보여 준다
   const [createdHere, setCreatedHere] = useState(false);
-  const next = safeNext(params.get("next"));
+  const next = safeAuthNext(params.get("next"));
   const here = encodeURIComponent(location.pathname + location.search);
 
   if (loading) return <div className="onboarding"><Loader fill /></div>;

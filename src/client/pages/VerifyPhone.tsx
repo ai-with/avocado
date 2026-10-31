@@ -4,6 +4,7 @@ import { Button, Input, Loader } from "../ui";
 import { api, ApiError, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
 import { AuthCard, FormError } from "./AuthCard";
+import { safeAuthNext } from "../../shared/auth-redirect";
 
 type SendResult = { phone: string; expiresAt: number; resendAfterSec: number; devCode?: string };
 type Sent = SendResult & { sentAt: number };
@@ -108,7 +109,7 @@ export function PhoneVerifyForm({ onDone, submitLabel = "인증 완료" }: { onD
 export function VerifyPhonePage() {
   const [params] = useSearchParams();
   const { me, loading, refresh } = useMe();
-  const next = params.get("next") || "/dashboard";
+  const next = safeAuthNext(params.get("next"));
 
   if (loading) return <AuthCard><Loader fill /></AuthCard>;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;

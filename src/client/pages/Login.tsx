@@ -6,6 +6,7 @@ import { useMe } from "../lib/me";
 import { GOOGLE_ERRORS, GoogleSection } from "./AuthGoogle";
 import { AuthCard, FormError } from "./AuthCard";
 import { useSubmit } from "./useSubmit";
+import { safeAuthNext } from "../../shared/auth-redirect";
 
 export function LoginPage() {
   const [params] = useSearchParams();
@@ -14,7 +15,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { error, fields, busy, run } = useSubmit(GOOGLE_ERRORS[params.get("error") ?? ""] ?? "");
-  const next = params.get("next") || "/dashboard";
+  const next = safeAuthNext(params.get("next"));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

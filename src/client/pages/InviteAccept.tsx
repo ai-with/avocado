@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button, Input, Loader, Tabs, TextField } from "../ui";
 import { api, errorMessage } from "../lib/api";
 import { useMe } from "../lib/me";
@@ -7,6 +7,7 @@ import { ROLE_LABELS, type Role } from "../../shared/roles";
 import { withJosa } from "../../shared/josa";
 import { AuthCard, FormError } from "./AuthCard";
 import { useSubmit } from "./useSubmit";
+import { GoogleSection } from "./AuthGoogle";
 
 type InviteInfo = { workspaceName: string; email: string; role: Role; expiresAt: number };
 type Mode = "signup" | "login";
@@ -68,14 +69,17 @@ function JoinForm({ token, invite }: { token: string; invite: InviteInfo }) {
   };
   const signup = mode === "signup";
   return (
-    <form className="stack" onSubmit={submit}>
-      <Tabs tabs={[{ value: "signup", label: "새로 가입" }, { value: "login", label: "기존 계정으로 로그인" }]} value={mode} onChange={setMode} />
-      <TextField label="이메일" type="email" autoComplete="email" value={invite.email} readOnly />
-      {signup && <Input label="이름" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required />}
-      <Input label="비밀번호" type="password" autoComplete={signup ? "new-password" : "current-password"} hint={signup ? "8자 이상" : undefined} value={password} onChange={(e) => setPassword(e.target.value)} error={fields.password} required />
-      <FormError message={error} />
-      <Button type="submit" size="lg" loading={busy}>{signup ? "가입하고 참여하기" : "로그인하고 참여하기"}</Button>
-    </form>
+    <>
+      <GoogleSection next={`/invite/${encodeURIComponent(token)}`} />
+      <form className="stack" onSubmit={submit}>
+        <Tabs tabs={[{ value: "signup", label: "새로 가입" }, { value: "login", label: "기존 계정으로 로그인" }]} value={mode} onChange={setMode} />
+        <TextField label="이메일" type="email" autoComplete="email" value={invite.email} readOnly />
+        {signup && <Input label="이름" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required />}
+        <Input label="비밀번호" type="password" autoComplete={signup ? "new-password" : "current-password"} hint={signup ? "8자 이상" : undefined} value={password} onChange={(e) => setPassword(e.target.value)} error={fields.password} required />
+        <FormError message={error} />
+        <Button type="submit" size="lg" loading={busy}>{signup ? "가입하고 참여하기" : "로그인하고 참여하기"}</Button>
+      </form>
+    </>
   );
 }
 
@@ -96,6 +100,7 @@ export function InviteAcceptPage() {
   if (!invite || loading) return <AuthCard><Loader fill label="초대 정보를 불러오는 중이에요" /></AuthCard>;
 
   const sameUser = me?.user.email === invite.email;
+  if (me && sameUser && !me.phoneVerified) return <Navigate to={`/verify-phone?next=${encodeURIComponent(`/invite/${encodeURIComponent(token)}`)}`} replace />;
   return (
     <AuthCard title={`${invite.workspaceName} 팀 초대`} description={`${invite.email} 님을 ${withJosa(ROLE_LABELS[invite.role], "으로/로")} 초대했어요.`}>
       {me && sameUser && <AcceptSection token={token} />}
