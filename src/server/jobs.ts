@@ -37,3 +37,8 @@ import { consumeCollect, pruneEventIds } from "./lib/collect/consume";
 import { backfillEmailHashes } from "./lib/leads";
 batchQueueHandlers["avocado-collect"] = consumeCollect;
 scheduledTasks.push(pruneEventIds, backfillEmailHashes);
+
+// AIWITH-283: 개인정보 작업별 Queue 호출로 Cron과 D1/R2 호출 예산을 분리한다.
+import { enqueuePrivacyPurges, processPrivacyPurge } from "./lib/privacy-jobs";
+scheduledTasks.push(enqueuePrivacyPurges);
+queueHandlers.privacy_purge = processPrivacyPurge;

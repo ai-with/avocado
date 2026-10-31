@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, real, index, uniqueIndex, primaryKey } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { workspaces } from "./workspaces";
 import { leads, shortLinks } from "./leads";
 
@@ -24,7 +25,7 @@ export const sites = sqliteTable(
     createdAt: integer("created_at").notNull(),
     deletedAt: integer("deleted_at"),
   },
-  (t) => [index("sites_ws_idx").on(t.workspaceId)],
+  (t) => [index("sites_ws_idx").on(t.workspaceId), index("sites_purge_idx").on(t.deletedAt, t.id).where(sql`${t.deletedAt} IS NOT NULL`)],
 );
 
 export const siteSessions = sqliteTable(
@@ -52,6 +53,7 @@ export const siteSessions = sqliteTable(
     index("site_sessions_first_idx").on(t.siteId, t.firstAt),
     index("site_sessions_link_idx").on(t.linkId),
     index("site_sessions_anon_idx").on(t.siteId, t.anonId),
+    index("site_sessions_person_idx").on(t.siteId, t.personId),
   ],
 );
 
@@ -74,6 +76,7 @@ export const siteConversions = sqliteTable(
     uniqueIndex("site_conversions_order_idx").on(t.siteId, t.orderId),
     index("site_conversions_session_idx").on(t.siteId, t.sessionId),
     index("site_conversions_link_idx").on(t.linkId),
+    index("site_conversions_person_idx").on(t.siteId, t.personId),
   ],
 );
 
@@ -90,7 +93,7 @@ export const sitePeople = sqliteTable(
     lastLinkId: text("last_link_id").references(() => shortLinks.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull(),
   },
-  (t) => [index("site_people_hash_idx").on(t.siteId, t.emailHash), index("site_people_ext_idx").on(t.siteId, t.externalId)],
+  (t) => [index("site_people_hash_idx").on(t.siteId, t.emailHash), index("site_people_ext_idx").on(t.siteId, t.externalId), index("site_people_lead_idx").on(t.leadId)],
 );
 
 export const siteDailyStats = sqliteTable(

@@ -113,7 +113,7 @@ export const leadCrudRoutes = new Hono<AppEnv>()
     await c.var.db.delete(leadTagLinks).where(and(eq(leadTagLinks.leadId, lead.id), eq(leadTagLinks.tagId, c.req.param("tagId"))));
     return c.json({ ok: true });
   })
-  // soft 삭제. TODO: 삭제 요청 후 7일 안에 개인정보(이메일·이름·전화·답변)를 실제로 지우는 Cron 작업 추가
+  // 삭제 요청은 즉시 화면에서 숨기고, 개인정보는 정리 Cron이 7일 안에 파기한다.
   .delete("/:id", editorsOnly, async (c) => {
     const { workspace } = workspaceCtx(c);
     const lead = await ownLead(c.var.db, workspace.id, c.req.param("id"));

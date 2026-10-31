@@ -4,10 +4,12 @@ import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
 import { memberEmails } from "../../lib/members";
 import type { Ctx } from "../context";
+import { assertMediaWritable } from "../../lib/media-purge";
 
 // 8 브랜드 전달. 이메일 실패해도 앱 화면에는 보인다
 export async function stageNotify(ctx: Ctx): Promise<string | null> {
   const { db, env, sub, guide } = ctx;
+  await assertMediaWritable(db, sub.id);
   const inf = await db
     .select({ name: influencers.displayName })
     .from(guideInfluencers)
@@ -22,6 +24,7 @@ export async function stageNotify(ctx: Ctx): Promise<string | null> {
   const text = `${inf?.name ?? "인플루언서"}님이 올린 v${sub.version} 영상의 처리가 끝났어요. 위반 후보 ${n}건. 검수 화면: ${url}`;
   let delivered = 0;
   for (const p of people) {
+    await assertMediaWritable(db, sub.id);
     const r = await sendEmail(env, { to: p.email, subject, text, html: `<p>${escapeHtml(text)}</p><p><a href="${url}">검수 화면 열기</a></p>` });
     if (r.delivered) delivered++;
   }

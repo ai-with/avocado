@@ -1,0 +1,106 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import worker from "../index";
+import type { PipelineMessage } from "../jobs";
+import { countD1Calls, createSqliteD1 } from "../test/sqlite-d1";
+import { enqueuePrivacyPurges } from "./privacy-jobs";
+
+const NOW = Date.parse("2026-10-31T18:00:00Z");
+const controller = { scheduledTime: NOW, cron: "*/15 * * * *", noRetry() {} } as ScheduledController;
+const cleanups: (() => void)[] = [];
+afterEach(() => { for (const close of cleanups.splice(0)) close(); vi.restoreAllMocks(); });
+
+async function setup() {
+  const { db, d1, close } = await createSqliteD1();
+  cleanups.push(close);
+  const counted = countD1Calls(d1);
+  const messages: { body: PipelineMessage }[] = [];
+  const sendBatch = vi.fn(async (batch: Iterable<{ body: PipelineMessage }>) => { messages.push(...batch); });
+  const env = { DB: counted.d1, PIPELINE: { sendBatch } } as unknown as Env;
+  return { db, env, messages, sendBatch, counted };
+}
+async function scheduled(env: Env) {
+  const pending: Promise<unknown>[] = [];
+  await worker.scheduled(controller, env, { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } } as unknown as ExecutionContext);
+  return Promise.allSettled(pending);
+}
+async function queued(env: Env, body: PipelineMessage) {
+  const ack = vi.fn(), retry = vi.fn();
+  await worker.queue({ queue: "avocado-pipeline", messages: [{ body, ack, retry }] } as unknown as MessageBatch<PipelineMessage>, env);
+  return { ack, retry };
+}
+
+describe("개인정보 Queue 실행", () => {
+  it("Cron은 개인정보 작업 세 건만 Queue에 넣고 실제 파기는 별도 호출에서 한다", async () => {
+    const { db, env, messages, sendBatch, counted } = await setup();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    db.exec("INSERT INTO workspaces(id,name,created_at) VALUES('w','team',1)");
+    db.prepare("INSERT INTO leads(id,workspace_id,email,answers,unsubscribe_token,first_source,last_source,created_at,deleted_at) VALUES('old','w','old@example.com','{}','old','{}','{}',1,?)").run(NOW - 7 * 86_400_000);
+    expect((await scheduled(env)).every((result) => result.status === "fulfilled")).toBe(true);
+    expect(sendBatch).toHaveBeenCalledTimes(1);
+    expect(messages.map((message) => message.body)).toEqual(["leads", "sites", "media"].map((kind) => ({ type: "privacy_purge", payload: { kind, scheduledTime: NOW, cron: controller.cron } })));
+    expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(1);
+    expect(counted.getCalls()).toBe(10); // 기존 조회 7회 + 03시 인증 정리 2회 + NULL 해시 보완 1회
+    const expectedCalls = [5, 4, 4];
+    for (const [i, message] of messages.entries()) {
+      counted.reset();
+      const result = await queued(env, message.body);
+      expect(result.ack).toHaveBeenCalledTimes(1);
+      expect(result.retry).not.toHaveBeenCalled();
+      expect(counted.getCalls()).toBe(expectedCalls[i]);
+    }
+    expect(db.prepare("SELECT count(*) AS n FROM leads").all()[0]?.n).toBe(0);
+    expect(db.prepare("SELECT count(*) AS n FROM events WHERE name IN ('lead_privacy_cleanup_completed','site_privacy_cleanup_completed','media_purge_run')").all()[0]?.n).toBe(3);
+  });
+
+  it("enqueue 실패는 Cron 실패로 전파하고 다음 주기에는 다시 넣는다", async () => {
+    const { env, sendBatch, messages } = await setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    sendBatch.mockRejectedValueOnce(new Error("queue unavailable"));
+    expect((await scheduled(env)).some((result) => result.status === "rejected")).toBe(true);
+    expect(messages).toHaveLength(0);
+    expect((await scheduled(env)).every((result) => result.status === "fulfilled")).toBe(true);
+    expect(messages).toHaveLength(3);
+  });
+
+  it("실행 실패는 ack하지 않고 기존 consumer가 retry하며 같은 메시지로 복구한다", async () => {
+    const { db, env } = await setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const message = { type: "privacy_purge", payload: { kind: "sites", scheduledTime: NOW, cron: controller.cron } };
+    db.exec("CREATE TRIGGER fail_site_delete BEFORE DELETE ON site_event_ids BEGIN SELECT RAISE(ABORT,'test'); END");
+    db.exec("INSERT INTO workspaces(id,name,created_at) VALUES('w','team',1)");
+    db.exec("INSERT INTO sites(id,workspace_id,site_key,name,allowed_domains,created_at) VALUES('s','w','key','site','[]',1)");
+    db.exec("INSERT INTO site_event_ids(site_id,id,at) VALUES('s','event',1)");
+    db.prepare("UPDATE sites SET deleted_at=? WHERE id='s'").run(NOW - 30 * 86_400_000);
+    const failed = await queued(env, message);
+    expect(failed.retry).toHaveBeenCalledTimes(1);
+    expect(failed.ack).not.toHaveBeenCalled();
+    expect(db.prepare("SELECT count(*) AS n FROM sites").all()[0]?.n).toBe(1);
+    db.exec("DROP TRIGGER fail_site_delete");
+    const recovered = await queued(env, message);
+    expect(recovered.ack).toHaveBeenCalledTimes(1);
+    expect(recovered.retry).not.toHaveBeenCalled();
+    expect(db.prepare("SELECT count(*) AS n FROM sites").all()[0]?.n).toBe(0);
+  });
+
+  it("기존 process_submission 메시지도 영상 handler로 전달하고 ack한다", async () => {
+    const { env, counted } = await setup();
+    const result = await queued(env, { type: "process_submission", payload: { submissionId: "missing-submission" } });
+    expect(result.ack).toHaveBeenCalledTimes(1);
+    expect(result.retry).not.toHaveBeenCalled();
+    expect(counted.getCalls()).toBe(1); // 기존 영상 컨텍스트 조회가 수행됨
+  });
+
+  it("작업 종류가 틀린 Queue 메시지는 실행하거나 ack하지 않는다", async () => {
+    const { env, counted } = await setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await queued(env, { type: "privacy_purge", payload: { kind: "unknown", scheduledTime: NOW, cron: controller.cron } });
+    expect(result.retry).toHaveBeenCalledTimes(1);
+    expect(result.ack).not.toHaveBeenCalled();
+    expect(counted.getCalls()).toBe(0);
+    await enqueuePrivacyPurges(env, controller);
+    expect(counted.getCalls()).toBe(0);
+  });
+});

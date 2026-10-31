@@ -146,6 +146,23 @@ Resend의 Webhooks에서 운영 URL `${APP_URL}/webhooks/resend`를 등록하고
 
 DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착하면 관리 태그가 있는 발송에 한해 이벤트 생성 후 10분 동안 재시도하고, 끝내 연결되지 않으면 무시한다. 배포 전 로그처럼 Resend ID가 없는 기록은 이메일 주소만으로 연결하지 않는다. 설정·페이로드 기준은 [Resend 반송 이벤트](https://resend.com/docs/webhooks/emails/bounced), [서명 검증](https://resend.com/docs/webhooks/verify-webhooks-requests), [Svix 수동 검증](https://docs.svix.com/receiving/verifying-payloads/how-manual)을 따른다.
 
+## 개인정보 파기
+
+`0024_privacy_purge.sql` 적용 후 배포한다. 기존 15분 Cron에서 기존 PIPELINE Queue에 개인정보 작업 세 건(리드·IP 해시, 사이트 D1, 철회 미디어)을 넣는다. `max_batch_size=1`로 각 작업을 별도 호출에서 실행해 기존 예약 발송·성과 수집과 D1/R2 호출 예산을 공유하지 않는다. 기존 영상 처리 메시지 경로도 유지한다.
+
+- 삭제 리드는 요청 후 7일이 최대 기한이다. 다음 15분 안에 기한이 오는 행까지 이번 실행에서 처리하므로 최대 15분 먼저 지울 수 있다. 한 실행에서 최대 500명을 처리하며 실제 삭제 수와 기한 초과 잔여 수를 기록한다. 폼 답변·자료 열람·SDK 식별자와 연결된 세션·전환·옛 자동 발송도 함께 정리한다. 삭제 후 폼·게이트에서 다시 등록하면 새 리드 ID·프로필·수신 거부 토큰을 만들며, 현재 자료 열람 세션은 이어 볼 수 있게 보존한다. SDK identify는 삭제된 리드를 자동으로 복구하지 않으며, 오래된 작업을 새 등록에 연결하지 않는다.
+- 링크 클릭은 30일이 지난 `ip_hash`만 비운다. 클릭 행과 통계는 보존한다.
+- 삭제 사이트는 30일 후 D1의 세션·전환·식별자·일별 집계·이벤트 중복 제거 기록을 파기한다. 한 실행에서 최대 100개 사이트를 처리한다. 삭제된 사이트로 오는 늦은 SDK 쓰기는 SQL 실행 시에도 차단한다. **아래 Analytics Engine 원본 제한은 별개다.**
+- 동의 철회는 해당 동의로 만든 기존 제출물만 파기 예약한다. R2에 쓰기 전에 정확한 키를 영속 원장에 기록하고, 철회 중 완료된 업로드는 보상 삭제한다. 미완료 multipart, 원본·프레임·음성 객체를 지운 다음 DB의 미디어 참조와 전사·번역을 정리한다. 재동의한 뒤 새로 올린 제출물과 검수·승인 메타데이터는 이 파기로 삭제하지 않는다. R2 부분 실패는 참조와 작업을 남겨 재시도하며, 완료한 제출물도 다시 검사해 늦게 완료된 쓰기를 회수한다.
+
+R2 multipart 생성 직후 Worker가 종료되어 `upload_id`를 저장하지 못한 경우는 `media_purge_objects`에 `kind='multipart'`, `upload_id IS NULL`, `deleted_at IS NULL`로 남긴다. 이 상태는 파기 성공으로 처리하지 않으며 `multipart_upload_id_unknown` 오류로 재시도한다. Workers R2 바인딩에는 미완료 multipart 목록 API가 없어 운영 확인이 필요할 수 있다. 새 S3 자격증명이나 R2 lifecycle 변경을 자동으로 만들지 않는다.
+
+기존 제출물은 제출 당시 유효했던 동의가 정확히 하나로 확인될 때만 해당 세대에 연결하고, 이미 철회된 세대는 파기 작업으로 이관한다. 철회와 제출 시각이 같은 경계, 중복되거나 사라진 동의 이력은 `submissions.consent_id IS NULL`로 남겨 추정 삭제하지 않는다. 이 경우 미디어 쓰기·열람도 허용하지 않으므로 운영에서 이력과 대상 범위를 확인해야 한다.
+
+각 정리 결과는 개인정보 없이 Workers 로그와 `events`에 기록한다. 오류나 배치 상한으로 남은 기한 초과 작업을 확인해야 한다. Queue에 넣기 실패하면 Cron이 실패하고, 실행 실패하면 기존 Queue consumer가 오류를 기록하고 메시지를 재시도한다. 재시도 한도를 지나도 다음 15분 Cron이 영속 작업을 다시 확인하게 한다. Queue 지연·실패도 감시해야 한다. `media_purges.last_error`, `completed_at`, `next_attempt_at`과 미확인 multipart 원장도 함께 점검한다. 정상 캠페인의 원본 90일·전사 및 피드백 1년 보존 정책 자동 정리는 이번 철회 파기 범위에 포함되지 않는다.
+
+**Analytics Engine 제한:** `avc_events`의 기존 원본은 Cloudflare가 [3개월 보관](https://developers.cloudflare.com/analytics/analytics-engine/limits/)하며, 공개 [SQL API는 DELETE를 지원하지 않는다](https://developers.cloudflare.com/analytics/sql-api/sql-reference/). 사이트 삭제 후 30일에 이 원본까지 물리 파기했다고 보장할 수 없다. D1 삭제나 조회 제외는 AE 원본 삭제를 대신하지 않는다. 별도 저장소·정책 결정 또는 Cloudflare 지원 확인 전까지 AIWITH-357의 이 조건과 부모 AIWITH-283은 미해결이다.
+
 ## 자료 열람과 퍼널 집계
 
 자료 통계와 가이드 퍼널은 같은 집계 기준을 쓴다. 봇·워크스페이스 구성원은 클릭 전환 집계에서 제외한다.

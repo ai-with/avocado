@@ -6,6 +6,7 @@ import { ApiError } from "../../lib/errors";
 import { newId } from "../../lib/ids";
 import { UPLOAD_LIMITS } from "../../../shared/guides";
 import { findSubmission, uploadCtx } from "./shared";
+import { withMediaWrite } from "../../lib/media-purge";
 
 // 업로드 완료 뒤 브라우저가 뽑아 보내는 분석 재료 (프레임, 오디오)
 
@@ -28,8 +29,9 @@ export const mediaRoutes = new Hono<AppEnv>()
     const n = await db.select({ n: count() }).from(frames).where(eq(frames.submissionId, s.id)).get();
     if ((n?.n ?? 0) >= UPLOAD_LIMITS.maxFrames) throw new ApiError(400, "too_many_frames", "프레임은 영상당 180장까지예요.");
     const key = `frames/${s.id}/${tMs}.jpg`;
-    await c.env.FILES.put(key, await image.arrayBuffer(), { httpMetadata: { contentType: "image/jpeg" } });
-    await db.insert(frames).values({ id: newId(), submissionId: s.id, tMs, imageKey: key, source }).onConflictDoNothing();
+    await withMediaWrite(c.env, db, s.id, { key, kind: "object" },
+      async () => c.env.FILES.put(key, await image.arrayBuffer(), { httpMetadata: { contentType: "image/jpeg" } }),
+      async () => { await db.insert(frames).values({ id: newId(), submissionId: s.id, tMs, imageKey: key, source }).onConflictDoNothing(); });
     return c.json({ ok: true }, 201);
   })
   // 16kHz mono WAV
@@ -43,10 +45,9 @@ export const mediaRoutes = new Hono<AppEnv>()
     const durationS = Number(form.get("durationS"));
     if (!(audio instanceof File) || audio.size > MAX_AUDIO_BYTES || !Number.isFinite(durationS)) throw new ApiError(400, "bad_audio", "오디오 형식이 올바르지 않아요.");
     const key = `audio/${s.id}.wav`;
-    await c.env.FILES.put(key, await audio.arrayBuffer(), { httpMetadata: { contentType: "audio/wav" } });
-    await db
-      .insert(audioTracks)
-      .values({ id: newId(), submissionId: s.id, key, sampleRate, durationS })
-      .onConflictDoUpdate({ target: audioTracks.submissionId, set: { key, sampleRate, durationS } });
+    await withMediaWrite(c.env, db, s.id, { key, kind: "object" },
+      async () => c.env.FILES.put(key, await audio.arrayBuffer(), { httpMetadata: { contentType: "audio/wav" } }),
+      async () => { await db.insert(audioTracks).values({ id: newId(), submissionId: s.id, key, sampleRate, durationS })
+        .onConflictDoUpdate({ target: audioTracks.submissionId, set: { key, sampleRate, durationS } }); });
     return c.json({ ok: true }, 201);
   });

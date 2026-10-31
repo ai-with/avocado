@@ -67,7 +67,7 @@ export const linkClicks = sqliteTable(
     destinationType: text("destination_type").$type<DestinationType>(),
     destinationId: text("destination_id"),
   },
-  (t) => [index("link_clicks_link_idx").on(t.linkId, t.at), index("link_clicks_destination_idx").on(t.destinationType, t.destinationId, t.at)],
+  (t) => [index("link_clicks_link_idx").on(t.linkId, t.at), index("link_clicks_destination_idx").on(t.destinationType, t.destinationId, t.at), index("link_clicks_ip_purge_idx").on(t.at, t.id).where(sql`${t.ipHash} IS NOT NULL`)],
 );
 
 export const documents = sqliteTable(
@@ -168,7 +168,7 @@ export const leads = sqliteTable(
     // 소문자·공백 제거 이메일의 SHA-256 hex. 사이트 identify 해시 매칭용
     emailHash: text("email_hash"),
   },
-  (t) => [uniqueIndex("leads_ws_email_idx").on(t.workspaceId, t.email), index("leads_ws_email_hash_idx").on(t.workspaceId, t.emailHash)],
+  (t) => [uniqueIndex("leads_ws_email_idx").on(t.workspaceId, t.email), index("leads_ws_email_hash_idx").on(t.workspaceId, t.emailHash), index("leads_purge_idx").on(t.deletedAt, t.id).where(sql`${t.deletedAt} IS NOT NULL`)],
 );
 
 export const leadSources = sqliteTable(

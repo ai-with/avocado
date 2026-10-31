@@ -12,6 +12,7 @@ import { linkInfluencer, linkNotFound } from "../../lib/guides";
 import { cancelProcessingFor } from "../../pipeline";
 import { CONSENT_DOC_VERSION, missingConsent } from "../../../shared/guides";
 import { brandNameOf } from "../../lib/brands";
+import { withdrawMedia } from "../../lib/media-purge";
 import { byToken, currentConsent, influencerTabs, notifyOwners, publicGuideBody, requireByToken } from "./shared";
 
 // 가이드 열람, 공용 링크 참여, 동의와 철회 (F-57, F-58)
@@ -125,11 +126,10 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     const { gi, guide, influencer } = await requireByToken(db, "guideToken", c.req.param("token"));
     const consent = await currentConsent(db, gi.id);
     if (!consent) throw new ApiError(400, "no_consent", "철회할 동의가 없어요.");
-    await db.update(consents).set({ withdrawnAt: now() }).where(eq(consents.id, consent.id));
-    await db.update(guideInfluencers).set({ stage: "withdrawn" }).where(eq(guideInfluencers.id, gi.id));
+    if (!(await withdrawMedia(db, gi.id, consent.id, now()))) throw new ApiError(409, "consent_changed", "동의 상태가 바뀌었어요. 화면을 다시 열어 확인해 주세요.");
     await logEvent(db, guide.workspaceId, "consent_withdrawn", { guide_id: guide.id, gi_id: gi.id });
-    // TASK-020: 대기·진행 중인 처리 작업 취소. 원본·프레임·전사 삭제 예약은 보관 정책 작업(7-1) 때 붙인다
-    await cancelProcessingFor(db, gi.id);
+    // 대기·진행 중인 처리 작업은 멈추고 위에서 예약한 제출물별 파기는 재동의와 관계없이 완료한다.
+    await cancelProcessingFor(db, gi.id, consent.id);
     c.executionCtx.waitUntil(notifyOwners(c.env, db, guide.workspaceId, `[${guide.name}] ${influencer.displayName}님이 동의를 철회했어요`, `${influencer.displayName}님이 가이드 "${guide.name}" 동의를 철회했어요. 처리 중인 작업은 멈추고 원본·프레임·전사는 삭제 예정이에요. 이미 내려받은 파일은 브랜드가 관리해야 해요.`));
     return c.json({ ok: true });
   });

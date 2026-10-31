@@ -11,6 +11,7 @@ import { reviewRules } from "../../lib/guides";
 import { editorsOnly } from "../../middleware/auth";
 import { RULE_TYPE_LABELS, type RuleType } from "../../../shared/guides";
 import { assertUnlocked, feedbackBody, loadSub } from "./shared";
+import { assertMediaWritable } from "../../lib/media-purge";
 
 // 자동 분석 다시 시도, 위반 후보 판정, 놓친 위반 추가
 
@@ -58,6 +59,7 @@ export const candidateRoutes = new Hono<AppEnv>()
   .post("/:id/retry", editorsOnly, async (c) => {
     const { stage } = parse(z.object({ stage: z.enum(["transcribe", "detect"]) }), await c.req.json());
     const { sub } = await loadSub(c, c.req.param("id"));
+    await assertMediaWritable(c.var.db, sub.id);
     if (!sub.originalKey) throw new ApiError(400, "no_file", "드라이브 링크 제출은 자동 처리하지 않아요.");
     const stages = stage === "transcribe" ? ["transcribe", "translate", "detect"] : ["detect"];
     await c.env.PIPELINE.send({ type: "process_submission", payload: { submissionId: sub.id, stages } });

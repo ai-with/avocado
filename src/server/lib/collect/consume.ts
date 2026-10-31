@@ -85,7 +85,7 @@ async function processSite(env: Env, siteId: string, msgs: CollectMessage[]): Pr
     writes.push(...writesFor(env.DB, state, m, d, known));
     // 동의 전(pending)에는 사람 연결을 하지 않는다 (docs/14 7장)
     if (m.envelope.consent !== "granted") continue;
-    for (const event of d.identifies) jobs.push({ site: state.site, anonId: m.envelope.anon, sessionId: m.envelope.sess, linkId: known.attr.linkId, event });
+    for (const event of d.identifies) jobs.push({ site: state.site, anonId: m.envelope.anon, sessionId: m.envelope.sess, linkId: known.attr.linkId, event, receivedAt: m.receivedAt });
   }
   if (writes.length === 0) return [];
   const at = Math.max(...msgs.map((m) => m.receivedAt));

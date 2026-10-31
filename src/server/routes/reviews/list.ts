@@ -9,6 +9,7 @@ import { approvalOf, approvedRefOf, fileUrl, isDelayed, isSuperseded, loadSub } 
 import { approveCheck, isLocked, reviewState, type ApprovedRef } from "./policy";
 import { conflictsOf } from "./conflicts";
 import { selectInChunks } from "../../lib/chunks";
+import { mediaWritable } from "../../lib/media-purge";
 
 // 검수함 목록(/reviews)과 검수 화면 상세
 
@@ -68,7 +69,8 @@ async function analysisOf(db: Db, subId: string) {
   const frameRows = await db.select().from(frames).where(eq(frames.submissionId, subId)).orderBy(asc(frames.tMs));
   const segments = await db.select().from(transcriptSegments).where(eq(transcriptSegments.submissionId, subId)).orderBy(asc(transcriptSegments.startMs));
   const candidates = await db.select().from(violationCandidates).where(eq(violationCandidates.submissionId, subId)).orderBy(asc(violationCandidates.createdAt));
-  return { jobs, frames: frameRows.map((f) => ({ id: f.id, tMs: f.tMs, source: f.source, url: fileUrl(f.imageKey) })), segments, candidates };
+  const readable = await mediaWritable(db, subId);
+  return { jobs, frames: readable ? frameRows.map((f) => ({ id: f.id, tMs: f.tMs, source: f.source, url: fileUrl(f.imageKey) })) : [], segments: readable ? segments : [], candidates };
 }
 
 // 승인 뒤 새 버전 상태와 승인된 버전 번호 (340)
@@ -101,6 +103,7 @@ export const reviewListRoutes = new Hono<AppEnv>()
         conflicts: conflicts.get(r.sub.id)?.ids.length ?? 0,
       }))
       .filter((r) => !state || r.state === state);
+    for (const row of list) if (!(await mediaWritable(db, row.id))) { row.driveUrl = null; row.driveAccess = null; }
     return c.json({ rows: list });
   })
   .get("/:id", async (c) => {
@@ -108,6 +111,9 @@ export const reviewListRoutes = new Hono<AppEnv>()
     const { sub, gi, guide, influencer } = await loadSub(c, c.req.param("id"));
     const { role } = workspaceCtx(c);
     const versions = await versionsOf(db, gi.id);
+    const readable = new Set<string>();
+    for (const version of versions) if (await mediaWritable(db, version.id)) readable.add(version.id);
+    for (const version of versions) if (!readable.has(version.id)) { version.originalKey = null; version.driveUrl = null; }
     // 같은 버전에 클린본을 다시 올리면 가장 최근 것이 대체한다 (TASK-074)
     const clean = versions.filter((v) => v.kind === "clean" && v.version === sub.version && v.originalKey).at(-1);
     const analysis = await analysisOf(db, sub.id);
@@ -115,7 +121,7 @@ export const reviewListRoutes = new Hono<AppEnv>()
     const items = await feedbackOf(db, versions.map((v) => v.id));
     const versionOf = new Map(versions.map((v) => [v.id, v.version]));
     return c.json({
-      submission: { ...sub, videoUrl: sub.originalKey ? fileUrl(sub.originalKey) : null, delayed: isDelayed(sub) },
+      submission: { ...sub, originalKey: readable.has(sub.id) ? sub.originalKey : null, driveUrl: readable.has(sub.id) ? sub.driveUrl : null, videoUrl: readable.has(sub.id) && sub.originalKey ? fileUrl(sub.originalKey) : null, delayed: isDelayed(sub) },
       cleanUrl: clean?.originalKey ? fileUrl(clean.originalKey) : null,
       guide: { id: guide.id, name: guide.name },
       influencer: { id: influencer.id, displayName: influencer.displayName, igHandle: influencer.igHandle, lang: influencer.lang },

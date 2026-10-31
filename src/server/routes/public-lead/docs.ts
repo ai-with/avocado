@@ -137,6 +137,7 @@ async function saveGateLead(c: Context<AppEnv>, s: DocAccess, view: View, body: 
     answers: labeledAnswers(doc.gate, body.answers),
     marketingOptIn: body.marketingOptIn,
     alimtalkOptIn: !!body.phone && body.alimtalkOptIn,
+    currentViewId: view.id,
     source: { type: leadSourceType, guideId: link.guideId, influencerId: link.influencerId, channelKey: link.channelKey, linkId: link.id },
   });
   await c.var.db.update(documentViews).set({ leadId }).where(eq(documentViews.id, view.id));

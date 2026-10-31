@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Db } from "../db";
-import { audioTracks, consents, guideInfluencers, guides, processingJobs, submissions } from "../db/schema";
+import { audioTracks, guideInfluencers, guides, processingJobs, submissions } from "../db/schema";
 import { newId, now } from "../lib/ids";
 import { logEvent } from "../lib/events";
 import { JOB_STAGES, type JobStage } from "../../shared/review";
@@ -10,6 +10,7 @@ import { stageTranscribe } from "./stages/transcribe";
 import { stageTranslate } from "./stages/translate";
 import { stageDetect } from "./stages/detect";
 import { stageNotify } from "./stages/notify";
+import { assertMediaWritable, mediaWritable } from "../lib/media-purge";
 
 // F-60 처리 파이프라인. Queue 메시지 { type: "process_submission", payload: { submissionId, stages? } }
 // 단계마다 processing_jobs 1행을 갱신하고, 한 단계가 실패해도 다음 단계는 가능한 범위에서 계속한다
@@ -64,15 +65,16 @@ export async function processSubmission(raw: unknown, env: Env) {
   const db = getDb(env.DB);
   const ctx = await loadCtx(env, db, payload.submissionId);
   if (!ctx) return;
-  if (await withdrawn(db, ctx.giId)) return cancelJobs(db, [ctx.sub.id]);
+  if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);
   if (await requeueIfEarly(ctx, payload)) return;
 
   const stages = payload.stages ?? [...JOB_STAGES];
   await queueStages(ctx, stages);
   for (const stage of stages) {
-    if (await withdrawn(db, ctx.giId)) return cancelJobs(db, [ctx.sub.id]);
-    await runStage(ctx, stage);
+    if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);
+    if (!(await runStage(ctx, stage))) return cancelJobs(db, [ctx.sub.id]);
   }
+  await assertMediaWritable(db, ctx.sub.id);
   await db.update(submissions).set({ status: "ready" }).where(eq(submissions.id, ctx.sub.id));
 }
 
@@ -83,20 +85,19 @@ async function runStage(ctx: Ctx, stage: JobStage) {
   await db.update(processingJobs).set({ status: "running", startedAt }).where(where);
   try {
     const note = await STAGE_FNS[stage](ctx);
+    await assertMediaWritable(db, sub.id);
     await db.update(processingJobs).set({ status: "done", finishedAt: now(), error: note }).where(where);
     await logEvent(db, ctx.workspaceId, "processing_job_completed", { stage, duration_ms: now() - startedAt });
+    return true;
   } catch (e) {
+    if (!(await mediaWritable(db, sub.id))) { await cancelJobs(db, [sub.id]); return false; }
     const skipped = e instanceof StageSkip;
     const reason = e instanceof Error ? e.message.slice(0, ERROR_MAX_CHARS) : "unknown";
     if (!skipped) console.error("[pipeline]", stage, sub.id, e);
     await db.update(processingJobs).set({ status: skipped ? "skipped" : "failed", finishedAt: now(), error: reason }).where(where);
     if (!skipped) await logEvent(db, ctx.workspaceId, "processing_job_failed", { stage, reason });
+    return true;
   }
-}
-
-async function withdrawn(db: Db, giId: string) {
-  const active = await db.select({ id: consents.id }).from(consents).where(and(eq(consents.guideInfluencerId, giId), isNull(consents.withdrawnAt))).get();
-  return !active;
 }
 
 // 동의 철회 시 대기·진행 중인 작업을 멈춘다 (F-60 예외)
@@ -108,8 +109,8 @@ export async function cancelJobs(db: Db, submissionIds: string[]) {
     .where(and(inArray(processingJobs.submissionId, submissionIds), inArray(processingJobs.status, ["queued", "running"])));
 }
 
-export async function cancelProcessingFor(db: Db, giId: string) {
-  const subs = await db.select({ id: submissions.id }).from(submissions).where(eq(submissions.guideInfluencerId, giId));
+export async function cancelProcessingFor(db: Db, giId: string, consentId?: string) {
+  const subs = await db.select({ id: submissions.id }).from(submissions).where(and(eq(submissions.guideInfluencerId, giId), consentId ? sql`EXISTS (SELECT 1 FROM media_purges p WHERE p.submission_id=${submissions.id} AND p.consent_id=${consentId})` : undefined));
   await cancelJobs(
     db,
     subs.map((s) => s.id),

@@ -13,3 +13,4 @@ export * from "./notifications";
 export * from "./brands";
 export * from "./contact-logs";
 export * from "./message-templates";
+export * from "./privacy";

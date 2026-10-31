@@ -12,6 +12,7 @@ import { judgeRule } from "./detect-rules";
 import type { CandidateResult } from "../../../shared/review";
 import type { GuideRule } from "../../../shared/guides";
 import { ruleSource } from "../../../shared/brand-terms";
+import { assertMediaWritable, MediaWithdrawn } from "../../lib/media-purge";
 
 // 7 위반 후보 탐지 (F-61)
 const DETECT_ATTEMPTS = 2; // 1회 + 재시도 1회
@@ -41,7 +42,9 @@ async function detectAll(ctx: Ctx): Promise<Draft[]> {
   const input = { env, sub, segs, noSpeech, visual: await visualVotes(ctx, rules), textModel: modelName(env, "text"), visionModel: modelName(env, "vision") };
   const drafts: Draft[] = [];
   for (const rule of rules) {
+    await assertMediaWritable(db, sub.id);
     const j = await judgeRule(rule, input);
+    await assertMediaWritable(db, sub.id);
     if (j && keepDraft(rule, j.verdict)) drafts.push({ ...j.verdict, rule, model: j.model, frameIds: j.frameIds ?? [], segmentIds: j.segmentIds ?? [] });
   }
   return drafts;
@@ -49,6 +52,7 @@ async function detectAll(ctx: Ctx): Promise<Draft[]> {
 
 async function saveDrafts(ctx: Ctx, drafts: Draft[]) {
   const { db, sub } = ctx;
+  await assertMediaWritable(db, sub.id);
   const at = now();
   const rows = drafts.map((d) => ({
     id: newId(),
@@ -77,6 +81,7 @@ async function saveDrafts(ctx: Ctx, drafts: Draft[]) {
 
 export async function stageDetect(ctx: Ctx): Promise<string | null> {
   const { db, sub } = ctx;
+  await assertMediaWritable(db, sub.id);
   // 사람이 이미 판정한 후보가 있으면 덮어쓰지 않는다
   const decided = await db.select({ id: violationCandidates.id }).from(violationCandidates).where(and(eq(violationCandidates.submissionId, sub.id), inArray(violationCandidates.decision, ["adopted", "rejected", "held"]))).get();
   if (decided) throw new StageSkip("already_reviewed");
@@ -88,6 +93,7 @@ export async function stageDetect(ctx: Ctx): Promise<string | null> {
       await saveDrafts(ctx, await detectAll(ctx));
       return null;
     } catch (e) {
+      if (e instanceof MediaWithdrawn) throw e;
       lastError = e;
       console.error("[pipeline:detect]", sub.id, e);
     }

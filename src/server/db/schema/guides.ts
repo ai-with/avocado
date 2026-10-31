@@ -145,6 +145,9 @@ export const submissions = sqliteTable(
     id: text("id").primaryKey(),
     guideInfluencerId: text("guide_influencer_id").notNull().references(() => guideInfluencers.id, { onDelete: "cascade" }),
     version: integer("version").notNull(),
+    // AIWITH-358: 제출 당시 동의 세대와 영속 미디어 파기 표시.
+    consentId: text("consent_id"),
+    mediaPurgedAt: integer("media_purged_at"),
     kind: text("kind").$type<"final" | "clean">().notNull(),
     fileName: text("file_name"),
     sizeBytes: integer("size_bytes"),

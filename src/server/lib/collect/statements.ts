@@ -55,5 +55,5 @@ export function insertEventIds(db: D1Database, siteId: string, ids: string[], at
 }
 
 export function markFirstEvent(db: D1Database, siteId: string, at: number) {
-  return db.prepare("UPDATE sites SET first_event_at = ? WHERE id = ? AND first_event_at IS NULL").bind(at, siteId);
+  return db.prepare("UPDATE sites SET first_event_at = ? WHERE id = ? AND deleted_at IS NULL AND first_event_at IS NULL").bind(at, siteId);
 }

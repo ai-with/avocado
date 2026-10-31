@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { assertMediaWritable } from "../../lib/media-purge";
 import { z } from "zod";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { AppEnv } from "../../types";
@@ -89,12 +90,13 @@ export const publicFeedbackRoutes = new Hono<AppEnv>()
     const db = c.var.db;
     const { gi } = await byFeedbackToken(db, c.req.param("token"));
     const f = await db
-      .select({ key: frames.imageKey })
+      .select({ key: frames.imageKey, submissionId: submissions.id })
       .from(frames)
       .innerJoin(submissions, eq(submissions.id, frames.submissionId))
       .where(and(eq(frames.id, c.req.param("frameId")), eq(submissions.guideInfluencerId, gi.id)))
       .get();
     if (!f) throw new ApiError(404, "file_not_found", "이미지를 찾을 수 없어요.");
+    await assertMediaWritable(db, f.submissionId);
     return streamObject(c.env.FILES, f.key, new Headers(), false);
   })
   // 항목별 '반영함' 체크와 질문 답글

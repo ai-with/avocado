@@ -15,6 +15,7 @@ import { checklistFromRules } from "../../../shared/guides";
 import { buildInfluencerTabs, countUnreadLatest } from "../../../shared/influencer-tabs";
 import { pickDeadline } from "../../../shared/deadline";
 import { assignVersion } from "../../../shared/versions";
+import { assertMediaWritable } from "../../lib/media-purge";
 
 // 인플루언서용 공개 API 공용. 로그인 없이 토큰으로만 접근한다 (4-1)
 
@@ -68,12 +69,13 @@ export async function uploadCtx(c: Context<AppEnv>) {
   const row = await requireByToken(c.var.db, "uploadToken", c.req.param("token") ?? "");
   const consent = await currentConsent(c.var.db, row.gi.id);
   if (!consent) throw new ApiError(403, "consent_required", "동의를 먼저 완료해 주세요.");
-  return row;
+  return { ...row, consent };
 }
 
 export async function findSubmission(db: Db, gi: Gi, id: string) {
   const s = await db.select().from(submissions).where(and(eq(submissions.id, id), eq(submissions.guideInfluencerId, gi.id))).get();
   if (!s) throw new ApiError(404, "submission_not_found", "업로드를 찾을 수 없어요.");
+  await assertMediaWritable(db, s.id);
   return s;
 }
 
