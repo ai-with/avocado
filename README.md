@@ -391,7 +391,7 @@ job은 현재 사용자·로그인 세션·워크스페이스에 묶이며, 모�
 
 목록은 기본 50명·최대 100명의 `created_at DESC,id DESC` keyset 페이지다. 커서는 workspace·필터/그룹 규칙 hash에 묶어 서명하며 조건이 바뀌면 첫 페이지로 돌아간다. 이는 변경 중인 현재 목록이며 여러 요청을 고정한 snapshot은 아니다. 페이지 이동·필터 변경 시 체크 선택을 비우고 현재 페이지에만 적용한다. 목록에는 답변·수신 거부 토큰·이메일 해시·검색 보조값을 싣지 않는다. 페이지 ID의 출처 종류와 자기 workspace 태그만 수화한다. 선택된 페이지와 태그 참조가 1MiB 또는 태그 관계 1,000개를 넘으면 크기/필터를 좁히도록 명시적으로 거절한다. 숫자는 메모리·요청 예산을 위한 기술 상한이며 발송/요금제 quota가 아니다.
 
-필터 lookup은 종류별 100개와 현재 페이지·선택값 참조를 읽고, **필터 더 보기**로 다음 묶음을 요청한다. 각 묶음의 이름표는 256KiB까지다. 그룹도 50개씩 더 보며 조건/이름 자료가 한 묶음 512KiB를 넘으면 거절한다. 선택한 그룹이 첫 묶음 밖에 있어도 자기 workspace의 그 그룹을 별도로 가져온다. 가이드 리드 탭에도 같은 페이지 이동을 제공하고, 태그 탭·그룹 편집·리드 상세에서도 다음 lookup을 불러올 수 있다. 발송 대상 선택도 묶음별 더 보기와 저장된 선택값 복구를 사용하며 찾을 수 없는 선택을 조용히 지우지 않는다. 필터 변경마다 모든 그룹을 다시 집계하지 않는다. 목록/그룹 오류와 검색 준비 상태, 발송 대상 집계 실패를 빈 결과나 0명으로 표시하지 않는다.
+필터 lookup은 종류별 100개와 현재 페이지·선택값 참조를 읽고, 기본 채널 초기화도 고정된 6개 키만 조회한다. 목록의 현재 출처 채널이 첫 묶음 밖에 있어도 해당 이름표를 별도로 복구하며, **필터 더 보기**로 다음 묶음을 요청한다. 각 묶음의 이름표는 256KiB까지다. 그룹도 50개씩 더 보며 조건/이름 자료가 한 묶음 512KiB를 넘으면 거절한다. 선택한 그룹이 첫 묶음 밖에 있어도 자기 workspace의 그 그룹을 별도로 가져온다. 가이드 리드 탭에도 같은 페이지 이동을 제공하고, 태그 탭·그룹 편집·리드 상세에서도 다음 lookup을 불러올 수 있다. 발송 대상 선택도 묶음별 더 보기와 저장된 선택값 복구를 사용하며 찾을 수 없는 선택을 조용히 지우지 않는다. 필터 변경마다 모든 그룹을 다시 집계하지 않는다. 목록/그룹 오류와 검색 준비 상태, 발송 대상 집계 실패를 빈 결과나 0명으로 표시하지 않는다.
 
 검색은 기존의 `trim().toLowerCase()`·필드별 부분 문자열 의미를 유지한다. [SQLite lower는 ASCII 전용](https://www.sqlite.org/lang_corefunc.html)이라 원본 email/name/company/phone을 JavaScript에서 각각 통째로 소문자 변환해 `search_*_v1`에 저장하고 BLOB instr로 비교한다. `%`·`_`는 와일드카드가 아니고 필드 경계를 넘어 일치하지 않는다. Unicode 정규화나 locale 변환은 추가하지 않는다. 새 리드는 보조값도 같이 INSERT하고, form/gate/manual 공용 merge와 SDK는 원문 변경 뒤 같은 native batch에서 보조값을 갱신한다. SDK는 기존 current_job·원문 동의·삭제/생성 시각 검사를 그대로 적용하고 작업 완료 전에 갱신한다. import bulk는 별도 import 모듈의 같은 트랜잭션에서 `leadSearchValues`/`leadSearchMergeSql` 계약으로 연결한다.
 
@@ -399,7 +399,7 @@ DB trigger는 바뀐 원문 필드의 보조값을 NULL로 지워 이전 Worker�
 
 HTTP audience 집계는 COUNT/사유별 aggregate만 반환한다. 기존 canSend 사유 우선순위와 야간 보류를 eligible에 포함하던 의미를 유지한다. 실제 `runBroadcast`의 전체 eligible 배열·순차 발송은 398의 전달 분할 전까지 유지한다. 이 단계에서 미확정 발송 quota 숫자를 추가하지 않는다. CSV와 Google Sheets는 같은 SQL 선택 조건을 쓰되 첫 페이지만 내보내지 않는다. CSV는 여전히 전체 일치 행·관계와 전체 lookup을 메모리에 만들고, Sheets의 기존 1,000행·입력 원장 상한도 유지하므로 대형 전체 내보내기 문제가 해결됐다고 주장하지 않는다.
 
-2만 리드·50그룹×20규칙 입력에서 JS reference와 결과/사유를 비교한다. 실제 사용 SQL은 Python SQLite의 expression depth 100·SQL 100,000바이트·compound SELECT 5·반환 열 100·함수 인자 32 제한에서도 다시 실행한다. 목록+lookup+그룹 집계+HTTP audience를 함께 계측한 회귀는 25개 물리 SQL, 최대 36개 bind, 반환 약 96KB이며 SQL 4KB 미만이다. 새 발송·외부 HTTP·클라우드 리소스는 없다. [D1의 Free 호출당 50쿼리·100 bind·100KB SQL 한도](https://developers.cloudflare.com/d1/platform/limits/) 안에서 확인하며 미들웨어 비용도 별도 여유를 둔다.
+2만 리드·50그룹×20규칙 입력에서 JS reference와 결과/사유를 비교한다. 실제 사용 SQL은 Python SQLite의 expression depth 100·SQL 100,000바이트·compound SELECT 5·반환 열 100·함수 인자 32 제한에서도 다시 실행한다. 목록+lookup+그룹 집계+HTTP audience를 함께 계측한 회귀는 24개 물리 SQL, 최대 36개 bind, 반환 약 96KB이며 SQL 4KB 미만이다. 새 발송·외부 HTTP·클라우드 리소스는 없다. [D1의 Free 호출당 50쿼리·100 bind·100KB SQL 한도](https://developers.cloudflare.com/d1/platform/limits/) 안에서 확인하며 미들웨어 비용도 별도 여유를 둔다.
 
 ## 브라우저 장면 프레임 선택 (AIWITH-382)
 

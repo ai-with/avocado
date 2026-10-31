@@ -129,6 +129,22 @@ describe("SQL lead selection and stable page hydration", () => {
     const first = await leadLookupPage(orm, "w", "tags", "", ["tag-109", "foreign-tag"]); expect(first.items.some((r) => r.id === "tag-109")).toBe(true); expect(first.items.some((r) => r.id === "foreign-tag")).toBe(false); expect(first.nextCursor).toBeTruthy();
     const next = await leadLookupPage(orm, "w", "tags", first.nextCursor!); expect(new Set([...first.items, ...next.items].map((r) => r.id)).size).toBe(111);
   });
+  it("keeps channel initialization bounded and restores a page source beyond the lookup prefix", async () => {
+    const { app, env, d1, db, lead } = await setup();
+    db.exec("BEGIN");
+    for (let i = 0; i < 1000; i++) db.prepare("INSERT INTO link_channels(id,workspace_id,key,name,sort,created_at) VALUES(?,'w',?,?,?,1)")
+      .run(`channel-${i}`, `custom:${i.toString().padStart(4, "0")}`, "채".repeat(30), i);
+    db.exec("COMMIT");
+    db.exec("INSERT INTO link_channels(id,workspace_id,key,name,sort,created_at) VALUES('foreign-channel','other','custom:0999','FOREIGN',1,1)");
+    const counted = meter(d1), measured = getDb(counted.db);
+    const lookup = await boundedLeadLookups(measured, "w", { channels: ["custom:0999"] });
+    expect(lookup.lookups.channels).toHaveLength(101); expect(lookup.lookupCursors.channels).toBeTruthy();
+    expect(counted.value().returnedBytes).toBeLessThan(65536);
+    lead("page-source"); db.exec("UPDATE leads SET last_source=json_set(last_source,'$.channelKey','custom:0999') WHERE id='page-source'");
+    const body = await (await app.request("/leads?limit=1", {}, env)).json() as { lookups: { channels: { key: string; name: string }[] } };
+    expect(body.lookups.channels.find((channel) => channel.key === "custom:0999")?.name).toBe("채".repeat(30));
+    expect(JSON.stringify(body)).not.toContain("FOREIGN");
+  });
   it("group consumers can page all groups and restore selected own groups beyond the first fifty", async () => {
     const { app, env, db, lead } = await setup(); lead("a");
     for (let i = 0; i < 60; i++) db.prepare("INSERT INTO lead_groups(id,workspace_id,name,rules,created_at) VALUES(?,'w',?,'{\"all\":[]}',1)").run(`g-${i.toString().padStart(2, "0")}`, `Group ${i}`);

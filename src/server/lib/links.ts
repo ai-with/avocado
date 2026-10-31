@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { Db } from "../db";
 import { linkChannels, shortLinks } from "../db/schema";
 import { DEFAULT_CHANNELS, type DestinationType, type Utm } from "../../shared/leads";
@@ -43,15 +43,27 @@ export function deviceOf(ua: string | undefined): "mobile" | "desktop" | "other"
   return "other";
 }
 
-// 워크스페이스에 기본 채널 6개가 없으면 만든다. 채널 목록을 읽는 모든 곳에서 먼저 부른다
-export async function ensureChannels(db: Db, workspaceId: string) {
-  const rows = await db.select().from(linkChannels).where(eq(linkChannels.workspaceId, workspaceId)).orderBy(asc(linkChannels.sort));
+async function insertMissingDefaults(db: Db, workspaceId: string, rows: readonly { key: string }[]) {
   const missing = DEFAULT_CHANNELS.filter((d) => !rows.some((r) => r.key === d.key));
-  if (missing.length === 0) return rows;
+  if (!missing.length) return false;
   await db
     .insert(linkChannels)
     .values(missing.map((d) => ({ id: newId(), workspaceId, key: d.key, name: d.name, sort: DEFAULT_CHANNELS.findIndex((x) => x.key === d.key), createdAt: now() })))
     .onConflictDoNothing();
+  return true;
+}
+
+// Paginated callers only need to ensure the six defaults, not load every custom channel.
+export async function ensureChannelDefaults(db: Db, workspaceId: string) {
+  const rows = await db.select({ key: linkChannels.key }).from(linkChannels)
+    .where(and(eq(linkChannels.workspaceId, workspaceId), inArray(linkChannels.key, DEFAULT_CHANNELS.map((d) => d.key))));
+  await insertMissingDefaults(db, workspaceId, rows);
+}
+
+// 워크스페이스에 기본 채널 6개가 없으면 만든다. 전체 채널 API의 기존 응답은 유지한다.
+export async function ensureChannels(db: Db, workspaceId: string) {
+  const rows = await db.select().from(linkChannels).where(eq(linkChannels.workspaceId, workspaceId)).orderBy(asc(linkChannels.sort));
+  if (!await insertMissingDefaults(db, workspaceId, rows)) return rows;
   return db.select().from(linkChannels).where(eq(linkChannels.workspaceId, workspaceId)).orderBy(asc(linkChannels.sort));
 }
 

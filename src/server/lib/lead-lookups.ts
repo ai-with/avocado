@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import { ApiError } from "./errors";
-import { ensureChannels } from "./links";
+import { ensureChannelDefaults } from "./links";
 
 export const lookupKinds = ["guides", "influencers", "channels", "tags", "contents"] as const;
 export type LookupKind = typeof lookupKinds[number];
@@ -29,7 +29,7 @@ export async function leadLookupPage(db: Db, workspace: string, kind: LookupKind
   return { items, nextCursor: prefix.length > 100 ? prefix[99]!.id : null };
 }
 export async function boundedLeadLookups(db: Db, workspace: string, refs: Partial<Record<LookupKind, string[]>> = {}) {
-  await ensureChannels(db, workspace);
+  await ensureChannelDefaults(db, workspace);
   const pages = await Promise.all(lookupKinds.map((kind) => leadLookupPage(db, workspace, kind, "", [...new Set(refs[kind] ?? [])])));
   return { lookups: Object.fromEntries(lookupKinds.map((kind, i) => [kind, kind === "channels" ? pages[i]!.items.map((r) => ({ key: r.id, name: r.name })) : pages[i]!.items])),
     lookupCursors: Object.fromEntries(lookupKinds.map((kind, i) => [kind, pages[i]!.nextCursor])) };
