@@ -5,6 +5,7 @@ import { ApiError, errorBody } from "./lib/errors";
 import { loadSession } from "./middleware/auth";
 import { registerRoutes } from "./routes";
 import { batchQueueHandlers, queueHandlers, scheduledTasks, type PipelineMessage } from "./jobs";
+import { isPublicGuideJoinRequest } from "./lib/guide-join";
 
 const app = new Hono<AppEnv>();
 
@@ -12,7 +13,10 @@ app.use("*", async (c, next) => {
   c.set("db", getDb(c.env.DB));
   await next();
 });
-app.use("/api/*", loadSession);
+app.use("/api/*", async (c, next) => {
+  if (isPublicGuideJoinRequest(c.req.method, c.req.path)) { c.set("auth", null); await next(); }
+  else await loadSession(c, next);
+});
 registerRoutes(app);
 
 app.notFound((c) => c.json(errorBody("not_found", "요청한 주소를 찾을 수 없어요."), 404));

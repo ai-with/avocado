@@ -2,6 +2,18 @@ import type { Dict } from "./ko";
 
 export const en: Dict = {
   loading: "Loading",
+  join_verification_label: "Security check",
+  join_verification_loading: "Checking your request.",
+  join_verification_ready: "Security check complete.",
+  join_verification_expired: "The security check expired. Please check again.",
+  join_verification_failed: "We could not complete the security check. Please check again.",
+  join_verification_required: "Please complete the security check first.",
+  join_verification_retry: "Check again",
+  join_unavailable: "Participation is not available yet. Please open this page again later.",
+  join_rate_limited: "There are too many requests right now. Please try again shortly.",
+  join_invalid: "Please check your details and submit again.",
+  join_invalid_field: "Please check this field.",
+  join_failed: "We could not complete your request. Please try again later.",
   ig_connection_title: "Instagram account",
   ig_connection_hint: "Connect your account so the brand can collect results for your campaign posts.",
   ig_optional: "Connecting is optional. You can still take part without connecting.",

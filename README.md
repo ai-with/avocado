@@ -114,6 +114,8 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 | `META_APP_ID`, `META_APP_SECRET` | 인스타그램 연결 OAuth, 웹훅 서명 검증 (필수) | 인스타그램 연결, 키워드 DM이 "연결 준비 중" |
 | `META_VERIFY_TOKEN` | 웹훅 등록 확인용 임의 문자열 (필수) | 웹훅 등록 불가 |
 | `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰과 임시 내보내기 자료 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램과 시트 연결 꺼짐 |
+| `TURNSTILE_SITE_KEY` | 공용 가이드 참여용 Turnstile sitekey. 클라이언트에 공개되는 값 | 공용 참여는 준비 중으로 표시되고 신청은 거절됨 |
+| `TURNSTILE_SECRET_KEY` | 같은 위젯의 Siteverify secret. 서버 시크릿으로만 등록 | 위와 같음. 검증 없이 가입하지 않음 |
 | `CF_API_TOKEN_AE` | Analytics Engine SQL API 조회용 토큰 (선택, 아직 읽는 화면 없음) | 영향 없음. 사이트 분석 화면은 D1 집계만 쓴다 |
 | `IG_SYSTEM_TOKEN`, `IG_SYSTEM_USER_ID` | 연결하지 않은 인플루언서 게시물 지표(business_discovery)를 읽을 운영 계정 (선택) | 미연결 게시물은 게시 시각을 못 읽어 등록 시각 기준으로 예약 |
 
@@ -148,6 +150,22 @@ Meta의 [공식 Postman Instagram 문서](https://www.postman.com/meta/instagram
 새 작업의 호출 예산은 Cron D1 0회+Queue 1회, 유지보수 D1 배치 1회+Queue 최대 1회, 연결 확인 D1 최대 4회+Queue 최대 1회, 수신자 발송 D1 최대 8회+HTTP 1회다. R2 호출은 없다. 수신자 예산은 HTTP 성공 뒤 마지막 DB 저장까지 실패하는 경로를 실제 SQLite 회귀로 확인한다. [D1은 Free 호출당 50회이며 배치 전체를 1회로 계산한다](https://developers.cloudflare.com/d1/platform/limits/). 기존 다른 Cron 작업에 새 연결·수신자별 DB 순회를 더하지 않는다.
 
 알림은 기존 Resend 공용 함수를 쓰며 `RESEND_API_KEY`·명시 `EMAIL_FROM`·`TOKEN_ENC_KEY`가 모두 있어야 HTTP를 시작한다. 설정이 없으면 `blocked/mail_not_configured`로 남고 예제 발신 주소로 전송하지 않는다. 첫 전송 전에 발신/수신 주소·본문·가이드 경로를 암호화해 고정하고 수신자별 동일 idempotency key로 재시도한다. [Resend의 보관 시간은 24시간](https://resend.com/docs/dashboard/emails/idempotency-keys)이므로 첫 시도 후 24시간에서 1분 여유를 뺀 시점부터 결과 미확정 알림은 `unknown`으로 닫아 자동 재전송하지 않는다. 이 경우 수동 확인이 필요하며, 무기한 중복 발송하지 않는다. 성공·취소·결과 미확정으로 닫힌 원장의 암호화 본문은 지운다. 실제 Meta 앱 키·승인된 발신 도메인/주소가 없는 환경의 실제 OAuth·메일 수신 검증은 별도다.
+
+#### 공용 가이드 참여 보호 (AIWITH-292)
+
+`0027_public_join_limits.sql`을 적용하고 Cloudflare Turnstile의 운영 위젯에 실제 `APP_URL` 호스트를 등록한다. 같은 위젯의 `TURNSTILE_SITE_KEY`와 암호화 서버 시크릿 `TURNSTILE_SECRET_KEY`, 기존 `TOKEN_ENC_KEY`가 모두 있어야 공용 가이드에 참여할 수 있다. sitekey만 공개 응답에 포함하고 secret은 서버에서만 쓴다. 설정이 없거나 운영에 공식 시험 키를 넣으면 준비 중으로 표시하고 가입을 거절한다. 운영 키 등록·실제 호스트에서의 위젯 성공과 실제 봇 판별은 별도 운영 QA 대상이다.
+
+클라이언트는 [공식 api.js](https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/)를 `render=explicit`으로 직접 한 번 로드한다. 다른 서버에서 제공하거나 번들에 복사하지 않는다. 언어·가이드별 위젯 수명을 관리하고 만료·오류·로드 실패 때 새 확인을 받는다. 제출은 유효한 token이 있을 때만 허용하고 진행 중 중복 제출을 막는다. 가이드 이동·언어 변경·화면 종료 뒤 이전 위젯의 늦은 콜백은 사용하지 않는다. 가입 응답은 가이드·설정 변경이나 화면 종료 뒤 사용하지 않으며, 같은 가이드에서 신청 중 언어만 바꾸면 이미 시작한 요청을 최신 화면 언어의 복귀·오류 안내로 마무리한다.
+
+보호 대상은 정확한 `POST /api/public/guide/:slug/join`이다. 이 요청만 회원 세션 조회 없이 익명 신청으로 처리하며, 다른 공개 API의 회원 클릭 제외나 기존 로그인 인증은 유지한다. 실제 stream을 최대 8KiB까지 읽고 token은 1~2048자만 받는다. 입력·token·설정·요청 IP가 유효하지 않으면 D1 조회나 외부 검증을 시작하지 않는다. 입력한 이름·계정·이메일이 같아도 기존 인플루언서의 비공개 링크를 재사용해 돌려주지 않는다.
+
+속도 제한은 사업 요금제의 사용량 정책과 별개인 기술적 보호값이다. 고정 60초 창마다 IP의 공용 참여 전체를 30회, 가이드 전체를 모든 IP 합계 300회로 제한한다. 정상 폼 제출에 여유를 두면서 자동 요청을 제한하려는 초기 기본값이며 운영 트래픽에서 산출한 사업 정책은 아니다. 원자적 조건부 UPSERT로 시도를 먼저 예약한다. 시도는 유효한 입력·설정·IP와 발행된 가이드를 확인한 뒤 시작하며, 후속 검증·저장 실패도 이미 예약한 시도에서 환불하지 않는다. 존재하지 않는 slug의 카운터 쓰기 증폭을 피하려고 가이드를 먼저 조회한다. 따라서 unknown/draft slug는 D1 1회·counter 0회·외부 0회, 이미 차단된 IP는 guide 조회+IP 예약으로 D1 2회·외부 0회를 사용한다. 가이드를 바꿔도 IP 상한은 공유하고, IP를 바꿔도 가이드 상한은 공유한다. 창 경계의 짧은 구간에는 상한의 최대 두 배가 허용될 수 있고, 공유 NAT의 여러 참여자는 IP 상한을 함께 쓴다. 차단 응답은 `429`와 다음 창까지의 `Retry-After`를 제공한다.
+
+원문 IP·연락처·Turnstile token은 속도 원장이나 로그에 저장하지 않는다. `TOKEN_ENC_KEY`의 HMAC에 도메인·IP/가이드 범위·시간창을 분리해 키를 만든다. 카운터 만료 시각은 창 종료 후 15분이며 기존 정리 Queue에서 만료 행을 한 번에 최대 1000개 지운다. 남은 행은 후속 정리 주기에서 처리한다. 신규 Queue나 Cron 조회는 추가하지 않고, 기존 Sheets 정리 Queue 호출은 D1 배치 1회와 카운터 DELETE 1회로 총 2회를 사용한다. 정리 실패는 Queue 재시도로 전파한다.
+
+[Siteverify](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)는 공식 HTTPS endpoint 한 곳만 사용한다. 성공 여부·운영 `APP_URL` hostname·`guide_join` action·가이드 ID로 만든 cData가 모두 일치해야 허용한다. token은 5분·한 번만 유효하다. 네트워크·본문 읽기 실패 또는 명시 `internal-error`만 재시도하며, HTTP 5xx를 포함한 비정상 HTTP 상태는 재시도하지 않고 거절한다. 재시도는 서버가 생성한 UUID를 같은 HTTP 요청 안에서만 공유하며 클라이언트의 idempotency key를 받지 않는다. 정상은 외부 1회, 허용한 일시 오류 재시도는 최대 2회이고 각각 헤더·본문을 합쳐 5초, 응답은 최대 16KiB로 제한한다. 공급자 원문 응답은 로그에 남기지 않는다. 검증 후 발행 상태를 다시 확인하는 influencer·개인 가이드 링크·이벤트 native batch로 저장하며 실패는 롤백한다. 정상 가입은 회원 쿠키 유무와 관계없이 최대 4 D1+1 HTTP다.
+
+로컬 개발에는 [공식 시험 키](https://developers.cloudflare.com/turnstile/troubleshooting/testing/)를 별도로 쓸 수 있다. 예를 들어 개발 전용 `.dev.vars`에 `APP_ENV=development`, 통과 sitekey `1x00000000000000000000AA`, 통과 secret `1x0000000000000000000000000000000AA`를 함께 설정한다. 개발 응답도 hostname·action·cData 일치 검증을 생략하지 않는다. 운영은 이 시험 sitekey·secret을 거부하며 검증 우회 모드는 없다. 가짜 HTTP·위젯 회귀는 로컬 검증이며 실제 봇 판별이나 운영 hostname 성공의 증거로 사용하지 않는다.
 
 ### 6. 원격 마이그레이션과 배포
 

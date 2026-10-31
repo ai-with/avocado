@@ -8,7 +8,8 @@ import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent, logEvents } from "../../lib/events";
 import { influencerLeadLinks } from "../../lib/guide-status";
-import { linkInfluencer, linkNotFound } from "../../lib/guides";
+import { linkNotFound } from "../../lib/guides";
+import { joinPublicGuide, publicJoinChallenge } from "../../lib/guide-join";
 import { cancelProcessingFor } from "../../pipeline";
 import { publicGuideInstagram } from "../../lib/instagram-oauth";
 import { CONSENT_DOC_VERSION, missingConsent } from "../../../shared/guides";
@@ -24,12 +25,6 @@ const consentBody = z.object({
   email: z.email("이메일 형식이 아니에요."),
   country: z.string().trim().toUpperCase().length(2, "국가를 골라 주세요."),
   ageConfirmed: z.boolean(),
-});
-const joinBody = z.object({
-  displayName: z.string().trim().min(1, "이름을 입력해 주세요.").max(60),
-  igHandle: z.string().trim().max(60).default(""),
-  email: z.union([z.literal(""), z.email("이메일 형식이 아니에요.")]).default(""),
-  lang: z.enum(["ko", "en"]).default("ko"),
 });
 type Row = NonNullable<Awaited<ReturnType<typeof byToken>>>;
 
@@ -78,7 +73,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     if (!row) {
       const guide = await publishedBySlug(db, token);
       if (!guide) throw linkNotFound();
-      return c.json({ mode: "shared", lang: guide.lang, guide: await publicGuideBody(db, guide, await brandNameOf(db, guide.workspaceId, guide.id)) });
+      return c.json({ mode: "shared", lang: guide.lang, guide: await publicGuideBody(db, guide, await brandNameOf(db, guide.workspaceId, guide.id)), turnstile: await publicJoinChallenge(c.env, guide.id) });
     }
     const { gi, guide, influencer, brandName } = row;
     const q = c.req.query("lang");
@@ -97,17 +92,7 @@ export const publicGuideViewRoutes = new Hono<AppEnv>()
     });
   })
   // 공용 링크로 들어온 인플루언서가 이름·계정을 넣으면 본인 링크를 만든다
-  // ponytail: 공개 가입이라 스팸 방어 없음. 남용되면 Turnstile 이나 IP 속도 제한을 붙인다
-  .post("/guide/:slug/join", async (c) => {
-    const body = parse(joinBody, await c.req.json());
-    const db = c.var.db;
-    const guide = await publishedBySlug(db, c.req.param("slug"));
-    if (!guide) throw new ApiError(404, "link_not_found", "링크를 찾을 수 없어요.");
-    const influencerId = newId();
-    await db.insert(influencers).values({ id: influencerId, workspaceId: guide.workspaceId, displayName: body.displayName, igHandle: body.igHandle.replace(/^@/, "") || null, email: body.email || null, lang: body.lang, createdAt: now() });
-    const gi = await linkInfluencer(db, guide.workspaceId, guide.id, influencerId);
-    return c.json({ guideToken: gi.guideToken }, 201);
-  })
+  .post("/guide/:slug/join", async (c) => c.json(await joinPublicGuide(c, c.req.param("slug")), 201))
   .post("/guide/:token/consent", async (c) => {
     const body = parse(consentBody, await c.req.json());
     const db = c.var.db;

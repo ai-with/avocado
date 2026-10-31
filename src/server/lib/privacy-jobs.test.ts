@@ -56,7 +56,7 @@ describe("개인정보 Queue 실행", () => {
     const cleanup = await queued(env, { type: "cleanup_google_sheets", payload: {} });
     expect(cleanup.ack).toHaveBeenCalledTimes(1);
     expect(cleanup.retry).not.toHaveBeenCalled();
-    expect(counted.getCalls()).toBe(1);
+    expect(counted.getCalls()).toBe(2); // Sheets 임시 자료 1 batch + 공개 참여 counter 1 bounded DELETE
     counted.reset();
     const igMaintenance = await queued(env, { type: "ig_connection_maintenance", payload: {} });
     expect(igMaintenance.ack).toHaveBeenCalledTimes(1);

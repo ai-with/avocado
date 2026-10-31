@@ -50,3 +50,4 @@
 .pub-file input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .pub-slot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); }
 .pub-note { background: var(--color-warn-subtle); color: var(--color-warn); padding: var(--space-4) var(--space-5); border-radius: var(--radius-md); font-size: var(--text-label-size); line-height: var(--text-label-lh); }
+.pub-turnstile { width: 100%; min-width: 0; max-width: 100%; }

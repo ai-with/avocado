@@ -2,6 +2,7 @@ import type { Lang, TKey } from "../../i18n";
 import type { PublicDictionary } from "../../../shared/brand-terms";
 import type { InfluencerTabs } from "../../../shared/influencer-tabs";
 import type { PublicInstagramLink } from "../../../shared/instagram-connection";
+import type { PublicJoinChallenge } from "../../../shared/public-join";
 import type { GuideProduct, RuleSeverity, RuleType, SecondaryUseScope, VideoGuide } from "../../../shared/guides";
 
 export type PublicGuide = {
@@ -29,7 +30,7 @@ export type PersonalData = {
   leadLinks: { channel: string; name: string; url: string }[];
   instagram?: PublicInstagramLink;
 };
-export type GuideData = { mode: "shared"; lang: Lang; guide: PublicGuide } | PersonalData;
+export type GuideData = { mode: "shared"; lang: Lang; guide: PublicGuide; turnstile?: PublicJoinChallenge } | PersonalData;
 export type T = (k: TKey) => string;
 
 // 공개 화면은 로그인이 없으므로 401 이어도 로그인 화면으로 보내지 않는다

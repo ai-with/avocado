@@ -47,9 +47,13 @@ queueHandlers.privacy_purge = processPrivacyPurge;
 // AIWITH-284: URL 세대 교체 중 실패한 썸네일 보상과 내보내기 임시 자료 정리도 별도 호출로 처리한다.
 import { enqueueThumbnailSweep, processThumbnailCleanup, processThumbnailSweep } from "./lib/content-thumbnail";
 import { cleanupGoogleSheetsJobs, enqueueGoogleSheetsCleanup } from "./lib/google-sheets-export";
+import { cleanupPublicJoinLimits } from "./lib/guide-join";
 queueHandlers.cleanup_content_thumbnail = processThumbnailCleanup;
 queueHandlers.sweep_content_thumbnails = processThumbnailSweep;
-queueHandlers.cleanup_google_sheets = (_payload, env) => cleanupGoogleSheetsJobs(env);
+queueHandlers.cleanup_google_sheets = async (_payload, env) => {
+  await cleanupGoogleSheetsJobs(env);
+  await cleanupPublicJoinLimits(env); // 기존 정리 Queue를 재사용하며 추가 D1 호출은 bounded DELETE 1회다.
+};
 scheduledTasks.push(enqueueGoogleSheetsCleanup, enqueueThumbnailSweep);
 
 // AIWITH-285: 연결 발견·연결 한 건 확인·수신자 한 명 발송을 각각 독립 호출로 실행한다.

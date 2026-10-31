@@ -1,6 +1,18 @@
 // 인플루언서 공개 화면(/g, /u, /f) 문구. 동의 문구는 법률 자문 전 초안이다
 export const ko = {
   loading: "불러오는 중이에요",
+  join_verification_label: "보안 확인",
+  join_verification_loading: "보안 확인을 진행하고 있어요.",
+  join_verification_ready: "보안 확인을 마쳤어요.",
+  join_verification_expired: "보안 확인이 만료됐어요. 다시 확인해 주세요.",
+  join_verification_failed: "보안 확인을 마치지 못했어요. 다시 확인해 주세요.",
+  join_verification_required: "보안 확인을 먼저 마쳐 주세요.",
+  join_verification_retry: "다시 확인하기",
+  join_unavailable: "참여 신청을 준비하고 있어요. 잠시 후 다시 열어 주세요.",
+  join_rate_limited: "잠시 요청이 많아요. 조금 뒤에 다시 신청해 주세요.",
+  join_invalid: "입력한 정보를 확인하고 다시 신청해 주세요.",
+  join_invalid_field: "입력한 내용을 확인해 주세요.",
+  join_failed: "신청을 마치지 못했어요. 잠시 후 다시 시도해 주세요.",
   ig_connection_title: "인스타그램 계정 연결",
   ig_connection_hint: "계정을 연결하면 브랜드가 캠페인 게시물의 성과를 자동으로 받을 수 있어요.",
   ig_optional: "연결은 선택이에요. 연결하지 않아도 캠페인에 참여할 수 있어요.",
