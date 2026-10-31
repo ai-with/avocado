@@ -1,29 +1,35 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Role } from "../../shared/roles";
 import { api, ApiError } from "./api";
 
 export type Me = {
   user: { id: string; email: string; name: string; phone: string | null };
   phoneVerified: boolean;
-  workspace: { id: string; name: string; plan: string; onboardedAt: number | null } | null;
+  workspace: { id: string; name: string; plan: string; onboardedAt: number | null; onboardingSkippedAt?: number | null } | null;
   role: Role | null;
   workspaces: { id: string; name: string; plan: string; role: Role }[];
 };
 
-type MeState = { me: Me | null; loading: boolean; refresh: () => Promise<void> };
-const MeContext = createContext<MeState>({ me: null, loading: true, refresh: async () => {} });
+type MeState = { me: Me | null; loading: boolean; refresh: () => Promise<Me | null> };
+const MeContext = createContext<MeState>({ me: null, loading: true, refresh: async () => null });
 
 export function MeProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const refresh = useCallback(async () => {
+  const generation = useRef(0);
+  const refresh = useCallback(async (): Promise<Me | null> => {
+    const request = ++generation.current;
     try {
-      setMe(await api.get<Me | null>("/auth/me", { redirectOn401: false }));
+      const current = await api.get<Me | null>("/auth/me", { redirectOn401: false });
+      if (request !== generation.current) return null;
+      setMe(current);
+      return current;
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401)) throw e;
-      setMe(null);
+      if (request === generation.current) setMe(null);
+      return null;
     } finally {
-      setLoading(false);
+      if (request === generation.current) setLoading(false);
     }
   }, []);
   useEffect(() => {

@@ -1,24 +1,36 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Button, Card, Input, PageHeader, useToast } from "../../ui";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Button, Card, Input, LoadingState, PageHeader, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import { MyAccountSection } from "./MyAccount";
 import { InviteModal } from "./InviteModal";
 import { InvitesTable, MembersTable } from "./WorkspaceTables";
+import { canInviteMembers, workspaceAllowed } from "../../../shared/roles";
 import type { Invite, Member } from "./workspaceTypes";
 import "./settings.css";
 
-function useWorkspaceMembers() {
+function useWorkspaceMembers(workspaceId: string, contextKey: string) {
+  const { refresh } = useMe();
+  const generation = useRef(0);
   const toast = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [loadedKey, setLoadedKey] = useState("");
   const load = useCallback(async () => {
-    const data = await api.get<{ members: Member[]; invites: Invite[] }>("/workspace/members");
+    const request = ++generation.current;
+    const data = await api.get<{ workspaceId: string; members: Member[]; invites: Invite[] }>("/workspace/members");
+    if (request !== generation.current) return;
+    if (data.workspaceId !== workspaceId) {
+      setMembers([]); setInvites([]); await refresh(); return;
+    }
     setMembers(data.members);
     setInvites(data.invites);
-  }, []);
+    setLoadedKey(contextKey);
+  }, [workspaceId, contextKey, refresh]);
   useEffect(() => {
-    void load();
+    setMembers([]); setInvites([]);
+    void load().catch((error) => toast(errorMessage(error), "danger"));
+    return () => { generation.current++; };
   }, [load]);
   const act = async (fn: () => Promise<unknown>, done: string) => {
     try {
@@ -29,24 +41,26 @@ function useWorkspaceMembers() {
       toast(errorMessage(e), "danger");
     }
   };
-  return { members, invites, load, act };
+  return { members: loadedKey === contextKey ? members : [], invites: loadedKey === contextKey ? invites : [], load, act, loading: loadedKey !== contextKey };
 }
 
 export function WorkspaceSettingsPage() {
   const { me, refresh } = useMe();
-  const isOwner = me?.role === "owner";
-  const { members, invites, load, act } = useWorkspaceMembers();
+  const isOwner = workspaceAllowed(me?.role, "manage");
+  const canInvite = canInviteMembers(me?.role);
+  const { members, invites, load, act, loading } = useWorkspaceMembers(me?.workspace?.id ?? "", `${me?.user.id}:${me?.workspace?.id}:${me?.role}`);
   const [name, setName] = useState(me?.workspace?.name ?? "");
   const [inviteOpen, setInviteOpen] = useState(false);
+  useEffect(() => { setName(me?.workspace?.name ?? ""); setInviteOpen(false); }, [me?.workspace?.id, me?.user.id]);
   const rename = async (e: FormEvent) => {
     e.preventDefault();
-    await act(() => api.patch("/workspace", { name }), "이름을 바꿨어요.");
+    await act(() => api.patch("/workspace", { name, expectedWorkspaceId: me?.workspace?.id }), "이름을 바꿨어요.");
     await refresh();
   };
 
   return (
     <>
-      <PageHeader title="워크스페이스 · 팀" actions={isOwner && <Button onClick={() => setInviteOpen(true)}>팀원 초대</Button>} />
+      <PageHeader title="워크스페이스 · 팀" actions={canInvite && <Button onClick={() => setInviteOpen(true)}>팀원 초대</Button>} />
       <div className="stack-section">
         <MyAccountSection />
         {isOwner && (
@@ -59,10 +73,12 @@ export function WorkspaceSettingsPage() {
             </form>
           </Card>
         )}
-        <MembersTable members={members} isOwner={isOwner} act={act} />
-        {isOwner && <InvitesTable invites={invites} act={act} />}
+        {loading ? <LoadingState label="팀 정보를 불러오는 중이에요" /> : <>
+          <MembersTable members={members} isOwner={isOwner} workspaceId={me?.workspace?.id ?? ""} act={act} />
+          {canInvite && <InvitesTable invites={invites} workspaceId={me?.workspace?.id ?? ""} act={act} />}
+        </>}
       </div>
-      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} onCreated={load} />
+      {canInvite && <InviteModal key={`${me?.user.id}:${me?.workspace?.id}`} expectedWorkspaceId={me?.workspace?.id ?? ""} open={inviteOpen} onClose={() => setInviteOpen(false)} onCreated={load} />}
     </>
   );
 }

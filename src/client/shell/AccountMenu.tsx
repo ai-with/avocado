@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { CreateWorkspaceModal } from "../features/workspaces/CreateWorkspaceModal";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Dropdown, Icon, type DropdownItem } from "../ui";
 import { api } from "../lib/api";
@@ -27,22 +29,24 @@ function useAccountActions(onClose: () => void) {
 }
 
 // 사이드바 맨 위: 지금 워크스페이스 이름. 누르면 다른 워크스페이스로 전환하거나 설정으로 간다
-export function WorkspaceSwitcher({ me, collapsed, onNavigate }: Props) {
+export function WorkspaceSwitcher({ me, collapsed, onNavigate, mobile = false }: Props & { mobile?: boolean }) {
   const navigate = useNavigate();
   const { switchTo } = useAccountActions(onNavigate);
+  const [createOpen, setCreateOpen] = useState(false);
   const name = me.workspace?.name ?? "워크스페이스 없음";
   const plan = PLAN_LABELS[me.workspace?.plan ?? "starter"] ?? me.workspace?.plan;
   const settings = ACCOUNT_LINKS[0];
   const others: DropdownItem[] = me.workspaces
     .filter((w) => w.id !== me.workspace?.id)
     .map((w) => ({ label: w.name, leading: <Avatar name={w.name} size="sm" />, onSelect: () => void switchTo(w.id) }));
-  const items: DropdownItem[] = [...others];
+  const items: DropdownItem[] = [...others, { label: "새 워크스페이스 만들기", icon: "plus", divider: others.length > 0, onSelect: () => { setCreateOpen(true); onNavigate(); if (mobile) document.querySelector<HTMLButtonElement>('[aria-controls="app-sidebar"]')?.focus(); } }];
   if (settings) items.push({ label: settings.label, icon: settings.icon, divider: others.length > 0, onSelect: () => {
     navigate(settings.to);
     onNavigate();
   } });
 
   return (
+    <>
     <Dropdown items={items} label={`워크스페이스: ${name}`} header={plan ? `${plan} 요금제` : undefined} triggerClassName="workspace-button" menuClassName="workspace-menu" tip={collapsed ? name : undefined}>
       <Avatar name={name} size="sm" />
       {!collapsed && (
@@ -52,6 +56,8 @@ export function WorkspaceSwitcher({ me, collapsed, onNavigate }: Props) {
         </>
       )}
     </Dropdown>
+    {createOpen && <CreateWorkspaceModal key={me.user.id} onClose={() => setCreateOpen(false)} />}
+    </>
   );
 }
 

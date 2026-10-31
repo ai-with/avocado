@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword } from "../../lib/password";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { defaultBrandInsert } from "../../lib/brands";
+import { actorParams, assertSql, ensureSessionScope, sessionPredicate, writeUnavailable } from "../../lib/workspace-access";
 import { maskPhone } from "../../lib/phone";
 import { createSession, destroySession, sessionCtx } from "../../middleware/auth";
 import { acceptInvite, checkInvite } from "../invites";
@@ -82,6 +83,7 @@ export const accountRoutes = new Hono<AppEnv>()
   })
   // 로그아웃 상태는 오류가 아니므로 401 대신 null (공개 페이지마다 콘솔 오류가 찍히지 않게)
   .get("/me", async (c) => {
+    c.header("Cache-Control", "no-store");
     if (!c.var.auth) return c.json(null);
     const auth = sessionCtx(c);
     return c.json({
@@ -96,16 +98,26 @@ export const accountRoutes = new Hono<AppEnv>()
   .post("/onboarding", async (c) => {
     const auth = sessionCtx(c);
     if (!auth.phoneVerified) throw new ApiError(403, "phone_required", "휴대폰 번호 인증을 먼저 마쳐 주세요.");
-    const { workspaceName } = parse(z.object({ workspaceName: z.string().trim().min(1, "워크스페이스 이름을 입력해 주세요.").max(60) }), await c.req.json());
+    const { workspaceName, expectedUserId } = parse(z.object({ workspaceName: z.string().trim().min(1, "워크스페이스 이름을 입력해 주세요.").max(60), expectedUserId: z.string().min(1).max(100).optional() }), await c.req.json());
+    if (expectedUserId && expectedUserId !== auth.user.id) throw new ApiError(409, "session_changed", "로그인한 계정이 바뀌었어요. 화면을 새로 확인해 주세요.");
     const db = c.var.db;
     if (auth.workspace) throw new ApiError(409, "has_workspace", "이미 워크스페이스가 있어요.");
-    const workspaceId = newId();
-    await db.batch([
-      db.insert(workspaces).values({ id: workspaceId, name: workspaceName, createdAt: now() }),
-      defaultBrandInsert(db, workspaceId, workspaceName),
-      db.insert(members).values({ workspaceId, userId: auth.user.id, role: "owner", createdAt: now() }),
-      db.update(sessions).set({ currentWorkspaceId: workspaceId }).where(eq(sessions.id, auth.sessionId)),
-    ]);
-    await logEvent(db, workspaceId, "workspace_created", {});
+    const workspaceId = newId(), at = now(), d1 = db.$client;
+    try {
+      await d1.batch([
+        assertSql(d1, `${sessionPredicate} AND NOT EXISTS(SELECT 1 FROM members WHERE user_id=?)`, [...actorParams(auth, null, at), auth.user.id]),
+        d1.prepare("INSERT INTO workspaces(id,name,created_at) VALUES(?,?,?)").bind(workspaceId, workspaceName, at),
+        d1.prepare("INSERT INTO brands(id,workspace_id,name,created_at) VALUES(?,?,?,?)").bind(newId(), workspaceId, workspaceName, at),
+        d1.prepare("INSERT INTO members(workspace_id,user_id,role,created_at) VALUES(?,?,'owner',?)").bind(workspaceId, auth.user.id, at),
+        d1.prepare("UPDATE sessions SET current_workspace_id=? WHERE id=? AND user_id=?").bind(workspaceId, auth.sessionId, auth.user.id),
+        d1.prepare("INSERT INTO events(id,workspace_id,name,props,at) VALUES(?,?,'workspace_created','{}',?)").bind(newId(), workspaceId, at),
+      ]);
+    } catch {
+      const membership = await d1.prepare("SELECT user_id FROM members WHERE user_id=? LIMIT 1").bind(auth.user.id).first();
+      if (membership) throw new ApiError(409, "has_workspace", "이미 워크스페이스가 있어요.");
+      await ensureSessionScope(d1, auth, null, now());
+      console.error("[first_workspace_failed]", JSON.stringify({ failures: 1 }));
+      throw writeUnavailable();
+    }
     return c.json({ workspaceId }, 201);
   });

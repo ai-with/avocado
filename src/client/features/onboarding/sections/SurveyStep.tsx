@@ -5,8 +5,8 @@ import { GOALS, ROLES, TEAM_SIZES } from "../../../../shared/onboarding";
 import { useSurvey } from "../useOnboarding";
 
 // 2단계: 팀 규모·역할·목표·경로·웹사이트. 모두 선택 사항이라 바로 "시작하기"를 눌러도 된다
-export function SurveyStep({ next }: { next: string }) {
-  const s = useSurvey(next);
+export function SurveyStep({ next, expectedWorkspaceId }: { next: string; expectedWorkspaceId: string }) {
+  const s = useSurvey(next, expectedWorkspaceId);
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     void s.send(false);
@@ -15,7 +15,7 @@ export function SurveyStep({ next }: { next: string }) {
     <>
       <h1 className="onboarding-title">조금 더 알려 주세요</h1>
       <p className="onboarding-desc">답변에 맞춰 시작 안내를 바꿔 드려요.</p>
-      <form className="stack onboarding-form" onSubmit={onSubmit}>
+      <form className="stack onboarding-form" noValidate onSubmit={onSubmit}>
         <ChoiceChips label="팀 규모" options={[...TEAM_SIZES]} value={s.state.teamSize} onChange={(v) => s.set("teamSize", v)} />
         <ChoiceChips label="역할" options={[...ROLES]} value={s.state.role} onChange={(v) => s.set("role", v)} />
         <ChoiceChips label="주 목표" hint="여러 개 고를 수 있어요." multiple options={[...GOALS]} value={s.state.goals} onChange={(v) => s.set("goals", v)} />

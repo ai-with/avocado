@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, gt, isNull, sql } from "drizzle-orm";
 import type { AppEnv, Auth, AuthWorkspace } from "../types";
 import type { Role } from "../../shared/roles";
 import { members, sessions, users, workspaces } from "../db/schema";
@@ -36,7 +36,7 @@ export const loadSession = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
-async function resolveSession(c: Context<AppEnv>, token: string): Promise<Auth | null> {
+async function resolveSession(c: Context<AppEnv>, token: string, attempt = 0): Promise<Auth | null> {
   const db = c.var.db;
   const id = await sha256Hex(token);
   const row = await db
@@ -45,17 +45,32 @@ async function resolveSession(c: Context<AppEnv>, token: string): Promise<Auth |
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(eq(sessions.id, id))
     .get();
-  if (!row || row.session.expiresAt < now()) return null;
+  if (!row || row.session.expiresAt <= now()) return null;
 
   const memberships = await db
-    .select({ workspace: { id: workspaces.id, name: workspaces.name, plan: workspaces.plan, onboardedAt: workspaces.onboardedAt }, role: members.role })
+    .select({ workspace: { id: workspaces.id, name: workspaces.name, plan: workspaces.plan, onboardedAt: workspaces.onboardedAt, onboardingSkippedAt: members.onboardingSkippedAt }, role: members.role })
     .from(members)
     .innerJoin(workspaces, eq(workspaces.id, members.workspaceId))
     .where(eq(members.userId, row.user.id))
-    .orderBy(asc(members.createdAt));
+    .orderBy(asc(members.createdAt), asc(workspaces.id));
   let current = memberships.find((m) => m.workspace.id === row.session.currentWorkspaceId) ?? memberships[0];
-  if (current && current.workspace.id !== row.session.currentWorkspaceId) {
-    await db.update(sessions).set({ currentWorkspaceId: current.workspace.id }).where(eq(sessions.id, id));
+  const selectedWorkspaceId = current?.workspace.id ?? null;
+  if (selectedWorkspaceId !== row.session.currentWorkspaceId) {
+    const membershipFence = current
+      ? sql`EXISTS(SELECT 1 FROM members m JOIN workspaces w ON w.id=m.workspace_id
+          WHERE m.workspace_id=${current.workspace.id} AND m.user_id=${row.user.id} AND m.role=${current.role})`
+      : sql`NOT EXISTS(SELECT 1 FROM members m JOIN workspaces w ON w.id=m.workspace_id WHERE m.user_id=${row.user.id})`;
+    const selected = await db.update(sessions).set({ currentWorkspaceId: selectedWorkspaceId }).where(and(
+      eq(sessions.id, id), eq(sessions.userId, row.user.id), gt(sessions.expiresAt, now()),
+      row.session.currentWorkspaceId === null ? isNull(sessions.currentWorkspaceId) : eq(sessions.currentWorkspaceId, row.session.currentWorkspaceId),
+      membershipFence,
+    )).returning({ id: sessions.id }).get();
+    if (!selected) {
+      // A switch/new workspace or membership change won after our read. Do not
+      // persist a stale fallback or return Auth for the workspace we lost.
+      if (attempt >= 3) throw new ApiError(409, "workspace_changed", "워크스페이스 선택이 바뀌었어요. 다시 확인해 주세요.");
+      return resolveSession(c, token, attempt + 1);
+    }
   }
   return {
     sessionId: id,

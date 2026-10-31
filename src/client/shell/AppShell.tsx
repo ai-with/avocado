@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { NotificationBell } from "./NotificationBell";
 import { MOBILE_QUERY, useMediaQuery } from "./useMediaQuery";
 import "./AppShell.css";
+import { needsOnboarding } from "../../shared/roles";
 
 export function AppShell() {
   const { me, loading } = useMe();
@@ -26,7 +27,7 @@ export function AppShell() {
   // 휴대폰 인증은 필수
   if (!me.phoneVerified) return <Navigate to={`/verify-phone?next=${next}`} replace />;
   // 구글 가입 직후 워크스페이스가 없거나 첫 설문을 아직 안 했으면 온보딩에서 마저 진행한다
-  if (!me.workspace?.onboardedAt) return <Navigate to={`/onboarding?next=${next}`} replace />;
+  if (needsOnboarding(me.workspace, me.role)) return <Navigate to={`/onboarding?next=${next}`} replace />;
   const workspaceName = me.workspace?.name ?? "워크스페이스 없음";
   return (
     <div className="shell">

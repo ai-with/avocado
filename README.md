@@ -182,6 +182,24 @@ Resend의 Webhooks에서 운영 URL `${APP_URL}/webhooks/resend`를 등록하고
 
 DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착하면 관리 태그가 있는 발송에 한해 이벤트 생성 후 10분 동안 재시도하고, 끝내 연결되지 않으면 무시한다. 배포 전 로그처럼 Resend ID가 없는 기록은 이메일 주소만으로 연결하지 않는다. 설정·페이로드 기준은 [Resend 반송 이벤트](https://resend.com/docs/webhooks/emails/bounced), [서명 검증](https://resend.com/docs/webhooks/verify-webhooks-requests), [Svix 수동 검증](https://docs.svix.com/receiving/verifying-payloads/how-manual)을 따른다.
 
+## 워크스페이스·초대·온보딩 (AIWITH-299)
+
+사이드바 워크스페이스 메뉴의 새로 만들기는 번호 인증된 사용자의 새 소유자 워크스페이스를 만든다. 기존 워크스페이스의 역할을 바꾸거나 자료를 복사하지 않는다. 워크스페이스·소유자 멤버·기본 브랜드·현재 세션 선택·생성 요청 원장을 한 D1 transaction으로 저장한다. 같은 사용자/requestId와 같은 내용의 재시도는 결과만 돌려주며 새 행이나 세션 재전환을 만들지 않는다. 현재 워크스페이스가 없거나 오래된 session의 fallback 선택도 original current ID·session 유효성·membership CAS로 저장하며, 다른 선택이 먼저 이기면 session과 memberships를 다시 읽는다. 다른 내용은 409다. 화면의 사용자·워크스페이스가 바뀌면 생성을 강제로 선택하지 않는다. 오래된 생성 의도를 확정 취소할 때도 영속 receipt를 남겨 늦은 동일 요청이 다시 생성하지 못하게 한다.
+
+| 작업 | 소유자 | 편집자 | 승인자·열람자 |
+| --- | --- | --- | --- |
+| 편집자·승인자·열람자 초대 | 가능 | 가능 | 불가 |
+| 대기 초대 조회·취소 | 전체 | 본인 발급분만 | 불가 |
+| 역할 변경·멤버 제거·이름 변경 | 가능 | 불가 | 불가 |
+| 설문 답변·공유 온보딩 완료 | 가능 | 불가 | 불가 |
+| 본인 온보딩 건너뛰기 | 기존 소유자 경로 | 가능 | 가능 |
+
+소유자 역할은 초대 대상이 아니며 강등·제거되지 않는다. 발급과 수락의 최종 SQL에서 현재 역할·token·동일 이메일·미사용·만료를 다시 확인한다. 초대 발급자의 권한 강등·제거와 그 발급자의 대기 초대 폐기는 원자 처리한다. `issuer_required=1`인 초대는 발급자 삭제로 NULL이 되어도 무효다. 0031 migration 당시 이미 NULL이었던 초대만 명시적인 legacy0으로 남긴다. 이후 synthetic legacy fixture도 0을 명시해야 하며 앱 요청으로 legacy 표식을 고를 수 없다.
+
+설문 POST는 소유자만 가능하고 최초 완료 CAS 뒤 답변을 덮지 않는다. 다른 멤버의 별도 skip는 `members.onboarding_skipped_at`만 기록하며 소유자의 설문·공유 완료 시각을 바꾸지 않는다. AppShell과 온보딩 화면은 이 개인 상태를 함께 확인한다. 설문·초대 등 화면 입력은 `expectedWorkspaceId`에 묶고 계정 변경도 확인해 다른 탭의 전환 뒤 다른 곳에 저장하지 않는다.
+
+초대 메일은 명시 `EMAIL_FROM`과 Resend key가 모두 준비됐을 때만 시도한다. 미준비면 예제 주소 fallback이나 본문 로그 없이 0HTTP/no_provider로 링크만 만든다. 링크 복사와 실제 이메일 전달을 구분한다. 실제 메일·운영 Google·기존 demo 계정 QA는 이 기능의 로컬 회귀에 포함하지 않는다. 0031을 먼저 적용한 뒤 API/화면을 함께 배포해야 한다.
+
 ## 개인정보 파기
 
 `0024_privacy_purge.sql` 적용 후 배포한다. 기존 15분 Cron에서 기존 PIPELINE Queue에 개인정보 작업 세 건(리드·IP 해시, 사이트 D1, 철회 미디어)을 넣는다. `max_batch_size=1`로 각 작업을 별도 호출에서 실행해 기존 예약 발송·성과 수집과 D1/R2 호출 예산을 공유하지 않는다. 기존 영상 처리 메시지 경로도 유지한다.

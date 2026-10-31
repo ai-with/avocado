@@ -122,7 +122,7 @@ export function VerifyPhonePage() {
   };
   return (
     <AuthCard title="휴대폰 번호 인증" description={`${me.user.email} 계정을 쓰려면 휴대폰 번호 인증이 필요해요.`}>
-      <div className="mt-section"><PhoneVerifyForm onDone={refresh} /></div>
+      <div className="mt-section"><PhoneVerifyForm onDone={async () => { await refresh(); }} /></div>
       <p className="auth-foot">
         다른 계정으로 바꾸시겠어요? <button type="button" className="link-button" onClick={() => void logout()}>로그아웃</button>
       </p>

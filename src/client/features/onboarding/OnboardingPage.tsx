@@ -5,6 +5,8 @@ import { api } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import { BRAND } from "../../pages/landing/copy";
 import { WorkspaceStep } from "./sections/WorkspaceStep";
+import { needsOnboarding, workspaceAllowed } from "../../../shared/roles";
+import { MemberSkipStep } from "./sections/MemberSkipStep";
 import { SurveyStep } from "./sections/SurveyStep";
 import { safeAuthNext } from "../../../shared/auth-redirect";
 import "./onboarding.css";
@@ -33,7 +35,7 @@ export function OnboardingPage() {
   if (!me.phoneVerified) return <Navigate to={`/verify-phone?next=${here}`} replace />;
   const needsWorkspace = me.workspaces.length === 0;
   // 초대를 받으러 가는 중이면 워크스페이스를 만들지 않는다. 이미 마친 워크스페이스는 설문을 다시 묻지 않는다
-  if ((needsWorkspace && next.startsWith("/invite/")) || me.workspace?.onboardedAt) return <Navigate to={next} replace />;
+  if ((needsWorkspace && next.startsWith("/invite/")) || !needsOnboarding(me.workspace, me.role)) return <Navigate to={next} replace />;
 
   const logout = async () => {
     await api.post("/auth/logout", {}, { redirectOn401: false });
@@ -46,7 +48,9 @@ export function OnboardingPage() {
       <main className="onboarding-main">
         <Link to="/" className="onboarding-logo">{BRAND}</Link>
         {stepLabel && <p className="onboarding-step text-caption">{stepLabel}</p>}
-        {needsWorkspace ? <WorkspaceStep onCreated={() => setCreatedHere(true)} /> : <SurveyStep next={next} />}
+        {needsWorkspace ? <WorkspaceStep onCreated={() => setCreatedHere(true)} /> : workspaceAllowed(me.role, "survey")
+          ? <SurveyStep key={`${me.user.id}:${me.workspace!.id}`} next={next} expectedWorkspaceId={me.workspace!.id} />
+          : <MemberSkipStep key={`${me.user.id}:${me.workspace!.id}`} next={next} expectedWorkspaceId={me.workspace!.id} />}
       </main>
     </div>
   );

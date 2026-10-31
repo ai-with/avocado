@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { Role } from "../../../shared/roles";
 import { users } from "./users";
 
@@ -22,6 +22,7 @@ export const members = sqliteTable(
     userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     role: text("role").$type<Role>().notNull(),
     createdAt: integer("created_at").notNull(),
+    onboardingSkippedAt: integer("onboarding_skipped_at"),
   },
   (t) => [primaryKey({ columns: [t.workspaceId, t.userId] }), index("members_user_idx").on(t.userId)],
 );
@@ -35,9 +36,21 @@ export const invites = sqliteTable(
     role: text("role").$type<Role>().notNull(),
     token: text("token").notNull().unique(),
     invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    issuerRequired: integer("issuer_required", { mode: "boolean" }).notNull().default(true),
     expiresAt: integer("expires_at").notNull(),
     acceptedAt: integer("accepted_at"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("invites_workspace_idx").on(t.workspaceId)],
 );
+
+// Stable per-user creation intent; replay never reselects the caller's session.
+export const workspaceCreationRequests = sqliteTable("workspace_creation_requests", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: text("request_id").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  state: text("state").$type<"created" | "cancelled">().notNull().default("created"),
+  sessionId: text("session_id").notNull(),
+  workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+  createdAt: integer("created_at").notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.requestId] }), uniqueIndex("workspace_creation_workspace_idx").on(t.workspaceId)]);

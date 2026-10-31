@@ -48,7 +48,7 @@ async function setup(phoneVerified = false) {
   const d1 = { ...native, prepare: (sql: string) => { beforeQuery?.(sql); return wrap(native.prepare(sql), sql); } } as D1Database;
   db.prepare("INSERT INTO users (id, email, password_hash, name, created_at, phone_verified_at) VALUES ('u1', 'invited@example.com', '', '초대받은 사람', ?, ?)").run(NOW, phoneVerified ? NOW : null);
   db.exec("INSERT INTO workspaces (id, name, created_at) VALUES ('w1', '초대한 팀', 1)");
-  db.prepare("INSERT INTO invites (id, workspace_id, email, role, token, expires_at, created_at) VALUES ('i1', 'w1', 'invited@example.com', 'editor', 'invite-token', ?, ?)").run(NOW + 60_000, NOW);
+  db.prepare("INSERT INTO invites (id, workspace_id, email, role, token, issuer_required, expires_at, created_at) VALUES ('i1', 'w1', 'invited@example.com', 'editor', 'invite-token', 0, ?, ?)").run(NOW + 60_000, NOW);
   const env = { DB: d1, APP_ENV: "production", APP_URL: "https://app.example.com", GOOGLE_CLIENT_ID: "client", GOOGLE_CLIENT_SECRET: "test-secret" } as Env;
   const app = new Hono<AppEnv>();
   app.use("*", async (c, next) => { c.set("db", getDb(c.env.DB)); await next(); });
