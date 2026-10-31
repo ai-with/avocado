@@ -19,6 +19,7 @@ import { fileRoutes, guideContentRoutes, publicFeedbackRoutes, reviewRoutes } fr
 import { collectRoutes } from "./collect";
 import { sdkRoutes } from "./sdk";
 import { siteRoutes } from "./sites";
+import { siteAlertRoutes } from "./site-alerts";
 import { supportRoutes } from "./support";
 import { notificationRoutes } from "./notifications";
 import { brandRoutes, brandTermRoutes, campaignRoutes, reviewPresetRoutes } from "./campaigns";
@@ -68,6 +69,7 @@ export function registerRoutes(app: Hono<AppEnv>) {
   app.route("/collect", collectRoutes);
   app.route("/sdk", sdkRoutes);
   app.route("/api/sites", siteRoutes);
+  app.route("/api/site-alerts", siteAlertRoutes);
   app.route("/api/support", supportRoutes);
   app.route("/api/notifications", notificationRoutes);
 }

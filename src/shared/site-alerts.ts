@@ -1,0 +1,5 @@
+export type SiteAlertMetric = "pageviews" | "conversions";
+export type SiteAlertPolicy = { enabled: boolean; metric: SiteAlertMetric; ratioPercent: number; minimumAverage: number; confirmationDays: number };
+export const DEFAULT_SITE_ALERT_POLICY: SiteAlertPolicy = { enabled: false, metric: "pageviews", ratioPercent: 20, minimumAverage: 100, confirmationDays: 2 };
+export type SiteAlertEvaluation = { result: "low" | "normal" | "insufficient"; reason: string; targetDay: string; targetStart: string; baselineStart: string; baselineEnd: string; baselineSum: number; target: number[]; weekdays: number[] };
+export type SiteAlertStatus = { policy: SiteAlertPolicy; generation: string | null; subscriptionGeneration: string | null; subscribed: boolean; eligible: boolean; canEdit: boolean; mailConfigured: boolean; csrfToken: string | null; cooldownUntil: number | null; email: string; lastCheck: (SiteAlertEvaluation & { checkedAt: number }) | null; lastMail: { status: string; errorCode: string | null; at: number } | null };

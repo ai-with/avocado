@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Badge, Button, CopyButton, SectionCard, Stat, StatGrid } from "../../../ui";
 import { dateTime } from "../../links/common";
 import type { Site } from "../api";
+import { SiteAlertModal } from "./SiteAlertModal";
 
 type Props = { site: Site; onEdit: (s: Site) => void; onRotate: (s: Site) => void; onRemove: (s: Site) => void };
 
@@ -39,9 +41,11 @@ function Snippet({ site }: { site: Site }) {
 
 // 사이트 한 곳: 설치 상태, 최근 7일 요약, 스니펫, 설정
 export function SiteCard({ site, onEdit, onRotate, onRemove }: Props) {
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const actions = (
     <>
       <Button size="sm" variant="secondary" onClick={() => onEdit(site)}>설정</Button>
+      <Button size="sm" variant="secondary" onClick={() => setAlertsOpen(true)}>급감 알림</Button>
       <Button size="sm" variant="ghost" onClick={() => onRotate(site)}>키 재발급</Button>
       <Button size="sm" variant="ghost" onClick={() => onRemove(site)}>삭제</Button>
     </>
@@ -56,6 +60,7 @@ export function SiteCard({ site, onEdit, onRotate, onRemove }: Props) {
         </div>
         <Summary site={site} />
         <Snippet site={site} />
+        {alertsOpen && <SiteAlertModal siteId={site.id} name={site.name} onClose={() => setAlertsOpen(false)} />}
       </div>
     </SectionCard>
   );
