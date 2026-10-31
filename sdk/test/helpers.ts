@@ -8,6 +8,7 @@ export function makeConfig(overrides: Partial<SdkConfig> = {}): SdkConfig {
     api: "https://app.test",
     autocapture: true,
     consent: null,
+    consentMode: "auto",
     scrollThresholds: [...SCROLL_DEPTHS],
     sampleRate: 1,
     cookieDomain: null,
@@ -21,6 +22,7 @@ export function makeConfig(overrides: Partial<SdkConfig> = {}): SdkConfig {
 export function stubFetch(status = 204): { envelopes: Envelope[]; fetchMock: ReturnType<typeof vi.fn> } {
   const envelopes: Envelope[] = [];
   const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+    if (_url.includes("/sdk/config?")) return Response.json({ site: new URL(_url).searchParams.get("site"), consentMode: "auto" });
     envelopes.push(JSON.parse(String(init.body)) as Envelope);
     return new Response(null, { status });
   });

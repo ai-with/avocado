@@ -1,14 +1,15 @@
 {
   "name": "@avocado/web-sdk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "브랜드 사이트 행동 수집 스크립트 (docs/14-web-sdk-design.md)",
+  "description": "\ube0c\ub79c\ub4dc \uc0ac\uc774\ud2b8 \ud589\ub3d9 \uc218\uc9d1 \uc2a4\ud06c\ub9bd\ud2b8 (docs/14-web-sdk-design.md)",
   "scripts": {
     "build": "vite build && node scripts/size.ts",
     "test": "vitest run",
     "size": "node scripts/size.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "release:prepare": "node scripts/release.ts"
   },
   "license": "UNLICENSED"
 }

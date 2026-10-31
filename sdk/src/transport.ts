@@ -19,6 +19,7 @@ export interface TransportOptions {
   storage: SdkStorage;
   buildEnvelope(events: SdkEvent[]): Envelope;
   canPersist(): boolean;
+  canSend?(): boolean;
 }
 
 interface PendingRetry {
@@ -31,23 +32,28 @@ const encoder = new TextEncoder();
 /** 메모리 큐에 쌓아 20개 또는 5초마다 보내고, 숨김 전환 때 sendBeacon으로 남은 것을 보낸다 */
 export class Transport {
   private queue: SdkEvent[] = [];
+  private generation = 0;
+  private readonly requests = new Set<AbortController>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly retries = new Set<PendingRetry>();
 
   constructor(private readonly options: TransportOptions) {}
 
   enqueue(event: SdkEvent, immediate = false): void {
+    if (this.options.canSend?.() === false) return;
     this.queue.push(event);
     if (immediate || this.queue.length >= BATCH_SIZE) this.flush();
     else if (this.timer === undefined) this.timer = setTimeout(() => this.flush(), FLUSH_INTERVAL_MS);
   }
 
   flush(): void {
-    for (const events of this.takeBatches(this.queue.splice(0))) void this.post(events, 0);
+    if (this.options.canSend?.() === false) { this.clear(); return; }
+    for (const events of this.takeBatches(this.queue.splice(0))) void this.post(events, 0, this.generation);
   }
 
   /** visibilitychange hidden 때 부른다. unload·beforeunload는 모바일에서 안 불리고 bfcache를 깬다 */
   flushBeacon(): void {
+    if (this.options.canSend?.() === false) { this.clear(); return; }
     const waiting = [...this.retries].flatMap((retry) => {
       clearTimeout(retry.timer);
       return retry.events;
@@ -61,6 +67,9 @@ export class Transport {
 
   /** 동의 철회 시: 보내지 않은 이벤트를 모두 버린다 */
   clear(): void {
+    this.generation++;
+    for (const controller of this.requests) controller.abort();
+    this.requests.clear();
     clearTimeout(this.timer);
     this.timer = undefined;
     for (const retry of this.retries) clearTimeout(retry.timer);
@@ -101,7 +110,10 @@ export class Transport {
   }
 
   /** 네트워크 오류·5xx만 2초·8초·30초 간격으로 3회 재시도, 그래도 실패하면 오프라인 버퍼. 4xx는 버린다 */
-  private async post(events: SdkEvent[], attempt: number): Promise<void> {
+  private async post(events: SdkEvent[], attempt: number, generation: number): Promise<void> {
+    if (generation !== this.generation || this.options.canSend?.() === false) return;
+    const controller = new AbortController();
+    this.requests.add(controller);
     let shouldRetry: boolean;
     try {
       const response = await fetch(this.options.endpoint, {
@@ -109,13 +121,18 @@ export class Transport {
         body: this.serialize(events),
         headers: { "Content-Type": CONTENT_TYPE },
         keepalive: true,
+        redirect: "error",
+        signal: controller.signal,
         credentials: "omit",
       });
       shouldRetry = response.status >= 500;
+      void response.body?.cancel().catch(() => {});
     } catch {
       shouldRetry = true;
+    } finally {
+      this.requests.delete(controller);
     }
-    if (!shouldRetry) return;
+    if (!shouldRetry || generation !== this.generation || this.options.canSend?.() === false) return;
     const delay = RETRY_DELAYS_MS[attempt];
     if (delay === undefined) {
       this.saveOffline(events);
@@ -125,7 +142,7 @@ export class Transport {
       events,
       timer: setTimeout(() => {
         this.retries.delete(retry);
-        void this.post(events, attempt + 1);
+        void this.post(events, attempt + 1, generation);
       }, delay),
     };
     this.retries.add(retry);

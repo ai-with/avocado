@@ -25,12 +25,14 @@ export const KEY_MEMBER = "avc_member";
 
 /** 사이트 동의 모드 require: 동의 전에는 메모리 모드로도 보내지 않는다 (docs/14 7장) */
 export type ConsentOption = ConsentState | "require";
+export type ConsentMode = "auto" | "require";
 
 export interface SdkConfig {
   site: string;
   api: string;
   autocapture: boolean;
   consent: ConsentOption | null;
+  consentMode: ConsentMode;
   scrollThresholds: ScrollDepth[];
   sampleRate: number;
   cookieDomain: string | null;
@@ -38,7 +40,7 @@ export interface SdkConfig {
   attributionDays: number;
 }
 
-export type InitOptions = Partial<Omit<SdkConfig, "site" | "api">>;
+export type InitOptions = Partial<Omit<SdkConfig, "site" | "api" | "consentMode">>;
 
 const CONSENT_OPTIONS: readonly string[] = ["granted", "denied", "pending", "require"];
 
@@ -60,7 +62,7 @@ function scriptOrigin(script: HTMLScriptElement | null): string {
   }
 }
 
-/** 설치 스크립트 태그의 data-* 속성을 읽는다. 서버 설정은 받지 않는다 (요청 1회 절약, docs/14 8-1) */
+/** 설치 속성은 서버 설정을 받은 뒤 명시된 값만 덮어쓴다. */
 export function readScriptConfig(script: HTMLScriptElement | null): SdkConfig {
   const data = script?.dataset ?? {};
   const days = Number(data.attributionDays);
@@ -69,6 +71,7 @@ export function readScriptConfig(script: HTMLScriptElement | null): SdkConfig {
     api: (data.api ?? scriptOrigin(script)).replace(/\/+$/, ""),
     autocapture: data.autocapture !== "false",
     consent: parseConsent(data.consent),
+    consentMode: data.consent === "require" ? "require" : "auto",
     scrollThresholds: parseThresholds(data.scroll),
     sampleRate: 1,
     cookieDomain: data.cookieDomain ?? null,
@@ -78,9 +81,16 @@ export function readScriptConfig(script: HTMLScriptElement | null): SdkConfig {
 }
 
 export function applyInit(config: SdkConfig, options: InitOptions): SdkConfig {
-  const next: SdkConfig = { ...config, ...options };
+  const next: SdkConfig = { ...config };
+  // Runtime init input is untrusted; site/api/server mode are never overwritten.
+  for (const key of ["autocapture", "cookieDomain", "hashEmail", "attributionDays"] as const) {
+    if (options[key] !== undefined) Object.assign(next, { [key]: options[key] });
+  }
+  const consent = parseConsent(options.consent);
+  if (consent) next.consent = consent;
+  if (consent === "require") next.consentMode = "require";
   next.scrollThresholds = parseThresholds(options.scrollThresholds ?? config.scrollThresholds);
-  next.sampleRate = Math.min(1, Math.max(0, Number(next.sampleRate)));
+  next.sampleRate = Math.min(1, Math.max(0, Number(options.sampleRate ?? config.sampleRate)));
   return next;
 }
 

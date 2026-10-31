@@ -157,3 +157,15 @@ describe("페이지 숨김", () => {
     expect(offline()).toHaveLength(1);
   });
 });
+
+describe("동의/identity 세대 경계", () => {
+  it.each([503, "network"])("clear 뒤 늦은 %s 응답은 retry·offline·beacon으로 살아나지 않는다", async (failure) => {
+    let resolve!: (response: Response) => void, reject!: (error: Error) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((done, fail) => { resolve = done; reject = fail; })); vi.stubGlobal("fetch", fetchMock);
+    const beacon = vi.fn(() => true); vi.stubGlobal("navigator", { sendBeacon: beacon });
+    const { transport } = makeTransport(); transport.enqueue(event(1), true); transport.clear();
+    if (failure === "network") reject(new TypeError("late failure")); else resolve(new Response(null, { status: Number(failure) }));
+    await vi.runAllTimersAsync(); transport.flushBeacon();
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(offline()).toEqual([]); expect(beacon).not.toHaveBeenCalled();
+  });
+});

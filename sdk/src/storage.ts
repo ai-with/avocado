@@ -1,9 +1,9 @@
-import { KEY_ATTR, KEY_ID, KEY_QUEUE } from "./config";
+import { KEY_ATTR, KEY_ID, KEY_QUEUE, KEY_MEMBER } from "./config";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // localStorage 값 중 쿠키에도 함께 쓰는 키. 쿠키가 있어야 서브도메인 간(www에서 app으로) 이어진다 (docs/14 4-2)
 const COOKIE_NAMES: Record<string, string> = { [KEY_ATTR]: "_avc" };
-const PERSISTED_KEYS = [KEY_ATTR, KEY_ID, KEY_QUEUE];
+const PERSISTED_KEYS = [KEY_ATTR, KEY_ID, KEY_QUEUE, KEY_MEMBER];
 
 export function safeLocalStorage(): Storage | null {
   try {
@@ -71,6 +71,11 @@ export class SdkStorage {
     }
   }
 
+  clear(): void {
+    this.memory.clear();
+    this.clearDisk();
+  }
+
   /** denied: SDK가 쓴 디스크 값을 모두 지운다 */
   clearDisk(): void {
     for (const key of PERSISTED_KEYS) this.removeDisk(key);
@@ -124,8 +129,13 @@ export class SdkStorage {
   }
 
   private removeDisk(key: string): void {
-    safeLocalStorage()?.removeItem(key);
+    try { safeLocalStorage()?.removeItem(key); } catch { /* storage is unavailable */ }
     const cookieName = COOKIE_NAMES[key];
-    if (cookieName && readCookie(cookieName) !== null) writeCookie(cookieName, "", 0, this.domain());
+    if (cookieName && readCookie(cookieName) !== null) {
+      // Erase without detectCookieDomain(), which would create a probe cookie.
+      writeCookie(cookieName, "", 0, this.configuredCookieDomain);
+      const labels = location.hostname.split(".");
+      for (let size = 2; size <= labels.length; size++) writeCookie(cookieName, "", 0, labels.slice(-size).join("."));
+    }
   }
 }

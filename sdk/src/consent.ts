@@ -1,5 +1,5 @@
 import type { ConsentState } from "../../src/shared/sdk-events";
-import type { ConsentOption } from "./config";
+import type { ConsentMode, ConsentOption } from "./config";
 
 export interface ConsentPolicy {
   state: ConsentState;
@@ -12,13 +12,17 @@ interface PrivacySignals {
   globalPrivacyControl?: boolean;
 }
 
-/** DNT·GPC 신호가 있거나 이 브라우저에서 optOut 했으면 denied로 시작한다 (docs/14 7장) */
-export function initialConsent(option: ConsentOption | null, signals: PrivacySignals, optedOut: boolean): ConsentPolicy {
-  const requireConsent = option === "require";
-  if (optedOut || signals.doNotTrack === "1" || signals.globalPrivacyControl === true) {
+export function privacyDenied(signals: PrivacySignals): boolean {
+  return signals.doNotTrack === "1" || signals.globalPrivacyControl === true;
+}
+
+/** DNT·GPC는 명시 grant로도 우회하지 않는다. */
+export function initialConsent(option: ConsentOption | null, signals: PrivacySignals, optedOut: boolean, mode: ConsentMode = "auto"): ConsentPolicy {
+  const requireConsent = mode === "require" || option === "require";
+  if (optedOut || privacyDenied(signals)) {
     return { state: "denied", requireConsent };
   }
-  if (requireConsent) return { state: "pending", requireConsent };
+  if (option === "require" || (!option && requireConsent)) return { state: "pending", requireConsent };
   // 기본 auto(국내 사이트): 동의 신호 없으면 granted로 시작 (docs/14 12장 S3)
   return { state: option ?? "granted", requireConsent };
 }

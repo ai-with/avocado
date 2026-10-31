@@ -108,7 +108,7 @@ describe("명령", () => {
     });
   });
 
-  it("스텁 큐의 명령을 순서대로 처리하고 window.avocado를 바꾼다", () => {
+  it("스텁 큐의 명령을 순서대로 처리하고 window.avocado를 바꾼다", async () => {
     vi.useFakeTimers();
     const { envelopes } = stubFetch();
     const stub = Object.assign((...args: unknown[]) => stub.q.push(args), { q: [] as unknown[][] });
@@ -116,7 +116,7 @@ describe("명령", () => {
     window.avocado("track", "early", { plan: "pro" });
     const script = document.createElement("script");
     script.dataset.site = "site_abc";
-    sdk = boot(window, script);
+    sdk = await boot(window, script);
     expect(window.avocado.loaded).toBe(true);
     vi.advanceTimersByTime(5_000);
     const names = nonScroll(envelopes).map((e) => e.t);

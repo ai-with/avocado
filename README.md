@@ -277,7 +277,13 @@ npm run sdk:test    # vitest + happy-dom
 npm run sdk:size    # gzip 크기 확인 (한도 10KB)
 ```
 
-`public/sdk/`는 빌드 산출물이라 깃에 올리지 않는다. `npm run build`가 매번 다시 만든다.
+`public/sdk/`는 빌드 산출물이라 깃에 올리지 않는다. `npm run build`가 매번 다시 만든다. 배포한 버전 원본과 SHA-256/SRI는 `sdk/releases/`와 `manifest.json`에 보존하며, clean build도 이 파일들을 그대로 복원한다.
+
+SDK 1.1.0부터는 `GET /sdk/config?site=...`로 허용 Origin의 사이트 동의 모드를 받은 뒤에만 저장·수집을 시작한다. 설정 오류·timeout은 수집을 시작하지 않는다. 명시한 `data-consent`/`init` 설정과 CMP `consent` 명령은 유지하며, require 모드와 현재 동의 상태를 따로 관리한다. DNT/GPC는 grant로 해제하지 않는다. preload 큐도 명령 당시 동의 상태로 처리하고 철회·reset·동의 세대 전환 이전 명령을 이후 grant로 다시 보내지 않는다. reset/철회가 있으면 constructor 전에 저장된 tracking identity·offline 자료를 지우며 과거 attribution도 복원하지 않는다. 설정 변경은 다음 페이지 초기화에 반영된다. 기존 v1.0.0 고정본에는 이 bootstrap이 없으므로 해당 설치는 새 버전과 SRI로 명시 업그레이드해야 한다.
+
+새 버전은 `sdk/package.json`의 version을 올리고 `npm run sdk:build` 후 `npm --prefix sdk run release:prepare`로 로컬 원본·manifest를 등록한다. 이후 같은 버전의 바이트가 달라지면 build가 실패한다. 아직 출시하지 않은 새 버전이라도 이미 등록된 원본을 덮어쓰지 말고 version을 올린다. `release:prepare`는 R2 업로드나 배포를 하지 않는다.
+
+Worker는 manifest에 있는 `/sdk/vX.Y.Z.js`와 `.mjs`만 서빙한다. R2에 없으면 trusted bundled static bytes의 해시를 검증하고 `If-None-Match: *` 조건부 생성으로 보존한다. 기존 R2 해시가 다르면 덮어쓰기·최신본 fallback 없이 503, 알 수 없는 버전은 404다. 고정 버전은 CORS와 immutable cache를 제공하며, `/sdk/v1.js`만 최신 manifest 버전으로 바뀌고 매번 재검증한다. 고정본 설치에는 manifest의 `integrity`와 `crossorigin="anonymous"`를 함께 쓴다. 실제 R2 쓰기는 이 코드가 운영에 배포된 뒤 알려진 파일의 첫 요청에서 발생한다.
 
 ## 서비스명 바꾸기
 
@@ -325,7 +331,7 @@ Cron은 전역 작업 하나만 Queue에 넣고, 별도 소비자가 90일 XML�
 - `npm audit`의 moderate 4건은 drizzle-kit이 쓰는 옛 esbuild(개발 도구 전용)라 배포되는 Worker와 무관하다
 - `wrangler.jsonc`의 `"minify": true`는 Vite 빌드에서 무시된다는 경고가 뜬다. 실제 압축은 `vite.config.ts`에서 켜져 있다
 - 클라이언트 번들 중 `index` 청크가 500KB를 넘는다는 Vite 경고가 있다 (PDF 뷰어와 에디터는 이미 지연 로드)
-- 웹 SDK의 고정 버전 파일(`v1.x.y.js`)은 빌드마다 새로 만들어져 예전 버전이 남지 않는다. SRI로 예전 버전을 고정한 사이트는 깨질 수 있다
+- SDK archive는 확보한 v1.0.0 운영 원본부터 보존한다. 보존 전 같은 URL로 배포됐던 다른 과거 바이트와 SRI까지 복구했다고 보장하지 않는다
 - 0009 이전에 들어온 리드는 이메일 해시가 비어 있어, Cron이 200건씩 채우기 전까지 SDK `identify`(해시)로 기존 리드와 연결되지 않는다
 - SDK 스크롤 깊이는 scroll 이벤트를 200ms마다 확인한다. 화면보다 짧은 페이지는 로드 즉시 100%로 잡힌다
 - Analytics Engine 원본 이벤트(클릭 좌표 등)는 쓰기만 하고 아직 읽는 화면이 없다

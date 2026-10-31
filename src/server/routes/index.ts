@@ -17,6 +17,7 @@ import { performanceRoutes } from "./performance";
 import { keywordDmRoutes } from "./keyword-dm";
 import { fileRoutes, guideContentRoutes, publicFeedbackRoutes, reviewRoutes } from "./reviews";
 import { collectRoutes } from "./collect";
+import { sdkRoutes } from "./sdk";
 import { siteRoutes } from "./sites";
 import { supportRoutes } from "./support";
 import { notificationRoutes } from "./notifications";
@@ -65,6 +66,7 @@ export function registerRoutes(app: Hono<AppEnv>) {
   app.route("/api/guides", guideContentRoutes);
   app.route("/api/public", publicFeedbackRoutes);
   app.route("/collect", collectRoutes);
+  app.route("/sdk", sdkRoutes);
   app.route("/api/sites", siteRoutes);
   app.route("/api/support", supportRoutes);
   app.route("/api/notifications", notificationRoutes);
