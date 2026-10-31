@@ -23,7 +23,7 @@ function AlimtalkCard({ status }: { status: Settings["alimtalk"]["status"] }) {
 function EmailDomainCard({ s }: { s: Settings }) {
   return (
     <SectionCard title="이메일 발신 도메인">
-      <p>현재 발신 주소: <b>{s.fromAddress}</b> (보낸 사람 이름: {s.senderName || s.workspaceName})</p>
+      <p>현재 발신 주소: <b>{s.fromAddress || "설정 대기"}</b> (보낸 사람 이름: {s.senderName || s.workspaceName})</p>
       <p className="text-secondary">브랜드 도메인으로 보내려면 도메인 DNS에 SPF와 DKIM 레코드를 추가해 인증해야 해요. 인증 전에는 위 주소에 브랜드 이름을 붙여 보내요. 도메인 인증 기능은 준비 중이에요.</p>
     </SectionCard>
   );

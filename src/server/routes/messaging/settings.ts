@@ -32,7 +32,7 @@ export const messagingRoutes = new Hono<AppEnv>()
       senderName: w?.senderName ?? "",
       senderContact: w?.senderContact ?? "",
       workspaceName: workspace.name,
-      fromAddress: c.env.EMAIL_FROM || "no-reply@example.com",
+      fromAddress: c.env.EMAIL_FROM?.trim() ?? "",
       alimtalk: { status: (await alimtalkConnected(db, workspace.id)) ? "connected" : "not_connected" },
     });
   })
