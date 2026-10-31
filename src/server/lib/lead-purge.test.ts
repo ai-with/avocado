@@ -165,6 +165,51 @@ describe("리드·클릭 개인정보 보존 기한", () => {
 });
 
 describe("삭제 후 새 등록", () => {
+  it.each(["rejoin", "purge"])("B 먼저 완료·A 늦은 완료 뒤 A 처리(%s)는 B의 현재 세션·전환·receipt를 보존한다", async (action) => {
+    const { db, orm, env } = await setup();
+    const emailA = "account-a@example.invalid", emailB = "account-b@example.invalid";
+    const hashA = await sha256Hex(emailA), hashB = await sha256Hex(emailB);
+    // Cron case: the old lead is already a tombstone; a new SDK identify must
+    // not reactivate it. Rejoin case: the form explicitly creates a new lead.
+    lead(db, "old-a", { email: emailA, hash: hashA, deletedAt: action === "purge" ? NOW - LEAD_RETENTION_MS : null });
+    db.exec("INSERT INTO site_sessions(site_id,id,anon_id,first_at,last_at) VALUES('site','shared-session','shared-anon',1,2)");
+    const makeJob = (id: string, email: string, receivedAt: number): IdentifyJob => ({
+      site: { id: "site", workspaceId: "w", collectRawEmail: true }, sessionId: "shared-session", anonId: "shared-anon", linkId: null, receivedAt,
+      event: { id, t: "identify", ts: receivedAt, url: "https://shop.test", ref: null, email, name: id === "job-a" ? "PROFILE-A" : "PROFILE-B" },
+    });
+    const prepared = await prepareIdentifyJobs(env, [makeJob("job-a", emailA, NOW - 1000), makeJob("job-b", emailB, NOW)]);
+    await env.DB.batch([prepared.statement!]);
+    const [idA, idB] = prepared.ids;
+    await processIdentifyJob({ id: idB! }, env);
+    const before = db.prepare("SELECT * FROM site_sessions WHERE site_id='site' AND id='shared-session'").all()[0]!;
+    const personB = String(before.person_id);
+    db.prepare("INSERT INTO site_conversions(id,site_id,session_id,person_id,kind,currency,value,at) VALUES('b-conversion','site','shared-session',?,'purchase','KRW',900,?)").run(personB, NOW);
+    const conversionBefore = db.prepare("SELECT * FROM site_conversions WHERE id='b-conversion'").all()[0]!;
+    await processIdentifyJob({ id: idA! }, env);
+    expect(db.prepare("SELECT status FROM site_identify_jobs WHERE id=?").all(idA!)).toEqual([{ status: "done" }]);
+    expect(db.prepare("SELECT person_id FROM site_sessions WHERE id='shared-session'").all()).toEqual([{ person_id: personB }]);
+    expect(db.prepare("SELECT count(*) AS n FROM site_people WHERE email_hash IN (?,?)").all(hashA, hashB)).toEqual([{ n: 2 }]);
+    const receiptB = db.prepare("SELECT * FROM site_identify_jobs WHERE id=?").all(idB!)[0]!;
+    expect(receiptB.status).toBe("done");
+    if (action === "rejoin") {
+      db.prepare("UPDATE leads SET deleted_at=? WHERE id='old-a'").run(NOW);
+      const result = await upsertLead(orm, { workspaceId: "w", email: emailA, name: "FRESH-A", source: { type: "manual" } });
+      expect(result.created).toBe(true); expect(result.leadId).not.toBe("old-a");
+    } else {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      await purgeDeletedLeads(env, controller);
+    }
+    expect(db.prepare("SELECT * FROM site_sessions WHERE id='shared-session'").all()).toEqual([before]);
+    expect(db.prepare("SELECT * FROM site_conversions WHERE id='b-conversion'").all()).toEqual([conversionBefore]);
+    expect(db.prepare("SELECT * FROM site_identify_jobs WHERE id=?").all(idB!)).toEqual([receiptB]);
+    expect(db.prepare("SELECT id FROM site_identify_jobs WHERE id=?").all(idA!)).toEqual([]);
+    expect(db.prepare("SELECT email_hash FROM site_people").all()).toEqual([{ email_hash: hashB }]);
+    await processIdentifyJob({ id: idA! }, env);
+    expect(db.prepare("SELECT name FROM leads WHERE email=?").all(emailB)).toEqual([{ name: "PROFILE-B" }]);
+    if (action === "rejoin") expect(db.prepare("SELECT name FROM leads WHERE email=?").all(emailA)).toEqual([{ name: "FRESH-A" }]);
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  });
+
   it("새 ID·프로필·수신거부 토큰을 만들고 옛 발송/태그/SDK 연결은 되살리지 않는다", async () => {
     const { db, orm } = await setup(); lead(db, "dead", { email: "same@example.com" }); oldData(db, "dead");
     const result = await upsertLead(orm, { workspaceId: "w", email: "same@example.com", name: "NEW-NAME", source: { type: "manual" } });

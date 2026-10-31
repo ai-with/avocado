@@ -29,6 +29,7 @@ export function leadPurgeStatements(db: D1Database, selection: string, params: B
         AND (ss.person_id IS NULL OR ss.person_id IN (SELECT id FROM target_people))
       UNION
       SELECT ss.site_id, ss.id FROM target_jobs j JOIN site_sessions ss ON ss.site_id = j.site_id AND ss.id = j.session_id
+        AND (ss.person_id IS NULL OR ss.person_id IN (SELECT id FROM target_people))
     )`;
   const query = (name: string, sql: string, extra: Bound[] = []): PurgeStatement => ({ name, statement: db.prepare(`${cte} ${sql}`).bind(...params, ...extra) });
   return [
