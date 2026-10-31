@@ -20,6 +20,8 @@ const TOKEN_ERRORS = new Set(["missing-input-response", "invalid-input-response"
 
 type Verification = "ok" | "invalid" | "unavailable";
 type Attempt = Verification | "retry";
+type Diagnostic = { reason: "network" | "http" | "body" | "json" | "provider"; status?: number; timeout?: boolean; codes?: string[] };
+const DIAGNOSTIC_CODES = new Set([...TOKEN_ERRORS, "missing-input-secret", "invalid-input-secret", "bad-request", "internal-error"]);
 
 function productionHostname(env: Env): string | null {
   const appUrl = env.APP_URL;
@@ -99,7 +101,7 @@ async function readResponseBody(response: Response): Promise<{ body: string } | 
   }
 }
 
-async function verifyAttempt(secret: string, token: string, idempotencyKey: string, hostname: string, cData: string): Promise<Attempt> {
+async function verifyAttempt(secret: string, token: string, idempotencyKey: string, hostname: string, cData: string, diagnose: (details: Diagnostic) => void): Promise<Attempt> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT);
   try {
@@ -113,21 +115,29 @@ async function verifyAttempt(secret: string, token: string, idempotencyKey: stri
         signal: controller.signal,
       });
     } catch {
+      diagnose({ reason: "network", timeout: controller.signal.aborted });
       return "retry";
     }
     if (!response.ok) {
+      diagnose({ reason: "http", status: response.status });
       void response.body?.cancel().catch(() => {});
       return "unavailable";
     }
     const content = await readResponseBody(response);
-    if ("failure" in content) return content.failure;
+    if ("failure" in content) { diagnose({ reason: "body" }); return content.failure; }
     let payload: unknown;
     try {
       payload = JSON.parse(content.body);
     } catch {
+      diagnose({ reason: "json" });
       return "unavailable";
     }
-    return validationResult(payload, hostname, cData);
+    const result = validationResult(payload, hostname, cData);
+    if (result === "unavailable" || result === "retry") {
+      const codes: unknown = payload && typeof payload === "object" ? (payload as Record<string, unknown>)["error-codes"] : null;
+      diagnose({ reason: "provider", codes: Array.isArray(codes) ? [...new Set(codes.filter((code): code is string => typeof code === "string" && DIAGNOSTIC_CODES.has(code)))].slice(0, DIAGNOSTIC_CODES.size) : [] });
+    }
+    return result;
   } finally {
     clearTimeout(timeout);
   }
@@ -145,9 +155,14 @@ export async function verifyPublicJoin(env: Env, token: string, guideId: string,
   }
   const cData = await sha256Hex(`guide-join:${guideId}`);
   const idempotencyKey = crypto.randomUUID();
+  let diagnostic: Diagnostic | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await verifyAttempt(env.TURNSTILE_SECRET_KEY!, token, idempotencyKey, hostname, cData);
-    if (result !== "retry") return result;
+    const result = await verifyAttempt(env.TURNSTILE_SECRET_KEY!, token, idempotencyKey, hostname, cData, (details) => { diagnostic = details; });
+    if (result !== "retry") {
+      if (result === "unavailable") console.warn("[turnstile] verification_unavailable", diagnostic);
+      return result;
+    }
   }
+  console.warn("[turnstile] verification_unavailable", diagnostic);
   return "unavailable";
 }

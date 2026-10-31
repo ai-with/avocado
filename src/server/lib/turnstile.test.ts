@@ -347,6 +347,25 @@ describe("Siteverify 장애·재시도·정보 비노출", () => {
     fetcher.mockRejectedValueOnce(new Error("private-token private-secret private-encryption-key"));
     fetcher.mockResolvedValueOnce(new Response("private raw provider body"));
     expect(await verifyPublicJoin(env(), "private-token", GUIDE, REQUEST_URL)).toBe("unavailable");
-    expect(console.error).not.toHaveBeenCalled(); expect(console.warn).not.toHaveBeenCalled(); expect(console.log).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled(); expect(console.log).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith("[turnstile] verification_unavailable", { reason: "json" });
+  });
+
+  it("HTTP 장애는 상태 코드만 기록하고 본문은 기록하지 않는다", async () => {
+    stubFetch().mockResolvedValue(new Response("private-token private-secret", { status: 403 }));
+    expect(await verifyPublicJoin(env(), "private-token", GUIDE, REQUEST_URL)).toBe("unavailable");
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith("[turnstile] verification_unavailable", { reason: "http", status: 403 });
+  });
+
+  it("provider 진단은 알려진 오류 코드만 중복 없이 기록한다", async () => {
+    stubFetch().mockResolvedValue(Response.json({ success: false, "error-codes": ["invalid-input-secret", "private-token private-secret", "invalid-input-secret"] }));
+    expect(await verifyPublicJoin(env(), "private-token", GUIDE, REQUEST_URL)).toBe("unavailable");
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith("[turnstile] verification_unavailable", { reason: "provider", codes: ["invalid-input-secret"] });
+  });
+
+  it("재시도까지 네트워크 실패하면 예외 대신 분류만 남긴다", async () => {
+    stubFetch().mockRejectedValue(new Error("private-token private-secret"));
+    expect(await verifyPublicJoin(env(), "private-token", GUIDE, REQUEST_URL)).toBe("unavailable");
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith("[turnstile] verification_unavailable", { reason: "network", timeout: false });
   });
 });
