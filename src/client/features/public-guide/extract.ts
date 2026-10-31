@@ -1,7 +1,15 @@
 // 브라우저에서 영상의 프레임과 오디오를 뽑는다 (F-60 일부를 클라이언트로 옮김)
+import { frameTargets, sceneChanged, sceneSample, validateFrameDuration, validateFrameLimit, type SceneSample } from "./frame-scenes";
 
 export type VideoMeta = { durationS: number; width: number; height: number };
 export type FrameShot = { tMs: number; source: "fps" | "scene"; blob: Blob };
+export const VIDEO_LOAD_TIMEOUT_MS = 30_000, FRAME_STEP_TIMEOUT_MS = 10_000;
+
+function release(v: HTMLVideoElement, url = v.src) {
+  v.onloadeddata = null; v.onseeked = null; v.onerror = null;
+  try { v.pause(); v.removeAttribute("src"); v.load(); } catch { /* still revoke the blob URL if decoder cleanup fails */ }
+  URL.revokeObjectURL(url);
+}
 
 function loadVideo(file: File): Promise<HTMLVideoElement> {
   return new Promise((resolve, reject) => {
@@ -9,12 +17,17 @@ function loadVideo(file: File): Promise<HTMLVideoElement> {
     v.muted = true;
     v.playsInline = true;
     v.preload = "auto";
-    v.onloadeddata = () => resolve(v);
-    v.onerror = () => reject(new Error("video_load_failed"));
-    v.src = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file); let done = false;
+    const finish = (reason?: string) => {
+      if (done) return; done = true; clearTimeout(timer); v.onloadeddata = null; v.onerror = null;
+      if (reason) { release(v, url); reject(new Error(reason)); } else resolve(v);
+    };
+    const timer = setTimeout(() => finish("video_load_timeout"), VIDEO_LOAD_TIMEOUT_MS);
+    v.onloadeddata = () => finish();
+    v.onerror = () => finish("video_load_failed");
+    try { v.src = url; } catch { finish("video_load_failed"); }
   });
 }
-const release = (v: HTMLVideoElement) => URL.revokeObjectURL(v.src);
 
 export async function readVideoMeta(file: File): Promise<VideoMeta> {
   const v = await loadVideo(file);
@@ -24,68 +37,68 @@ export async function readVideoMeta(file: File): Promise<VideoMeta> {
 }
 
 function seek(v: HTMLVideoElement, t: number): Promise<void> {
-  return new Promise((resolve) => {
-    v.onseeked = () => resolve();
-    v.currentTime = t;
+  if (v.error) return Promise.reject(new Error("video_seek_failed"));
+  if (!v.seeking && v.readyState >= 2 && Math.abs(v.currentTime - t) < 0.000001) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (reason?: string) => { if (done) return; done = true; clearTimeout(timer); v.onseeked = null; v.onerror = null; reason ? reject(new Error(reason)) : resolve(); };
+    const timer = setTimeout(() => finish("video_seek_timeout"), FRAME_STEP_TIMEOUT_MS);
+    v.onseeked = () => finish(); v.onerror = () => finish("video_seek_failed");
+    try { v.currentTime = t; } catch { finish("video_seek_failed"); }
   });
 }
 
-const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob | null>((resolve) => c.toBlob(resolve, "image/jpeg", 0.8));
+const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+  let done = false;
+  const finish = (blob?: Blob | null) => { if (done) return; done = true; clearTimeout(timer); blob ? resolve(blob) : reject(new Error("frame_encode_failed")); };
+  const timer = setTimeout(() => finish(), FRAME_STEP_TIMEOUT_MS);
+  try { c.toBlob(finish, "image/jpeg", 0.8); } catch { finish(); }
+});
 
 const STEP_S = 0.5;
 const SMALL = 32;
-// ponytail: 32x32 흑백 평균 픽셀 차이로 장면 전환을 어림한다. 0.5초 간격이라 빠른 컷은 놓치고,
-// 조명만 바뀌어도 걸릴 수 있다. 정확도가 필요하면 서버 ffmpeg select='gt(scene,0.4)' 로 옮긴다
-const SCENE_THRESHOLD = 30;
-
-// 직전 프레임과의 흑백 평균 픽셀 차이. 첫 프레임이면 0
-function lumaDiff(px: Uint8ClampedArray, prev: Uint8ClampedArray | null): number {
-  let diff = 0;
-  if (prev) {
-    for (let i = 0; i < px.length; i += 4) diff += Math.abs(px[i]! * 0.3 + px[i + 1]! * 0.59 + px[i + 2]! * 0.11 - (prev[i]! * 0.3 + prev[i + 1]! * 0.59 + prev[i + 2]! * 0.11));
-    diff /= SMALL * SMALL;
-  }
-  return diff;
-}
 
 // 1초 간격 + 장면 전환 프레임의 합집합. 긴 변 720px, 품질 0.8, 상한 max 장
 export async function extractFrames(file: File, max: number, onProgress?: (ratio: number) => void): Promise<FrameShot[]> {
+  validateFrameLimit(max);
+  if (!max) { onProgress?.(1); return []; }
   const v = await loadVideo(file);
-  const scale = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
-  const big = document.createElement("canvas");
-  big.width = Math.round(v.videoWidth * scale);
-  big.height = Math.round(v.videoHeight * scale);
-  const small = document.createElement("canvas");
-  small.width = small.height = SMALL;
-  const bctx = big.getContext("2d")!;
-  const sctx = small.getContext("2d", { willReadFrequently: true })!;
+  try {
+    validateFrameDuration(v.duration);
+    if (!v.duration) { onProgress?.(1); return []; }
+    if (!(v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.videoWidth) && Number.isFinite(v.videoHeight))) throw new Error("video_metadata_invalid");
+    const scale = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+    const big = document.createElement("canvas");
+    big.width = Math.round(v.videoWidth * scale);
+    big.height = Math.round(v.videoHeight * scale);
+    const small = document.createElement("canvas");
+    small.width = small.height = SMALL;
+    const bctx = big.getContext("2d");
+    const sctx = small.getContext("2d", { willReadFrequently: true });
+    if (!bctx || !sctx) throw new Error("frame_canvas_unavailable");
 
-  const fps: FrameShot[] = [];
-  const scene: FrameShot[] = [];
-  let prev: Uint8ClampedArray | null = null;
-  const end = v.duration;
-  for (let t = 0; t < end; t += STEP_S) {
-    await seek(v, Math.max(0.01, Math.min(t, end - 0.05)));
-    sctx.drawImage(v, 0, 0, SMALL, SMALL);
-    const px = sctx.getImageData(0, 0, SMALL, SMALL).data;
-    const diff = lumaDiff(px, prev);
-    prev = px;
-    const onSecond = Number.isInteger(t);
-    if (onSecond || diff > SCENE_THRESHOLD) {
-      bctx.drawImage(v, 0, 0, big.width, big.height);
-      const blob = await toJpeg(big);
-      if (blob) (onSecond ? fps : scene).push({ tMs: Math.round(t * 1000), source: onSecond ? "fps" : "scene", blob });
+    const cuts: number[] = [];
+    let prev: SceneSample | null = null;
+    const end = v.duration;
+    const at = (t: number) => Math.max(0, Math.min(Math.max(0.01, t), Math.max(0, end - 0.05)));
+    // Pass 1 retains at most max timestamps and one previous small sample.
+    for (let t = 0; t < end; t += STEP_S) {
+      await seek(v, at(t));
+      sctx.drawImage(v, 0, 0, SMALL, SMALL);
+      const px = sctx.getImageData(0, 0, SMALL, SMALL).data;
+      const current = sceneSample(px), changed = sceneChanged(current, prev); prev = current;
+      if (changed && cuts.length < max) cuts.push(Math.round(t * 1000));
+      onProgress?.(0.8 * t / end);
     }
-    onProgress?.(t / end);
-  }
-  release(v);
-
-  // 상한을 넘으면 장면 전환은 남기고 1초 간격 프레임을 고르게 솎는다
-  const keepScene = scene.slice(0, max);
-  const budget = max - keepScene.length;
-  const stride = budget > 0 ? Math.ceil(fps.length / budget) : Infinity;
-  const keepFps = fps.filter((_, i) => i % stride === 0).slice(0, budget);
-  return [...keepFps, ...keepScene].sort((a, b) => a.tMs - b.tMs);
+    const targets = frameTargets(end, max, cuts), shots: FrameShot[] = [];
+    // Pass 2 encodes only the selected union, rather than every 1fps/scene candidate.
+    for (const [index, target] of targets.entries()) {
+      await seek(v, at(target.tMs / 1000)); bctx.drawImage(v, 0, 0, big.width, big.height);
+      shots.push({ tMs: target.tMs, source: target.source, blob: await toJpeg(big) });
+      onProgress?.(0.8 + 0.2 * (index + 1) / targets.length);
+    }
+    return shots;
+  } finally { release(v); }
 }
 
 const MAX_AUDIO_DECODE_BYTES = 500 * 1024 ** 2;
