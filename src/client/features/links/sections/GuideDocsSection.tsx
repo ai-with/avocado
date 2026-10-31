@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "../../../ui";
 import { DocumentCard } from "../DocumentCard";
 import { DocumentSettingsModal } from "../DocumentPanel";
-import { docSize, gateLabel, ZERO_HINT, type Channel, type DocumentRow } from "../common";
+import { docSize, documentStatsText, gateLabel, type Channel, type DocumentRow } from "../common";
 
 type Props = { docs: DocumentRow[]; channels: Channel[]; onSaved: () => void };
 
@@ -20,7 +20,7 @@ export function GuideDocsSection({ docs, channels, onSaved }: Props) {
           doc={d}
           channels={channels}
           heading={<b>{d.title}</b>}
-          meta={`${docSize(d)} · 게이트 ${gateLabel(d.gate)} · 열람 ${d.stats.views || ZERO_HINT}`}
+          meta={`${docSize(d)} · 게이트 ${gateLabel(d.gate)} · ${documentStatsText(d.stats)}`}
           actions={<Button size="sm" variant="secondary" onClick={() => setSettingsFor(d)}>게이트·설정</Button>}
           statsOpen={statsFor === d.id}
           onToggleStats={() => setStatsFor(statsFor === d.id ? null : d.id)}

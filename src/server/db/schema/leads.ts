@@ -63,8 +63,11 @@ export const linkClicks = sqliteTable(
     sessionId: text("session_id"),
     // 사이트 SDK 로 넘기는 클릭 ID(avc). 봇 클릭은 null
     clickToken: text("click_token").unique("link_clicks_click_token_idx"),
+    // 클릭 당시 목적지. 자료 연결 폼은 연결 자료를 기록한다. null은 추정하지 않은 과거 클릭.
+    destinationType: text("destination_type").$type<DestinationType>(),
+    destinationId: text("destination_id"),
   },
-  (t) => [index("link_clicks_link_idx").on(t.linkId, t.at)],
+  (t) => [index("link_clicks_link_idx").on(t.linkId, t.at), index("link_clicks_destination_idx").on(t.destinationType, t.destinationId, t.at)],
 );
 
 export const documents = sqliteTable(
@@ -101,16 +104,21 @@ export const documentViews = sqliteTable(
     id: text("id").primaryKey(),
     documentId: text("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
     linkId: text("link_id").references(() => shortLinks.id, { onDelete: "set null" }),
+    // 같은 링크·워크스페이스의 유효한 자료 클릭만 연결한다. 직접 방문·과거 행은 null.
+    clickToken: text("click_token"),
     sessionId: text("session_id"),
     leadId: text("lead_id").references(() => leads.id, { onDelete: "set null" }),
     startedAt: integer("started_at").notNull(),
+    // 폼 제출 직후 예약한 행은 null. 실제 자료 메타 GET에서 처음 설정한다.
+    // -1: 과거 정의/구 Worker 기록, NULL: 신규 폼 대기, 양수: 실제 첫 열림
+    openedAt: integer("opened_at").default(-1),
     lastSeenAt: integer("last_seen_at").notNull(),
     completed: integer("completed", { mode: "boolean" }).notNull().default(false),
     maxPage: integer("max_page").notNull().default(0),
     maxScrollPct: integer("max_scroll_pct").notNull().default(0),
     isMember: integer("is_member", { mode: "boolean" }).notNull(),
   },
-  (t) => [index("document_views_doc_idx").on(t.documentId), index("document_views_link_idx").on(t.linkId), index("document_views_lead_idx").on(t.leadId)],
+  (t) => [index("document_views_doc_idx").on(t.documentId), index("document_views_link_idx").on(t.linkId), index("document_views_lead_idx").on(t.leadId), index("document_views_click_idx").on(t.clickToken), index("document_views_opened_idx").on(t.documentId, t.openedAt)],
 );
 
 export const documentPageViews = sqliteTable(

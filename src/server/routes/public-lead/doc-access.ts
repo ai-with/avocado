@@ -22,10 +22,10 @@ export async function docForSlug(db: Db, slug: string) {
   let docId = link.destinationType === "document" ? link.destinationId : null;
   let viaForm = false;
   if (link.destinationType === "form" && link.destinationId) {
-    const form = await db.select({ afterSubmit: forms.afterSubmit }).from(forms).where(eq(forms.id, link.destinationId)).get();
+    const form = await db.select({ afterSubmit: forms.afterSubmit }).from(forms).where(and(eq(forms.id, link.destinationId), eq(forms.workspaceId, link.workspaceId), isNull(forms.deletedAt))).get();
     if (form?.afterSubmit.type === "document") (docId = form.afterSubmit.documentId), (viaForm = true);
   }
-  const row = docId ? await db.select().from(documents).where(and(eq(documents.id, docId), isNull(documents.deletedAt))).get() : undefined;
+  const row = docId ? await db.select().from(documents).where(and(eq(documents.id, docId), eq(documents.workspaceId, link.workspaceId), isNull(documents.deletedAt))).get() : undefined;
   if (!row) throw new ApiError(404, "document_not_found", "자료를 찾을 수 없어요.");
   const gate = normalizeGate(row.gate, row.pages);
   // PDF 파일과 주소 스냅샷은 게이트 앞부분만 잘라 줄 수 없다. 통째로 주면 게이트를 우회할 수 있으니
@@ -34,8 +34,8 @@ export async function docForSlug(db: Db, slug: string) {
   return { link, doc: { ...row, gate }, viaForm };
 }
 
-export async function viewFor(db: Db, viewToken: string, documentId: string): Promise<View> {
-  const view = await db.select().from(documentViews).where(and(eq(documentViews.id, viewToken), eq(documentViews.documentId, documentId))).get();
+export async function viewFor(db: Db, viewToken: string, documentId: string, linkId: string): Promise<View> {
+  const view = await db.select().from(documentViews).where(and(eq(documentViews.id, viewToken), eq(documentViews.documentId, documentId), eq(documentViews.linkId, linkId))).get();
   if (!view) throw new ApiError(403, "invalid_view", "자료를 다시 열어 주세요.");
   return view;
 }
@@ -52,7 +52,7 @@ export async function gatePassed(c: Context<AppEnv>, s: DocAccess, view: View): 
 // 원본(PDF·스냅샷)을 받을 수 있는 열람 세션인지 확인한다. 끝(100%) 게이트는 통과 전에도 전부 보여 준다
 export async function openedDoc(c: Context<AppEnv>): Promise<Doc> {
   const s = await docForSlug(c.var.db, c.req.param("slug") ?? "");
-  const view = await viewFor(c.var.db, c.req.query("v") ?? "", s.doc.id);
+  const view = await viewFor(c.var.db, c.req.query("v") ?? "", s.doc.id, s.link.id);
   if (s.viaForm && !view.leadId) throw new ApiError(403, "form_required", "신청서를 내면 볼 수 있어요.");
   if (s.doc.gate.scrollPct < 100 && !(await gatePassed(c, s, view))) throw new ApiError(403, "gate_required", "이메일을 입력하면 바로 볼 수 있어요.");
   return s.doc;

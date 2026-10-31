@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import { documents, documentViews } from "../../db/schema";
 import { now } from "../../lib/ids";
@@ -29,8 +29,8 @@ export const urlSchema = z
   .max(2000)
   .pipe(z.url({ protocol: /^https?$/, error: "http 또는 https 로 시작하는 주소를 넣어 주세요." }));
 
-// 구성원 열람은 집계에서 뺀다
-export const notMember = eq(documentViews.isMember, false);
+// 구성원과 폼 제출 시 미리 발급된 미열람 세션은 상세 행동에서도 뺀다.
+export const openedNonMember = and(eq(documentViews.isMember, false), isNotNull(documentViews.openedAt));
 
 type DocRow = typeof documents.$inferSelect;
 // 목록·상세 응답. 게이트는 항상 새 형식, 본문은 상세에서만 보낸다

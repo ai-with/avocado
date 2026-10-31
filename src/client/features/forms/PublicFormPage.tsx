@@ -14,6 +14,8 @@ export function PublicFormPage() {
   const [form, setForm] = useState<PublicForm | null>(null);
   const [error, setError] = useState("");
   const [done, setDone] = useState<Result | null>(null);
+  const clickToken = new URLSearchParams(location.search).get("avc");
+  const attribution = clickToken ? `?avc=${encodeURIComponent(clickToken)}` : "";
 
   useEffect(() => {
     api.get<PublicForm>(`/public/form/${token}`, { redirectOn401: false }).then(setForm, (e: unknown) => setError(errorMessage(e)));
@@ -37,7 +39,7 @@ export function PublicFormPage() {
         base={form.fields.base.filter((b) => b.enabled)}
         questions={form.fields.questions}
         submitLabel="제출하기"
-        onSubmit={async (v) => setDone(await api.post<Result>(`/public/form/${token}/submit`, v, { redirectOn401: false }))}
+        onSubmit={async (v) => setDone(await api.post<Result>(`/public/form/${token}/submit${attribution}`, v, { redirectOn401: false }))}
       />
     </div>
   );

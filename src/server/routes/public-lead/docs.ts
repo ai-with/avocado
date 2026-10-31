@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { documentPageViews, documentViews } from "../../db/schema";
@@ -15,6 +15,8 @@ import { isBlockedEmail, isFreeEmail, type DocumentGate } from "../../../shared/
 import { splitAtGate } from "../../../shared/doc-gate";
 import { sanitizeHtml } from "../../../shared/sanitize";
 import { brandNameOf } from "../../lib/brands";
+import { documentClickToken } from "../../lib/doc-attribution";
+import { isBotUA } from "../../lib/links";
 import { NOINDEX, consentFields, contactFields, isMember, visitorId } from "./shared";
 import { docForSlug, gatePassed, gateRequired, openedDoc, passGate, viewFor, type Doc, type DocAccess, type View } from "./doc-access";
 import { sendVerifyMail } from "./doc-verify";
@@ -40,11 +42,21 @@ async function startView(c: Context<AppEnv>, s: DocAccess): Promise<View> {
   const vid = visitorId(c);
   const member = await isMember(c, doc.workspaceId);
   const v = c.req.query("v");
-  const prevView = v ? await db.select().from(documentViews).where(and(eq(documentViews.id, v), eq(documentViews.documentId, doc.id))).get() : undefined;
+  const prevView = v ? await db.select().from(documentViews).where(and(eq(documentViews.id, v), eq(documentViews.documentId, doc.id), eq(documentViews.linkId, link.id))).get() : undefined;
   if (viaForm && !prevView?.leadId) throw new ApiError(403, "form_required", "신청서를 내면 볼 수 있어요.");
-  if (prevView) return prevView;
+  if (prevView) {
+    if (prevView.openedAt !== null) return prevView;
+    const openedAt = now();
+    const currentMember = member || prevView.isMember;
+    const clickToken = await documentClickToken(db, link, doc.id, prevView.clickToken, currentMember || isBotUA(c.req.header("user-agent")));
+    const changed = await db.update(documentViews).set({ openedAt, lastSeenAt: openedAt, isMember: currentMember, clickToken })
+      .where(and(eq(documentViews.id, prevView.id), isNull(documentViews.openedAt))).returning();
+    if (changed.length) await logEvent(db, doc.workspaceId, "document_viewed", { link_id: link.id, channel: link.channelKey, is_member: currentMember });
+    return changed[0] ?? await viewFor(db, prevView.id, doc.id, link.id);
+  }
   const prev = await db.select({ leadId: documentViews.leadId }).from(documentViews).where(and(eq(documentViews.documentId, doc.id), eq(documentViews.sessionId, vid), isNotNull(documentViews.leadId))).get();
-  const row = { id: newToken(18), documentId: doc.id, linkId: link.id, sessionId: vid, leadId: prev?.leadId ?? null, startedAt: now(), lastSeenAt: now(), isMember: member };
+  const clickToken = await documentClickToken(db, link, doc.id, c.req.query("avc"), member || isBotUA(c.req.header("user-agent")));
+  const row = { id: newToken(18), documentId: doc.id, linkId: link.id, clickToken, sessionId: vid, leadId: prev?.leadId ?? null, startedAt: now(), openedAt: now(), lastSeenAt: now(), isMember: member };
   await db.insert(documentViews).values(row);
   await logEvent(db, doc.workspaceId, "document_viewed", { link_id: link.id, channel: link.channelKey, is_member: member });
   if (gateRequired(doc.gate.position, viaForm) && !row.leadId) await logEvent(db, doc.workspaceId, "lead_form_viewed", { link_id: link.id, channel: link.channelKey });
@@ -145,7 +157,7 @@ export const publicDocRoutes = new Hono<AppEnv>()
     const slug = c.req.param("slug");
     const s = await docForSlug(c.var.db, slug);
     const body = parse(gateBody, await c.req.json());
-    const view = await viewFor(c.var.db, body.viewToken, s.doc.id);
+    const view = await viewFor(c.var.db, body.viewToken, s.doc.id, s.link.id);
     gateErrors(s.doc.gate, body);
     const leadId = await saveGateLead(c, s, view, body);
     if (s.doc.gate.requireVerify) {
@@ -157,9 +169,9 @@ export const publicDocRoutes = new Hono<AppEnv>()
   // 열람 행동 배치(5초마다 + 페이지를 떠날 때 sendBeacon)
   .post("/doc/:slug/events", async (c) => {
     const db = c.var.db;
-    const { doc } = await docForSlug(db, c.req.param("slug"));
+    const { doc, link } = await docForSlug(db, c.req.param("slug"));
     const body = parse(eventsBody, JSON.parse(await c.req.text()));
-    const view = await viewFor(db, body.viewToken, doc.id);
+    const view = await viewFor(db, body.viewToken, doc.id, link.id);
     await recordPages(db, doc, view, body.pages);
     const maxPage = Math.min(Math.max(view.maxPage, body.maxPage), doc.pages);
     // 직접 쓴 문서·주소는 1쪽짜리라 쪽수로 완독을 보지 않고 스크롤 95% 도달(클라이언트 completed)만 본다

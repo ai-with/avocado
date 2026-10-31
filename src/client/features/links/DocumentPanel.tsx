@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Button, Card, Checkbox, EmptyState, Input, LoadingState, Modal, Stat, StatGrid, TextField, useToast } from "../../ui";
+import { Button, Card, Checkbox, EmptyState, Input, LoadingState, Modal, TextField, useToast } from "../../ui";
 import { api, errorMessage } from "../../lib/api";
-import { channelLabel, type DocumentGate } from "../../../shared/leads";
+import type { DocumentGate } from "../../../shared/leads";
 import { Bars } from "./LinkAnalytics";
 import { GateTimingField } from "../docs/GateTimingField";
 import { GateFieldsEditor } from "./sections/GateFieldsEditor";
 import { LeadViewsTable } from "./sections/LeadViewsTable";
-import { pct, seconds, ZERO_HINT, type Channel, type DocumentRow } from "./common";
+import { DocumentSourceTable, DocumentViewSummary } from "./sections/DocumentViewStats";
+import { seconds, VIEW_METRICS_HELP, ZERO_HINT, type Channel, type DocumentRow, type DocumentSourceStats, type DocumentViewStats } from "./common";
 
 const MS_PER_SECOND = 1000;
 const toDateInput = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0, 10) : "");
@@ -52,16 +53,14 @@ export function DocumentSettingsModal({ doc, onClose, onSaved }: { doc: Omit<Doc
   );
 }
 
-type DocAnalytics = {
+type DocAnalytics = DocumentViewStats & {
   pages: number;
-  views: number;
   unique: number;
-  reViews: number;
   completed: number;
   completionRate: number;
   avgScrollPct: number;
   pageStats: { page: number; viewers: number; avgDwellMs: number }[];
-  byLink: { linkId: string | null; channelKey: string | null; influencerName: string | null; views: number; completed: number }[];
+  byLink: DocumentSourceStats[];
   leadViews: { leadId: string; email: string; name: string | null; maxPage: number; completed: boolean; startedAt: number }[];
 };
 
@@ -85,19 +84,15 @@ export function DocumentAnalytics({ doc, channels }: { doc: DocumentRow; channel
     void api.get<DocAnalytics>(`/documents/${doc.id}/analytics`).then(setA);
   }, [doc.id]);
   if (!a) return <LoadingState pattern="detail" />;
-  if (a.views === 0) return <EmptyState compact title="아직 열람이 없어요" description={`이 자료를 목적지로 한 ${ZERO_HINT}.`} />;
+  if (a.views === 0 && a.clicks === 0) return <EmptyState compact title="아직 열람이 없어요" description={`이 자료를 목적지로 한 ${ZERO_HINT}.`} />;
   return (
     <div className="stack">
-      <StatGrid>
-        <Stat label="열람" value={a.views} />
-        <Stat label="재열람" value={a.reViews} />
-        <Stat label="완독률" value={pct(a.completionRate)} />
-        <Stat label="평균 스크롤 깊이" value={`${a.avgScrollPct}%`} />
-      </StatGrid>
+      <DocumentViewSummary stats={a} />
+      <p className="text-caption">{VIEW_METRICS_HELP.rate} {VIEW_METRICS_HELP.measuredClicks}</p>
       <DwellCard pageStats={a.pageStats} />
       <Card className="stack">
         <span className="text-caption">유입 (인플루언서 · 채널)</span>
-        <Bars rows={a.byLink.map((l) => ({ label: `${l.influencerName ?? "가이드 공용"} · ${l.channelKey ? channelLabel(l.channelKey, channels) : "직접"}`, value: l.views }))} />
+        <DocumentSourceTable rows={a.byLink} channels={channels} />
       </Card>
       <LeadViewsTable leadViews={a.leadViews} pages={a.pages} />
     </div>

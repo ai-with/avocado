@@ -45,6 +45,8 @@ export function usePublicDoc(slug: string) {
   const load = useCallback<LoadDoc>(
     async (v, t) => {
       const q = new URLSearchParams();
+      const clickToken = new URLSearchParams(location.search).get("avc");
+      if (clickToken) q.set("avc", clickToken);
       if (v) q.set("v", v);
       if (t) q.set("t", t);
       const qs = q.toString();

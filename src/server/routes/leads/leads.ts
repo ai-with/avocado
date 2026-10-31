@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { AppEnv } from "../../types";
 import type { Db } from "../../db";
 import { documentPageViews, documentViews, documents, formSubmissions, forms, leadSources, leadTagLinks, leads } from "../../db/schema";
@@ -9,6 +9,7 @@ import { now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
 import { csvResponse } from "../../lib/http";
 import { upsertLead } from "../../lib/leads";
+import { documentOpenedAt } from "../../lib/document-metrics";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { leadsCsv } from "./export";
 import { emailSchema, filteredLeads, lookups, ownLead, publicLead } from "./shared";
@@ -48,11 +49,11 @@ async function leadActivity(db: Db, leadId: string) {
   const [sources, views, submissions, tagIds] = await Promise.all([
     db.select().from(leadSources).where(eq(leadSources.leadId, leadId)).orderBy(desc(leadSources.at)),
     db
-      .select({ id: documentViews.id, title: documents.title, pages: documents.pages, maxPage: documentViews.maxPage, completed: documentViews.completed, startedAt: documentViews.startedAt, lastSeenAt: documentViews.lastSeenAt })
+      .select({ id: documentViews.id, title: documents.title, pages: documents.pages, maxPage: documentViews.maxPage, completed: documentViews.completed, startedAt: documentOpenedAt, lastSeenAt: documentViews.lastSeenAt })
       .from(documentViews)
       .innerJoin(documents, eq(documents.id, documentViews.documentId))
-      .where(eq(documentViews.leadId, leadId))
-      .orderBy(desc(documentViews.startedAt)),
+      .where(and(eq(documentViews.leadId, leadId), isNotNull(documentViews.openedAt)))
+      .orderBy(desc(documentOpenedAt)),
     db
       .select({ id: formSubmissions.id, formTitle: forms.title, fields: forms.fields, answers: formSubmissions.answers, at: formSubmissions.at })
       .from(formSubmissions)

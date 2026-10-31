@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, count, countDistinct, desc, eq, isNull, sql, sum } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { AppEnv } from "../../types";
-import { documentViews, documents } from "../../db/schema";
+import { documents } from "../../db/schema";
 import { ApiError, parse } from "../../lib/errors";
 import { newId, now } from "../../lib/ids";
 import { logEvent } from "../../lib/events";
@@ -12,7 +12,8 @@ import { snapshotResponse } from "../../lib/snapshot";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import type { DocJson } from "../../../shared/leads";
 import { sanitizeHtml } from "../../../shared/sanitize";
-import { gateSchema, newDocument, notMember, ownDocument, takeSnapshot, toClient, urlSchema } from "./shared";
+import { documentMetrics, EMPTY_DOCUMENT_METRICS } from "../../lib/document-metrics";
+import { gateSchema, newDocument, ownDocument, takeSnapshot, toClient, urlSchema } from "./shared";
 
 // 자료: PDF 올리기, 직접 쓰기, 홈페이지 주소
 
@@ -53,13 +54,8 @@ export const documentCrudRoutes = new Hono<AppEnv>()
       .from(documents)
       .where(and(eq(documents.workspaceId, workspace.id), isNull(documents.deletedAt), guideId ? eq(documents.guideId, guideId) : undefined))
       .orderBy(desc(documents.createdAt));
-    const stats = await db
-      .select({ documentId: documentViews.documentId, views: count(), completed: sum(sql`${documentViews.completed}`).mapWith(Number), leads: countDistinct(documentViews.leadId) })
-      .from(documentViews)
-      .innerJoin(documents, eq(documents.id, documentViews.documentId))
-      .where(and(eq(documents.workspaceId, workspace.id), notMember))
-      .groupBy(documentViews.documentId);
-    return c.json({ documents: rows.map((d) => ({ ...toClient(d), stats: stats.find((s) => s.documentId === d.id) ?? { views: 0, completed: 0, leads: 0 } })) });
+    const stats = await documentMetrics(db, workspace.id, { groupBy: "document" });
+    return c.json({ documents: rows.map((d) => ({ ...toClient(d), stats: stats.find((s) => s.key === d.id) ?? EMPTY_DOCUMENT_METRICS })) });
   })
   // 본문 = PDF 바이트. 제목·페이지 수(클라이언트가 pdfjs 로 읽음)·가이드는 쿼리로 받는다
   .post("/", editorsOnly, async (c) => {

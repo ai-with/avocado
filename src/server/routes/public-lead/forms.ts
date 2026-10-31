@@ -11,6 +11,8 @@ import { upsertLead } from "../../lib/leads";
 import { enqueueAutomations } from "../../lib/messaging";
 import type { FormFields } from "../../../shared/leads";
 import { brandNameOf } from "../../lib/brands";
+import { documentClickToken } from "../../lib/doc-attribution";
+import { isBotUA } from "../../lib/links";
 import { NOINDEX, consentFields, contactFields, isMember, visitorId } from "./shared";
 
 // 공개 폼 (/form/:slug)
@@ -81,7 +83,9 @@ async function afterSubmit(c: Context<AppEnv>, form: Form, link: Link, leadId: s
   const after = form.afterSubmit;
   if (after.type !== "document" || !after.documentId) return { type: "message", text: after.text };
   const viewToken = newToken(18);
-  await c.var.db.insert(documentViews).values({ id: viewToken, documentId: after.documentId, linkId: link.id, sessionId: visitorId(c), leadId, startedAt: now(), lastSeenAt: now(), isMember: await isMember(c, form.workspaceId) });
+  const member = await isMember(c, form.workspaceId);
+  const clickToken = await documentClickToken(c.var.db, link, after.documentId, c.req.query("avc"), member || isBotUA(c.req.header("user-agent")));
+  await c.var.db.insert(documentViews).values({ id: viewToken, documentId: after.documentId, linkId: link.id, clickToken, sessionId: visitorId(c), leadId, startedAt: now(), openedAt: null, lastSeenAt: now(), isMember: member });
   return { type: "document", text: after.text, url: `/d/${link.slug}?v=${viewToken}` };
 }
 

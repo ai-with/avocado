@@ -9,6 +9,7 @@ import { logEvent } from "../../lib/events";
 import { getGuide } from "../../lib/guides";
 import { createShortLinks, ensureChannels, hasUtm, type LinkTarget } from "../../lib/links";
 import type { LinkStats } from "../../lib/link-stats";
+import { documentMetrics, EMPTY_DOCUMENT_METRICS } from "../../lib/document-metrics";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { destinationSchema, guideInfluencerList, listLinks, resolveDestination } from "./shared";
 
@@ -61,14 +62,17 @@ export const guideLinkRoutes = new Hono<AppEnv>()
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
     const guide = await getGuide(db, workspace.id, c.req.param("id"));
-    const [infl, links] = await Promise.all([guideInfluencerList(db, guide.id), listLinks(db, c.env, workspace.id, guide.id)]);
+    const [infl, links, metrics] = await Promise.all([guideInfluencerList(db, guide.id), listLinks(db, c.env, workspace.id, guide.id, true), documentMetrics(db, workspace.id, { groupBy: "influencer", guideId: guide.id })]);
     const leadCounts = await leadsByInfluencer(db, guide.id);
-    const rows = [...infl.map((i) => ({ influencerId: i.id as string | null, name: i.name })), { influencerId: null, name: "가이드 공용" }].map((r) => {
+    const people = new Map(infl.map((i) => [i.id, i.name]));
+    for (const link of links) if (link.influencerId && !people.has(link.influencerId)) people.set(link.influencerId, link.influencerName ?? "이전 인플루언서");
+    const rows = [...[...people].map(([influencerId, name]) => ({ influencerId: influencerId as string | null, name })), { influencerId: null, name: "가이드 공용" }].map((r) => {
       const mine = links.filter((l) => l.influencerId === r.influencerId);
       const sum = (k: keyof LinkStats) => mine.reduce((a, l) => a + l.stats[k], 0);
       const site = { siteVisited: sum("siteVisited"), siteScroll50: sum("siteScroll50"), siteConverted: sum("siteConverted"), siteConversionValue: sum("siteConversionValue") };
       // TODO(TASK-022): 댓글 키워드 DM 발송 테이블이 생기면 dmSent 를 집계한다
-      return { ...r, dmSent: 0, clicks: sum("clicks"), views: sum("views"), leads: leadCounts.find((x) => x.influencerId === r.influencerId)?.leads ?? 0, ...site };
+      const m = metrics.find((m) => m.key === r.influencerId) ?? EMPTY_DOCUMENT_METRICS;
+      return { ...r, dmSent: 0, clicks: m.clicks, measuredClicks: m.measuredClicks, views: m.views, uniqueViews: m.uniqueViews, reViews: m.reViews, unattributedViews: m.unattributedViews, leads: leadCounts.find((x) => x.influencerId === r.influencerId)?.leads ?? 0, ...site };
     });
     await logEvent(db, workspace.id, "funnel_viewed", { guide_id: guide.id });
     return c.json({ rows: rows.filter((r) => r.influencerId !== null || r.clicks + r.views + r.leads + r.siteVisited > 0) });

@@ -1,12 +1,13 @@
 import { and, count, countDistinct, eq, isNull, sql, sum } from "drizzle-orm";
 import type { Db } from "../db";
-import { documentViews, leads, leadSources, linkClicks, shortLinks, siteConversions, siteSessions } from "../db/schema";
+import { leads, leadSources, linkClicks, shortLinks, siteConversions, siteSessions } from "../db/schema";
+import { documentMetrics, type DocumentMetrics } from "./document-metrics";
 
 // site*: 웹 SDK 사이트 집계(구성원 세션 제외). visited·scroll50·converted 는 '방문이 생긴 클릭 ID' 단위라 클릭 수를 넘지 않는다
 export type SiteLinkStats = { siteSessions: number; siteVisited: number; siteScroll50: number; siteConverted: number; siteConversions: number; siteConversionValue: number };
-export type LinkStats = { clicks: number; unique: number; views: number; leads: number } & SiteLinkStats;
+export type LinkStats = Pick<DocumentMetrics, "clicks" | "measuredClicks" | "views" | "uniqueViews" | "reViews" | "unattributedViews"> & { unique: number; leads: number } & SiteLinkStats;
 export const EMPTY_SITE_STATS: SiteLinkStats = { siteSessions: 0, siteVisited: 0, siteScroll50: 0, siteConverted: 0, siteConversions: 0, siteConversionValue: 0 };
-export const EMPTY_LINK_STATS: LinkStats = { clicks: 0, unique: 0, views: 0, leads: 0, ...EMPTY_SITE_STATS };
+export const EMPTY_LINK_STATS: LinkStats = { clicks: 0, unique: 0, measuredClicks: 0, views: 0, uniqueViews: 0, reViews: 0, unattributedViews: 0, leads: 0, ...EMPTY_SITE_STATS };
 const DEEP_SCROLL_PCT = 50;
 
 // 봇과 워크스페이스 구성원의 클릭은 집계에서 뺀다
@@ -22,12 +23,7 @@ export async function statsByLink(db: Db, workspaceId: string, guideId?: string)
       .innerJoin(shortLinks, eq(shortLinks.id, linkClicks.linkId))
       .where(and(scope, realClick))
       .groupBy(linkClicks.linkId),
-    db
-      .select({ linkId: documentViews.linkId, views: count() })
-      .from(documentViews)
-      .innerJoin(shortLinks, eq(shortLinks.id, documentViews.linkId))
-      .where(and(scope, eq(documentViews.isMember, false)))
-      .groupBy(documentViews.linkId),
+    documentMetrics(db, workspaceId, { groupBy: "link", guideId }),
     db
       .select({ linkId: leadSources.linkId, leads: countDistinct(leadSources.leadId) })
       .from(leadSources)
@@ -40,7 +36,7 @@ export async function statsByLink(db: Db, workspaceId: string, guideId?: string)
   const map = new Map<string, LinkStats>();
   const get = (id: string) => map.get(id) ?? (map.set(id, { ...EMPTY_LINK_STATS }), map.get(id)!);
   for (const r of clicks) Object.assign(get(r.linkId), { clicks: r.clicks, unique: r.unique });
-  for (const r of views) if (r.linkId) get(r.linkId).views = r.views;
+  for (const r of views) if (r.key) Object.assign(get(r.key), { clicks: r.clicks, measuredClicks: r.measuredClicks, views: r.views, uniqueViews: r.uniqueViews, reViews: r.reViews, unattributedViews: r.unattributedViews });
   for (const r of leadRows) if (r.linkId) get(r.linkId).leads = r.leads;
   for (const [linkId, st] of site) Object.assign(get(linkId), st);
   return map;

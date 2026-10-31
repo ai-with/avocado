@@ -41,8 +41,8 @@ export const publicDocVerifyRoutes = new Hono<AppEnv>()
   .post("/doc/:slug/gate/resend", async (c) => {
     const db = c.var.db;
     const slug = c.req.param("slug");
-    const { doc } = await docForSlug(db, slug);
-    const view = await viewFor(db, parse(resendBody, await c.req.json()).viewToken, doc.id);
+    const { doc, link } = await docForSlug(db, slug);
+    const view = await viewFor(db, parse(resendBody, await c.req.json()).viewToken, doc.id, link.id);
     if (!view.leadId || !doc.gate.requireVerify) throw new ApiError(400, "verify_not_started", "이메일을 먼저 입력해 주세요.");
     const last = await db.select({ createdAt: docVerifyTokens.createdAt }).from(docVerifyTokens).where(eq(docVerifyTokens.viewId, view.id)).orderBy(desc(docVerifyTokens.createdAt)).get();
     if (last && now() - last.createdAt < RESEND_INTERVAL_MS) throw new ApiError(429, "too_many_requests", "1분 뒤에 다시 보낼 수 있어요.");
@@ -59,6 +59,7 @@ export const publicDocVerifyRoutes = new Hono<AppEnv>()
     const row = await db.select().from(docVerifyTokens).where(and(eq(docVerifyTokens.tokenHash, hash), eq(docVerifyTokens.documentId, doc.id))).get();
     if (!row || row.usedAt) throw new ApiError(410, "verify_invalid", "이미 썼거나 잘못된 인증 링크예요. 자료에서 메일을 다시 받아 주세요.");
     if (row.expiresAt < now()) throw new ApiError(410, "verify_expired", "인증 링크가 만료됐어요. 자료에서 메일을 다시 받아 주세요.");
+    await viewFor(db, row.viewId, doc.id, link.id);
     const claimed = await db.update(docVerifyTokens).set({ usedAt: now() }).where(and(eq(docVerifyTokens.tokenHash, hash), isNull(docVerifyTokens.usedAt))).returning({ h: docVerifyTokens.tokenHash });
     if (!claimed.length) throw new ApiError(410, "verify_invalid", "이미 썼거나 잘못된 인증 링크예요. 자료에서 메일을 다시 받아 주세요.");
     await logEvent(db, doc.workspaceId, "lead_verified", { link_id: link.id, channel: link.channelKey });

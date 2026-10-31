@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, CopyButton, Input } from "../../../ui";
 import type { Utm } from "../../../../shared/leads";
 import { FilePickButton } from "../FilePickButton";
-import type { LinkRow } from "../common";
+import { countText, documentViewRate, VIEW_METRICS_HELP, type LinkRow } from "../common";
 import type { LinkDetailState } from "../useLinkDetail";
 
 const UTM_KEYS: (keyof Utm)[] = ["source", "medium", "campaign", "content", "term"];
@@ -18,7 +18,11 @@ export function LinkSummary({ link, s }: { link: LinkRow; s: LinkDetailState }) 
           <CopyButton text={link.url} label="링크 복사" variant="secondary" />
           <Button size="sm" variant="secondary" onClick={s.downloadQr} disabled={!s.qr}>QR 내려받기</Button>
         </div>
-        <span className="text-caption">클릭 {link.stats.clicks} · 열람 {link.stats.views} · 리드 {link.stats.leads}</span>
+        <span className="text-caption">전체 클릭 {countText(link.stats.clicks)} · 측정 가능 클릭 {countText(link.stats.measuredClicks)} · 리드 {countText(link.stats.leads)}</span>
+        <span className="text-caption">전체 열람 {countText(link.stats.views)} · 고유 열람(클릭) {countText(link.stats.uniqueViews)} · 열람률 {documentViewRate(link.stats)}</span>
+        <span className="text-caption">재열람(브라우저 추정) {countText(link.stats.reViews)} · 미연결 열람 {countText(link.stats.unattributedViews)}</span>
+        <span className="text-caption">{VIEW_METRICS_HELP.rate} {VIEW_METRICS_HELP.unattributedViews}</span>
+        <span className="text-caption">{VIEW_METRICS_HELP.views}</span>
       </div>
     </div>
   );

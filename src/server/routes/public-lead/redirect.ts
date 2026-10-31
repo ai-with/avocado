@@ -9,6 +9,7 @@ import { appendUtm, deviceOf, isBotUA } from "../../lib/links";
 import { loadSession } from "../../middleware/auth";
 import { appendClickId } from "../../lib/collect/origin";
 import { workspaceSiteDomains } from "../../lib/collect/sites";
+import { clickDestinationSnapshot } from "../../lib/doc-attribution";
 import { NOINDEX, htmlPage, isMember, visitorId } from "./shared";
 
 type Link = typeof shortLinks.$inferSelect;
@@ -35,6 +36,7 @@ async function recordClick(c: Context<AppEnv>, link: Link) {
     isMember: member,
     sessionId: bot ? null : visitorId(c),
     clickToken,
+    ...await clickDestinationSnapshot(c.var.db, link),
   });
   await logEvent(c.var.db, link.workspaceId, "short_link_clicked", { link_id: link.id, channel: link.channelKey, is_bot: bot, is_member: member });
   return { bot, clickToken };
@@ -68,6 +70,7 @@ export const shortLinkRedirect = new Hono<AppEnv>().get("/:slug", loadSession, a
   const { bot, clickToken } = await recordClick(c, link);
   let dest = destinationOf(link, c.env.APP_URL);
   if (link.destinationType === "url" && clickToken) dest = appendClickId(dest, clickToken, await workspaceSiteDomains(c.var.db, link.workspaceId));
+  if (link.destinationType !== "url" && clickToken) dest += `?avc=${encodeURIComponent(clickToken)}`;
   if (bot && (link.og.title || link.og.description || link.og.imageKey)) return c.html(ogPage(link, dest, c.env.APP_URL), 200, NOINDEX);
   return c.redirect(dest, 302);
 });

@@ -2,11 +2,9 @@ import { useState } from "react";
 import { Badge, Button, EmptyState, ButtonLink } from "../../../ui";
 import { DOC_SOURCE_LABELS } from "../../../../shared/leads";
 import { DocumentCard } from "../DocumentCard";
-import { dateTime, docSize, gateLabel, ZERO_HINT, type Channel, type DocumentRow } from "../common";
+import { dateTime, docSize, documentStatsText, gateLabel, type Channel, type DocumentRow } from "../common";
 
 type Props = { docs: DocumentRow[]; channels: Channel[]; onRemove: (d: DocumentRow) => void };
-
-const docStatsText = (d: DocumentRow) => (d.stats.views ? `열람 ${d.stats.views} · 완독 ${d.stats.completed} · 리드 ${d.stats.leads}` : ZERO_HINT);
 
 // /links '자료' 탭: 워크스페이스 전체 자료 카드
 export function DocumentList({ docs, channels, onRemove }: Props) {
@@ -22,7 +20,7 @@ export function DocumentList({ docs, channels, onRemove }: Props) {
           doc={d}
           channels={channels}
           heading={<div className="row row-tight"><Badge tone="info">{DOC_SOURCE_LABELS[d.sourceType]}</Badge><b>{d.title}</b></div>}
-          meta={`${docSize(d)} · 정보 입력 ${gateLabel(d.gate)} · ${dateTime(d.createdAt)} 만듦 · ${docStatsText(d)}`}
+          meta={`${docSize(d)} · 정보 입력 ${gateLabel(d.gate)} · ${dateTime(d.createdAt)} 만듦 · ${documentStatsText(d.stats)}`}
           actions={
             <>
               <ButtonLink size="sm" to={`/dashboard/documents/${d.id}`}>편집·게이트</ButtonLink>

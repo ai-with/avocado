@@ -33,13 +33,13 @@ export async function resolveDestination(db: Db, workspaceId: string, d: z.infer
   return { type: d.type, id: d.id, url: null };
 }
 
-export async function listLinks(db: Db, env: Env, workspaceId: string, guideId?: string) {
+export async function listLinks(db: Db, env: Env, workspaceId: string, guideId?: string, includeDeleted = false) {
   const rows = await db
     .select({ link: shortLinks, guideName: guides.name, influencerName: influencers.displayName })
     .from(shortLinks)
     .leftJoin(guides, eq(guides.id, shortLinks.guideId))
     .leftJoin(influencers, eq(influencers.id, shortLinks.influencerId))
-    .where(and(eq(shortLinks.workspaceId, workspaceId), guideId ? eq(shortLinks.guideId, guideId) : undefined, isNull(shortLinks.deletedAt)))
+    .where(and(eq(shortLinks.workspaceId, workspaceId), guideId ? eq(shortLinks.guideId, guideId) : undefined, includeDeleted ? undefined : isNull(shortLinks.deletedAt)))
     .orderBy(asc(shortLinks.createdAt));
   const stats = await statsByLink(db, workspaceId, guideId);
   return rows.map(({ link, guideName, influencerName }) => ({
