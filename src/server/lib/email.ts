@@ -3,20 +3,21 @@ export type EmailResult = { delivered: true; id: string } | { delivered: false; 
 export type EmailSendOptions = { idempotencyKey?: string; timeoutMs?: number; logProviderErrors?: boolean; from?: string };
 
 export async function sendEmail(env: Env, msg: EmailMessage, options: EmailSendOptions = {}): Promise<EmailResult> {
-  const from = options.from ?? (env.EMAIL_FROM || "no-reply@example.com");
-  if (!env.RESEND_API_KEY) {
-    if (options.logProviderErrors !== false) console.log("[email:no_provider]", JSON.stringify({ from, ...msg }));
+  const from = (options.from ?? env.EMAIL_FROM)?.trim();
+  if (!env.RESEND_API_KEY?.trim() || !from) {
+    if (options.logProviderErrors !== false) console.log("[email:no_provider]");
     return { delivered: false, reason: "no_provider" };
   }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
+    redirect: "manual",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json", ...(options.idempotencyKey && { "Idempotency-Key": options.idempotencyKey }) },
     ...(options.timeoutMs && { signal: AbortSignal.timeout(options.timeoutMs) }),
     body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(msg.tags?.length && { tags: msg.tags }) }),
   });
   if (!res.ok) {
-    if (options.logProviderErrors !== false) console.error("[email:provider_error]", res.status, await res.text());
-    else await res.body?.cancel();
+    if (options.logProviderErrors !== false) console.error("[email:provider_error]", res.status);
+    await res.body?.cancel().catch(() => {});
     return { delivered: false, reason: "provider_error" };
   }
   const data: { id?: unknown } = await res.json();

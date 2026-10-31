@@ -66,7 +66,7 @@ async function setup() {
     },
   } as unknown as D1Database;
   db.exec("INSERT INTO workspaces (id, name, created_at) VALUES ('w1', 'test1', 1), ('w2', 'test2', 1)");
-  const env = { DB: d1, RESEND_WEBHOOK_SECRET: SECRET, RESEND_API_KEY: "test-key", APP_URL: "https://app.example.com" } as Env;
+  const env = { DB: d1, RESEND_WEBHOOK_SECRET: SECRET, RESEND_API_KEY: "test-key", EMAIL_FROM: "test@sender.example.test", APP_URL: "https://app.example.com" } as Env;
   const app = new Hono<AppEnv>();
   app.route("/webhooks", resendWebhookRoutes);
   app.onError((_error, c) => c.text("internal error", 500));
@@ -243,6 +243,6 @@ describe("실제 발송 기록과 연결", () => {
   it("Resend가 ID를 돌려주지 않는 응답을 발송 성공으로 처리하지 않는다", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({})));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await sendEmail({ RESEND_API_KEY: "test" } as Env, { to: "a@example.com", subject: "test", text: "test", html: "test" })).toEqual({ delivered: false, reason: "provider_error" });
+    expect(await sendEmail({ RESEND_API_KEY: "test", EMAIL_FROM: "test@sender.example.test" } as Env, { to: "a@example.com", subject: "test", text: "test", html: "test" })).toEqual({ delivered: false, reason: "provider_error" });
   });
 });
