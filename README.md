@@ -383,7 +383,7 @@ job은 현재 사용자·로그인 세션·워크스페이스에 묶이며, 모�
 
 삭제된 리드의 명시적 새 등록은 기존 개인정보 파기를 먼저 집합 단위로 수행하고 새 ID를 만든다. DB trigger가 lead birth revision과 WS privacy epoch를 기록하므로 원래 job 이후 생긴 새 세대를 덮지 않는다. 외부 soft/hard 삭제·재등록은 옛 job의 계속 쓰기를 막는다. 주소별 추가 tombstone은 만들지 않아 **같은 WS의 무관한 연락처 삭제도 이전 job을 중단할 수 있다**. 완료된 행을 확인하고 권한·동의를 다시 확인한 새 작업으로 시작해야 한다. 자기 chunk의 파기만 첫 assertion으로 권한/epoch를 증명한 같은 batch 끝에서 자신의 epoch를 갱신한다. 다른 job은 이를 자동 채택하지 않는다. live birth 메타데이터는 lead FK로 함께 파기되고, WS counter에는 주소/연락처가 없다.
 
-100행 일반 chunk는 모듈에서 제출한 물리 SQL 12개/DB API 4회, tombstone 집합이 있으면 최대 25개/4회다. 실제 Worker cookie 인증 middleware까지 포함한 재등록 경로는 27개/6회로 검증한다. 바인딩은 문장당 100개 이하이며 SQL 100KB, 요청/JSON byte와 결과 크기를 별도 계측한다. 이 물리 SQL 수는 D1에 제출한 prepared statement 수이며 DB 내부 birth/epoch trigger 작업은 포함하지 않는다. native batch 실패 후 영수증/현재 상태를 확인하는 경로는 읽기 최대 2회가 추가된다. cleanup은 물리 DELETE 1개/native batch API 1회만 더하며 새 Cron/Queue 종류나 리소스는 없다. 로컬 회귀는 실제 migrations/SQLite로 2만 행·200 chunk, 세대/권한/취소 경합, 중간 rollback, 응답 소실과 가짜 fetch를 검증한다. 실제 발송/398/사업상 quota는 이 변경 범위가 아니다.
+100행 일반 chunk는 모듈에서 제출한 검색 보조값 갱신을 포함해 물리 SQL 13개/DB API 4회, tombstone 집합이 있으면 최대 26개/4회다. 실제 Worker cookie 인증 middleware까지 포함한 재등록 경로는 28개/6회로 검증한다. 바인딩은 문장당 100개 이하이며 SQL 100KB, 요청/JSON byte와 결과 크기를 별도 계측한다. 이 물리 SQL 수는 D1에 제출한 prepared statement 수이며 DB 내부 birth/epoch trigger 작업은 포함하지 않는다. native batch 실패 후 영수증/현재 상태를 확인하는 경로는 읽기 최대 2회가 추가된다. cleanup은 물리 DELETE 1개/native batch API 1회만 더하며 새 Cron/Queue 종류나 리소스는 없다. 로컬 회귀는 실제 migrations/SQLite로 2만 행·200 chunk, 세대/권한/취소 경합, 중간 rollback, 응답 소실과 가짜 fetch를 검증한다. 실제 발송/398/사업상 quota는 이 변경 범위가 아니다.
 
 ## 리드 SQL 선택과 페이지 조회 (AIWITH-397)
 

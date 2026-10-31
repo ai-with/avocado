@@ -4,6 +4,7 @@ import { ApiError } from "./errors";
 import { hmacHex, safeEqual } from "./crypto";
 import { newId, newToken, sha256Hex } from "./ids";
 import { leadPurgeStatements } from "./lead-purge";
+import { leadSearchMergeSql, leadSearchValues } from "./lead-search";
 import { IMPORT_CHUNK_ROWS, IMPORT_TTL_MS, type ImportContext, type ImportJob, type ImportReceipt, type ImportRow } from "../../shared/lead-imports";
 
 export type CreateImport = { requestId: string; requestedAt: number; fingerprint: string; totalRows: number; consentConfirmed: true };
@@ -72,7 +73,7 @@ async function prepareRows(rows: ImportRow[]) {
     if (prev) unique.set(email, { ...prev, name: value.name ?? prev.name, company: value.company ?? prev.company, phone: value.phone ?? prev.phone, optIn: Math.max(value.optIn, prev.optIn) });
     else unique.set(email, value);
   }
-  return { invalid, valid, unique: [...unique.values()] };
+  return { invalid, valid, unique: [...unique.values()].map((value) => ({ ...value, ...leadSearchValues(value) })) };
 }
 async function receipt(env: Env, auth: Auth, workspaceId: string, id: string, input: ApplyImport, digest: string): Promise<ImportReceipt | null> {
   const row = await env.DB.prepare(`SELECT c.digest,c.result_json FROM lead_import_chunks c JOIN lead_import_jobs j ON j.id=c.job_id
@@ -125,6 +126,13 @@ export async function applyImportChunk(env: Env, auth: Auth, workspaceId: string
       FROM json_each(?) i JOIN owned c WHERE ${eligible}
       ON CONFLICT(workspace_id,email) DO UPDATE SET name=coalesce(excluded.name,leads.name),company=coalesce(excluded.company,leads.company),phone=coalesce(excluded.phone,leads.phone),marketing_opt_in=max(leads.marketing_opt_in,excluded.marketing_opt_in),last_source=excluded.last_source,email_hash=excluded.email_hash
       WHERE leads.deleted_at IS NULL`).bind(...ownedParams, workspaceId, source, source, at, unique),
+    // Bound the UPDATE target to this chunk as well as its input. Otherwise the
+    // planner can scan the whole live workspace once for each JSON input row.
+    env.DB.prepare(`WITH owned AS (${ownedSql}), input AS MATERIALIZED(SELECT value FROM json_each(?))
+      UPDATE leads AS l SET ${leadSearchMergeSql("i.value", "l")}
+      FROM input i JOIN owned c WHERE l.workspace_id=? AND l.email=json_extract(i.value,'$.email')
+      AND (l.workspace_id,l.email) IN(SELECT ?,json_extract(value,'$.email') FROM input)
+      AND l.deleted_at IS NULL AND ${eligible}`).bind(...ownedParams, unique, workspaceId, workspaceId),
     env.DB.prepare(`${owned} INSERT INTO lead_import_owned(job_id,lead_id) SELECT c.job_id,l.id FROM owned c CROSS JOIN json_each(?) i CROSS JOIN leads l ON l.id=json_extract(i.value,'$.id') AND l.workspace_id=? WHERE ${eligible} ON CONFLICT DO NOTHING`).bind(...ownedParams, unique, workspaceId),
     env.DB.prepare(`${owned} INSERT INTO lead_sources(id,lead_id,type,at)
       SELECT 'lead_import:'||c.job_id||':'||?||':'||c.chunk_no||':'||json_extract(i.value,'$.index'),l.id,'import',?

@@ -7,6 +7,7 @@ import { leadImportRoutes } from "../routes/leads/import";
 import { ApiError, errorBody } from "./errors";
 import { cleanupLeadImports } from "./lead-imports";
 import { sha256Hex } from "./ids";
+import { leadPage } from "./lead-query";
 import worker from "../index";
 import { IMPORT_BODY_BYTES, IMPORT_TTL_MS, type ImportContext, type ImportJob, type ImportReceipt, type ImportRow } from "../../shared/lead-imports";
 
@@ -92,6 +93,18 @@ describe("lead import atomic receipts and boundaries", () => {
     const result = await s.apply(job, [{ email: " multiline@example.invalid ", name: "FIRST\nSECOND", company: "R&D\r\nQA", phone: "\tTEST-PHONE\t" }]);
     expect(result.status).toBe(200);
     expect(s.db.prepare("SELECT name,company,phone FROM leads").all()).toEqual([{ name: "FIRST\nSECOND", company: "R&D\r\nQA", phone: "TEST-PHONE" }]);
+  });
+  it("keeps imported Unicode profiles searchable after blank-field merges", async () => {
+    const s = await setup(), first = await s.create(1);
+    expect((await s.apply(first.job, [{ email: "unicode@example.invalid", name: "ΟΣ", company: "İST", phone: "TEST-PHONE" }])).status).toBe(200);
+    const second = await s.create(1);
+    expect((await s.apply(second.job, [{ email: "unicode@example.invalid", name: "ΣΟΣ", company: "", phone: "" }])).status).toBe(200);
+    for (const q of ["σος", "i\u0307st", "test-phone"]) {
+      const page = await leadPage(getDb(s.env.DB), s.env, "w", { q });
+      expect(page.rows.map(({ lead }) => ({ email: lead.email, name: lead.name, company: lead.company, phone: lead.phone }))).toEqual([
+        { email: "unicode@example.invalid", name: "ΣΟΣ", company: "İST", phone: "TEST-PHONE" },
+      ]);
+    }
   });
   it("same chunk concurrency and response replay return the exact stored receipt", async () => {
     const s = await setup(), { job } = await s.create(100), input = rows(0);
@@ -206,11 +219,11 @@ describe("lead import atomic receipts and boundaries", () => {
     const stats = m.value(); expect(stats.physical).toBeLessThanOrEqual(50); expect(stats.calls).toBe(4); expect(stats.maxBind).toBeLessThanOrEqual(100); expect(stats.maxSqlBytes).toBeLessThan(100_000); expect(stats.maxBindBytes).toBeLessThan(512 * 1024); expect(stats.maxResultBytes).toBeLessThan(16 * 1024);
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("set-based resurrection of 100 tombstones still submits only 25 physical SQL in 4 calls", async () => {
+  it("set-based resurrection of 100 tombstones uses 26 physical SQL in 4 calls including search preparation", async () => {
     const s = await setup(); for (let i = 0; i < 100; i++) s.seed("old-" + i, `local-${i}@example.invalid`, true);
     const { job } = await s.create(100), m = meter(s.d1); s.env.DB = m.db;
     expect((await s.apply(job, rows(0))).status).toBe(200);
-    expect(m.value().physical).toBe(25); expect(m.value().calls).toBe(4); expect(m.value().maxBind).toBeLessThanOrEqual(100);
+    expect(m.value().physical).toBe(26); expect(m.value().calls).toBe(4); expect(m.value().maxBind).toBeLessThanOrEqual(100);
   });
   it("actual Worker routing and cookie auth keep the worst chunk below physical SQL50 including middleware", async () => {
     const s = await setup(); for (let i = 0; i < 100; i++) s.seed("old-" + i, `local-${i}@example.invalid`, true);
@@ -221,7 +234,7 @@ describe("lead import atomic receipts and boundaries", () => {
     const context = await (await call("/context")).json() as ImportContext;
     const job = await (await call("/jobs", s.createBody(100), context.csrfToken)).json() as ImportJob;
     m.reset(); const response = await call(`/jobs/${job.id}/chunks`, s.applyBody(job, rows(0)), context.csrfToken);
-    expect(response.status).toBe(200); expect(m.value().physical).toBe(27); expect(m.value().calls).toBe(6); expect(m.value().maxBind).toBeLessThanOrEqual(100);
+    expect(response.status).toBe(200); expect(m.value().physical).toBe(28); expect(m.value().calls).toBe(6); expect(m.value().maxBind).toBeLessThanOrEqual(100);
   });
   it("24h cleanup is one bounded batch and user/session deletion cascades job metadata only", async () => {
     const s = await setup(), { job } = await s.create(1); expect((await s.apply(job, rows(0, 1))).status).toBe(200);
