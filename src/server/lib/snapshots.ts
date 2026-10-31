@@ -4,19 +4,20 @@ import { getDb, type Db } from "../db";
 import { contents, guides, igConnections, influencers, metricSnapshots } from "../db/schema";
 import { afterApiError, delayInfo, MAIN_METRICS, METRICS, parsePostUrl, planSnapshots, type Metric, type MissingReason, type SnapshotPath } from "../../shared/performance";
 import { decryptToken } from "./crypto";
-import { discoverMedia, isFake, mediaInsights, tokenKey, type DiscoveredMedia, type IgFail } from "./instagram";
+import { discoverMedia, isFake, mediaById, mediaInsights, mediaMatches, tokenKey, type DiscoveredMedia, type IgFail } from "./instagram";
 import { logEvent } from "./events";
-import { sendEmail } from "./email";
-import { memberEmails } from "./members";
 import { newId, now } from "./ids";
 import { z } from "zod";
 import { COLLECTION_GRACE_MS, collectionAllowed, collectionContent } from "./content-collection";
 import { saveContentThumbnail } from "./content-thumbnail";
 import { mediaMetadata, mediaThumbnailUrl } from "./instagram";
-import { definitiveIgDisconnect, igConnectionState, igConnectionUsable, igGrantVerified } from "./ig-connection-state";
+import { definitiveIgDisconnect, igConnectionState, igConnectionUsable, igConnectionUsableSql, igGrantVerified } from "./ig-connection-state";
 import { disconnectIgConnection } from "./ig-disconnect-mail";
 
 type ContentRow = typeof contents.$inferSelect;
+type LookupEvidence = { method: "recent_50" | "cached_id"; result: "found" | "not_in_recent_window" | "unavailable" | "error"; code?: number; subcode?: number };
+type CaptureFailure = IgFail & { lookup?: LookupEvidence };
+const lookupProps = (lookup?: LookupEvidence) => lookup ? { lookup_method: lookup.method, lookup_result: lookup.result, provider_code: Number.isSafeInteger(lookup.code) ? lookup.code : null, provider_subcode: Number.isSafeInteger(lookup.subcode) ? lookup.subcode : null } : {};
 const stillCollectible = async (db: Db, content: ContentRow, workspaceId: string) =>
   (await db.all<{ ok: number }>(sql`SELECT 1 AS ok WHERE ${collectionAllowed(content, workspaceId)}`)).length > 0;
 
@@ -55,18 +56,37 @@ async function influencerConnection(db: Db, workspaceId: string, influencerId: s
   return { state: "ok" as const, conn: c };
 }
 
-async function findMedia(db: Db, env: Env, workspaceId: string, content: ContentRow, username: string | null): Promise<{ media: DiscoveredMedia | null } | IgFail> {
+async function findMedia(db: Db, env: Env, workspaceId: string, content: ContentRow, username: string | null): Promise<{ media: DiscoveredMedia | null; lookup: LookupEvidence } | CaptureFailure> {
   const parsed = parsePostUrl(content.url);
-  if (!parsed || !username) return { ok: false, reason: "not_connected", message: "게시물 URL 또는 인스타그램 계정명 없음" };
+  if (!parsed || (!username && !content.igMediaId)) return { ok: false, reason: "not_connected" };
   const auth = await discoveryAuth(db, env, workspaceId);
   if (!auth) return { ok: false, reason: "not_connected" };
   if (!(await stillCollectible(db, content, workspaceId))) return { ok: false, reason: "campaign_ended" };
-  const r = await discoverMedia(env, auth, username, parsed.shortcode);
-  if (!r.ok && auth.connection) {
-    const reason = definitiveIgDisconnect(r);
-    if (reason) await disconnectIgConnection(env, db, auth.connection, reason);
+  if (username) {
+    const recent = await discoverMedia(env, auth, username, parsed.shortcode);
+    if (!recent.ok) {
+      if (auth.connection) {
+        const reason = definitiveIgDisconnect(recent);
+        if (reason) await disconnectIgConnection(env, db, auth.connection, reason);
+      }
+      return { ...recent, lookup: { method: "recent_50", result: "error", code: recent.code, subcode: recent.subcode } };
+    }
+    if (recent.data) return { media: recent.data, lookup: { method: "recent_50", result: "found" } };
   }
-  return r.ok ? { media: r.data } : r;
+  if (!content.igMediaId) return { media: null, lookup: { method: "recent_50", result: "not_in_recent_window" } };
+  // 목록은 완주 여부와 관계없이 삭제 증거가 아니다. 알려진 ID 한 건만 같은 권한·host로 재조회한다.
+  if (!(await stillCollectible(db, content, workspaceId))) return { ok: false, reason: "content_changed" };
+  if (auth.connection && !(await db.all(sql`SELECT 1 FROM ig_connections g WHERE g.id=${auth.connection.id} AND g.generation=${auth.connection.generation} AND ${igConnectionUsableSql("g")}`)).length) return { ok: false, reason: "not_connected" };
+  const direct = await mediaById(env, auth, content.igMediaId, parsed.shortcode);
+  if (auth.connection && !(await db.all(sql`SELECT 1 FROM ig_connections g WHERE g.id=${auth.connection.id} AND g.workspace_id=${workspaceId} AND g.generation=${auth.connection.generation} AND ${igConnectionUsableSql("g")}`)).length) return { ok: false, reason: "not_connected" };
+  if (!direct.ok) {
+    if (auth.connection) {
+      const reason = definitiveIgDisconnect(direct);
+      if (reason) await disconnectIgConnection(env, db, auth.connection, reason);
+    }
+    return { ...direct, reason: direct.reason === "not_supported" ? "private_or_unavailable" : direct.reason, lookup: { method: "cached_id", result: direct.reason === "private_or_unavailable" || direct.reason === "not_supported" ? "unavailable" : "error", code: direct.code, subcode: direct.subcode } };
+  }
+  return { media: direct.data, lookup: { method: "cached_id", result: "found" } };
 }
 
 // 등록 훅 (TASK-020 registerContent → onContentRegistered). 게시 시각을 모르면 미연결 조회로 읽고,
@@ -119,7 +139,7 @@ export async function scheduleSnapshots(db: Db, env: Env, contentId: string, opt
   }
 }
 
-type Capture = { path: SnapshotPath; values: Partial<Record<Metric, number>>; missing: Partial<Record<Metric | "_", MissingReason>> };
+type Capture = { path: SnapshotPath; values: Partial<Record<Metric, number>>; missing: Partial<Record<Metric | "_", MissingReason>>; lookup?: LookupEvidence };
 
 async function cacheThumbnail(db: Db, env: Env, workspaceId: string, content: ContentRow, media: DiscoveredMedia) {
   const url = mediaThumbnailUrl(media);
@@ -132,7 +152,7 @@ async function cacheThumbnail(db: Db, env: Env, workspaceId: string, content: Co
 }
 
 // 한 시점 조회. 실패 사유는 Capture.missing 또는 IgFail 로 돌려준다
-async function capture(db: Db, env: Env, workspaceId: string, content: ContentRow): Promise<Capture | IgFail> {
+async function capture(db: Db, env: Env, workspaceId: string, content: ContentRow): Promise<Capture | CaptureFailure> {
   const conn = await influencerConnection(db, workspaceId, content.influencerId);
   if (conn.state === "unusable" && igGrantVerified(conn.conn)) {
     const reason = igConnectionState(conn.conn).reason;
@@ -146,7 +166,11 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
     if (r.ok) {
       if (await stillCollectible(db, content, workspaceId)) {
         const media = await mediaMetadata(env, token, content.igMediaId);
-        if (media.ok) await cacheThumbnail(db, env, workspaceId, content, media.data);
+        if (media.ok) {
+          const shortcode = parsePostUrl(content.url)?.shortcode;
+          if (!shortcode || !mediaMatches(media.data, shortcode, content.igMediaId)) return { ok: false, reason: "invalid_response", lookup: { method: "cached_id", result: "error" } };
+          await cacheThumbnail(db, env, workspaceId, content, media.data);
+        }
         else {
           const reason = definitiveIgDisconnect(media);
           if (reason) await disconnectIgConnection(env, db, conn.conn, reason);
@@ -154,11 +178,11 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
       }
       const missing: Capture["missing"] = {};
       for (const m of METRICS) if (r.data[m] === undefined) missing[m] = "not_supported";
-      return { path: "connected", values: r.data, missing };
+      return { path: "connected", values: r.data, missing, lookup: { method: "cached_id", result: "found" } };
     }
     const reason = definitiveIgDisconnect(r);
     if (reason) await disconnectIgConnection(env, db, conn.conn, reason);
-    if (r.reason !== "token_expired") return r;
+    if (r.reason !== "token_expired") return { ...r, lookup: { method: "cached_id", result: r.reason === "private_or_unavailable" || r.reason === "not_supported" ? "unavailable" : "error", code: r.code, subcode: r.subcode } };
     // 토큰 만료 → 이번 시점부터 미연결 경로
   }
   const noConn: MissingReason = conn.state === "none" || (conn.state === "unusable" && !igGrantVerified(conn.conn)) ? "not_connected" : "token_expired";
@@ -166,8 +190,7 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
   const found = await findMedia(db, env, workspaceId, content, inf?.handle ?? null);
   if (!("media" in found)) return found;
   if (!found.media) {
-    // 전에 찾았던 게시물이 목록에서 사라졌으면 삭제로 본다 [추론]
-    return { ok: false, reason: content.igMediaId ? "deleted" : "private_or_unavailable" };
+    return { ok: false, reason: "private_or_unavailable", lookup: found.lookup };
   }
   const m = found.media;
   if (!content.igMediaId) await db.update(contents).set({ igMediaId: m.id }).where(and(eq(contents.id, content.id), collectionAllowed(content, workspaceId)));
@@ -180,20 +203,7 @@ async function capture(db: Db, env: Env, workspaceId: string, content: ContentRo
   else missing.likes = "hidden_by_owner";
   if (m.comments_count !== undefined) values.comments = m.comments_count;
   else missing.comments = "not_supported";
-  return { path: "discovery", values, missing };
-}
-
-async function notifyDeleted(db: Db, env: Env, workspaceId: string, content: ContentRow) {
-  const owners = await memberEmails(db, workspaceId, ["owner", "editor"]);
-  const link = `${env.APP_URL}/dashboard/campaigns/${content.guideId}`;
-  for (const o of owners) {
-    await sendEmail(env, {
-      to: o.email,
-      subject: "게시물이 삭제된 것 같아요",
-      text: `성과 수집 중 게시물을 찾을 수 없었어요. 남은 스냅샷은 취소했어요.\n게시물: ${content.url}\n가이드: ${link}`,
-      html: `<p>성과 수집 중 게시물을 찾을 수 없었어요. 남은 스냅샷은 취소했어요.</p><p>게시물: <a href="${content.url}">${content.url}</a></p><p><a href="${link}">가이드 열기</a></p>`,
-    });
-  }
+  return { path: "discovery", values, missing, lookup: found.lookup };
 }
 
 const allMissing = (reason: MissingReason) => Object.fromEntries(MAIN_METRICS.map((m) => [m, reason])) as Capture["missing"];
@@ -266,27 +276,22 @@ async function commitSnapshot(db: Db, item: DueItem, token: string, values: Part
 async function collectSnapshot(db: Db, env: Env, item: DueItem, token: string) {
   const { snap, content, ws } = item;
   const attempts = snap.attempts + 1;
-  const r = content.deletedAt ? ({ ok: false, reason: "deleted" } as IgFail) : await capture(db, env, ws, content);
+  const r = content.deletedAt ? ({ ok: false, reason: "deleted" } as CaptureFailure) : await capture(db, env, ws, content);
   const capturedAt = now();
   const { delayed, delayMin } = delayInfo(snap.scheduledAt, capturedAt);
   if ("path" in r) {
     const hasValue = MAIN_METRICS.some((m) => r.values[m] !== undefined);
     if (!(await commitSnapshot(db, item, token, { ...r.values, path: r.path, missing: r.missing, capturedAt, delayed, attempts, status: hasValue ? "captured" : "missing" }))) return;
-    await logEvent(db, ws, hasValue ? "snapshot_captured" : "snapshot_missing", { offset_h: snap.offsetH, path: r.path, delay_min: delayMin, content_id: content.id });
+    await logEvent(db, ws, hasValue ? "snapshot_captured" : "snapshot_missing", { offset_h: snap.offsetH, path: r.path, delay_min: delayMin, content_id: content.id, ...lookupProps(r.lookup) });
     return;
   }
   if (r.reason === "api_error" && afterApiError(attempts) === "retry") {
-    await commitSnapshot(db, item, token, { attempts });
+    if (await commitSnapshot(db, item, token, { attempts })) await logEvent(db, ws, "snapshot_lookup_retry", { offset_h: snap.offsetH, content_id: content.id, attempts, ...lookupProps(r.lookup) });
     return;
   }
   const reason: MissingReason = r.reason === "not_configured" ? "not_connected"
     : ["grant_unverified", "invalid_response", "personal_account"].includes(r.reason) ? "api_error" : r.reason as MissingReason;
   if (!(await commitSnapshot(db, item, token, { missing: allMissing(reason), capturedAt, delayed, attempts, status: "missing" }))) return;
-  await logEvent(db, ws, "snapshot_missing", { offset_h: snap.offsetH, reason, content_id: content.id });
-  if (reason !== "deleted") return;
-  await db
-    .update(metricSnapshots)
-    .set({ status: "cancelled", missing: allMissing("deleted") })
-    .where(and(eq(metricSnapshots.contentId, content.id), eq(metricSnapshots.status, "scheduled"), collectionAllowed(content, ws)));
-  await notifyDeleted(db, env, ws, content);
+  await logEvent(db, ws, "snapshot_missing", { offset_h: snap.offsetH, reason, content_id: content.id, ...lookupProps(r.lookup) });
+  // 조회 오류만으로 물리 삭제를 확정할 수 없다. 다른 시점의 예약·과거 수치·메일은 건드리지 않는다.
 }

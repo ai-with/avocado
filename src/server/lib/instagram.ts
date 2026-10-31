@@ -8,7 +8,7 @@ const V = "v26.0";
 const IG = `https://graph.instagram.com/${V}`;
 const FB = `https://graph.facebook.com/${V}`;
 
-export type IgFail = { ok: false; reason: MissingReason | "not_configured" | "grant_unverified" | "invalid_response" | "personal_account"; code?: number; message?: string; transient?: boolean; authFailure?: boolean };
+export type IgFail = { ok: false; reason: MissingReason | "not_configured" | "grant_unverified" | "invalid_response" | "personal_account"; code?: number; subcode?: number; message?: string; transient?: boolean; authFailure?: boolean };
 export type IgResult<T> = { ok: true; data: T } | IgFail;
 
 export const isFake = (env: Env) => env.IG_FAKE === "1";
@@ -20,7 +20,7 @@ export const redirectUri = (env: Env) => `${env.APP_URL}/api/ig/oauth/callback`;
 
 type GraphError = { error?: { code?: number; error_subcode?: number; message?: string; is_transient?: boolean } };
 
-// Graph 오류 코드 → 사유. 190 토큰 무효, 100/33 객체 없음(삭제), 110 계정 없음
+// Graph 조회 실패는 삭제 증거가 아니다. 100/33에는 권한 부족·접근 불가도 포함될 수 있다.
 export function classifyIgFailure(status: number, body: GraphError): IgFail {
   const code = body.error?.code;
   const sub = body.error?.error_subcode;
@@ -29,7 +29,7 @@ export function classifyIgFailure(status: number, body: GraphError): IgFail {
   if (transient) return { ok: false, reason: "api_error", code, message, transient: true };
   // 190은 만료·철회·무효의 공통 인증 실패다. 미검증 subcode로 세부 원인을 추정하지 않는다.
   if (code === 190) return { ok: false, reason: "token_expired", code, message, transient: false, authFailure: true };
-  if (code === 100 && sub === 33) return { ok: false, reason: "deleted", code, message };
+  if (code === 100 && sub === 33) return { ok: false, reason: "private_or_unavailable", code, subcode: sub, message };
   if (code === 110 || (code === 100 && /business_discovery|cannot find|not found/i.test(message))) return { ok: false, reason: "private_or_unavailable", code, message };
   if (code === 10 || code === 200) return { ok: false, reason: "not_supported", code, message };
   return { ok: false, reason: "api_error", code, message };
@@ -39,7 +39,8 @@ async function call<T>(url: string, init?: RequestInit): Promise<IgResult<T>> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    const res = await fetch(url, { ...init, signal: init?.signal ?? controller.signal });
+    // Workers supports manual/follow only; never forward credentials on a redirect.
+    const res = await fetch(url, { ...init, redirect: "manual", signal: init?.signal ?? controller.signal });
     const body = (await res.json().catch(() => ({}))) as T & GraphError;
     if (!res.ok || body.error) return classifyIgFailure(res.status, body);
     return { ok: true, data: body };
@@ -118,7 +119,7 @@ export async function mediaInsights(env: Env, token: string, mediaId: string): P
 // Meta v26 IGMedia fields: facebook/facebook-python-business-sdk/adobjects/igmedia.py.
 // 기본 미디어 읽기 권한(instagram_business_basic)으로 받은 메타데이터에서 영상 표지/이미지를 고른다.
 export async function mediaMetadata(env: Env, token: string, mediaId: string): Promise<IgResult<DiscoveredMedia>> {
-  if (isFake(env)) return { ok: true, data: { id: mediaId, permalink: `https://www.instagram.com/reel/${mediaId}/`, timestamp: new Date().toISOString(), media_type: "VIDEO" } };
+  if (isFake(env)) return { ok: true, data: { id: mediaId, permalink: `https://www.instagram.com/reel/${mediaId.replace(/^fake_media_/, "")}/`, timestamp: new Date().toISOString(), media_type: "VIDEO" } };
   return call<DiscoveredMedia>(`${IG}/${encodeURIComponent(mediaId)}?${q({ fields: "id,permalink,timestamp,media_type,thumbnail_url,media_url", access_token: token })}`);
 }
 
@@ -139,19 +140,71 @@ export type DiscoveredMedia = {
   media_url?: string;
 };
 
-// ponytail: 최근 50개 게시물만 본다. 그보다 오래된 게시물은 못 찾음(추론). 페이지 넘김은 필요해지면 추가
-export async function discoverMedia(env: Env, sys: { token: string; igUserId: string; host: "fb" | "ig" }, username: string, shortcode: string): Promise<IgResult<DiscoveredMedia | null>> {
+export type DiscoveryAuth = { token: string; igUserId: string; host: "fb" | "ig" };
+const mediaIdShape = (value: unknown): value is string => typeof value === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(value);
+
+// 응답을 요청한 게시물에 묶는다. HTTP 성공만 보고 다른 게시물의 수치를 저장하지 않는다.
+export function mediaMatches(media: Pick<DiscoveredMedia, "id" | "permalink">, shortcode: string, id?: string): boolean {
+  if (!mediaIdShape(media.id) || (id !== undefined && media.id !== id) || typeof media.permalink !== "string") return false;
+  try {
+    const url = new URL(media.permalink);
+    return url.protocol === "https:" && ["instagram.com", "www.instagram.com"].includes(url.hostname) && !url.username && !url.password && !url.port && parsePostUrl(url.href)?.shortcode === shortcode;
+  } catch { return false; }
+}
+
+function discoveredMedia(raw: unknown, shortcode: string, id?: string): DiscoveredMedia | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  if (!mediaMatches(row as DiscoveredMedia, shortcode, id) || typeof row.timestamp !== "string" || !Number.isFinite(Date.parse(row.timestamp))) return null;
+  const media = { id: row.id, permalink: row.permalink, timestamp: row.timestamp } as DiscoveredMedia;
+  for (const field of ["media_product_type", "media_type", "thumbnail_url", "media_url"] as const) {
+    if (row[field] !== undefined && row[field] !== null) {
+      if (typeof row[field] !== "string") return null;
+      media[field] = row[field];
+    }
+  }
+  for (const field of ["like_count", "comments_count", "view_count"] as const) {
+    if (row[field] !== undefined && row[field] !== null) {
+      if (typeof row[field] !== "number" || !Number.isSafeInteger(row[field]) || row[field] < 0) return null;
+      media[field] = row[field];
+    }
+  }
+  return media;
+}
+
+// Facebook Login의 IGMedia.api_get(fields)에 명시된 node metadata만 요청한다.
+// Instagram Login은 기존 mediaMetadata의 기본 fields를 유지하며 다른 login의 권한을 추정하지 않는다.
+// https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/igmedia.py
+export async function mediaById(env: Env, auth: DiscoveryAuth, mediaId: string, shortcode: string): Promise<IgResult<DiscoveredMedia>> {
+  if (!mediaIdShape(mediaId) || !/^[A-Za-z0-9_-]{1,100}$/.test(shortcode) || !["fb", "ig"].includes(auth.host) || !auth.token) return { ok: false, reason: "invalid_response" };
+  if (isFake(env)) return { ok: true, data: { id: mediaId, permalink: `https://www.instagram.com/reel/${shortcode}/`, timestamp: new Date().toISOString(), view_count: 980, like_count: 120, comments_count: 9 } };
+  const fields = "id,permalink,timestamp,media_type,thumbnail_url,media_url" + (auth.host === "fb" ? ",media_product_type,like_count,comments_count,view_count" : "");
+  const response = await call<unknown>(`${auth.host === "fb" ? FB : IG}/${encodeURIComponent(mediaId)}?${q({ fields, access_token: auth.token })}`);
+  if (!response.ok) return response;
+  const media = discoveredMedia(response.data, shortcode, mediaId);
+  return media ? { ok: true, data: media } : { ok: false, reason: "invalid_response" };
+}
+
+// 최근 50개 window만 본다. paging.next/cursor가 있어도 임의 URL을 따라가지 않으며,
+// null은 미발견일 뿐 전체 페이지 완료나 물리적 삭제의 증거가 아니다.
+export async function discoverMedia(env: Env, sys: DiscoveryAuth, username: string, shortcode: string): Promise<IgResult<DiscoveredMedia | null>> {
   if (isFake(env)) {
     return {
       ok: true,
       data: { id: `fake_media_${shortcode}`, permalink: `https://www.instagram.com/reel/${shortcode}/`, timestamp: new Date(Date.now() - 3_600_000).toISOString(), media_product_type: "REELS", like_count: 120, comments_count: 9, view_count: 980 },
     };
   }
+  username = username.trim().replace(/^@/, "");
+  if (!/^[A-Za-z0-9_.]{1,30}$/.test(username) || !/^[A-Za-z0-9_-]{1,100}$/.test(shortcode) || !mediaIdShape(sys.igUserId) || !["fb", "ig"].includes(sys.host) || !sys.token) return { ok: false, reason: "invalid_response" };
   const fields = `business_discovery.username(${username}){media.limit(50){id,permalink,timestamp,media_type,media_product_type,like_count,comments_count,view_count,thumbnail_url,media_url}}`;
-  const r = await call<{ business_discovery?: { media?: { data: DiscoveredMedia[] } } }>(`${sys.host === "fb" ? FB : IG}/${sys.igUserId}?${q({ fields, access_token: sys.token })}`);
+  const r = await call<{ business_discovery?: { media?: { data?: unknown } } }>(`${sys.host === "fb" ? FB : IG}/${encodeURIComponent(sys.igUserId)}?${q({ fields, access_token: sys.token })}`);
   if (!r.ok) return r;
-  const list = r.data.business_discovery?.media?.data ?? [];
-  return { ok: true, data: list.find((m) => parsePostUrl(m.permalink)?.shortcode === shortcode) ?? null };
+  const list = r.data?.business_discovery?.media?.data;
+  if (!Array.isArray(list) || list.length > 50) return { ok: false, reason: "invalid_response" };
+  const hit = list.find((raw) => raw && typeof raw === "object" && typeof raw.permalink === "string" && parsePostUrl(raw.permalink)?.shortcode === shortcode);
+  if (!hit) return { ok: true, data: null };
+  const media = discoveredMedia(hit, shortcode);
+  return media ? { ok: true, data: media } : { ok: false, reason: "invalid_response" };
 }
 
 // --- 브랜드 계정 (F-64) ---
