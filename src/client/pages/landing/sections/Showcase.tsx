@@ -9,6 +9,7 @@ function ShowcaseItem({ v }: { v: ShowcaseVideo }) {
   const [started, setStarted] = useState(false);
   const ref = useInViewPlayback(!reduced || started);
   const src = `/videos/${v.file}`;
+  const videoSrc = `/videos/${v.videoFile ?? v.file}`;
   return (
     <li className="landing-showcase-item">
       <div className="landing-showcase-head">
@@ -18,8 +19,8 @@ function ShowcaseItem({ v }: { v: ShowcaseVideo }) {
       <div className="landing-showcase-frame">
         <video ref={ref} className="landing-showcase-video" muted loop playsInline preload="metadata"
           poster={`${src}.jpg`} aria-label={v.title}>
-          <source src={`${src}.webm`} type="video/webm" />
-          <source src={`${src}.mp4`} type="video/mp4" />
+          <source src={`${videoSrc}.webm`} type="video/webm" />
+          <source src={`${videoSrc}.mp4`} type="video/mp4" />
         </video>
         {reduced && !started && (
           <Button variant="secondary" className="landing-showcase-play" onClick={() => setStarted(true)}>영상 재생</Button>
