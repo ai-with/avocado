@@ -1,0 +1,83 @@
+{
+  "base": "71d7b42",
+  "localOnly": true,
+  "cloudMeasured": false,
+  "cloudCalls": 0,
+  "aiCalls": 0,
+  "browserCalls": 0,
+  "python": "3.13.3",
+  "host": "arm64",
+  "ffmpeg": "ffmpeg version 8.1.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "tests": 10,
+  "passed": true,
+  "measurements": [
+    {
+      "fixture": "sparse_padding_600MiB_not_high_entropy",
+      "inputBytes": 629145600,
+      "elapsedS": 0.5711,
+      "audioState": "present",
+      "artifacts": [
+        {
+          "name": "audio.wav",
+          "bytes": 32846,
+          "sha256": "76c35ffef50c99b8517eec9c5b4ccd1b67f32d4c197ce49ab480fd08643c79dd"
+        },
+        {
+          "name": "video.mp4",
+          "bytes": 25447,
+          "sha256": "d98af0c3253a9293075211aef08a683c6a79fa327614b55c91cbd52a89a54e9b"
+        }
+      ]
+    },
+    {
+      "fixture": "tone",
+      "inputBytes": 47864,
+      "elapsedS": 0.1593,
+      "audioState": "present",
+      "artifacts": [
+        {
+          "name": "audio.wav",
+          "bytes": 32846,
+          "sha256": "76c35ffef50c99b8517eec9c5b4ccd1b67f32d4c197ce49ab480fd08643c79dd"
+        },
+        {
+          "name": "video.mp4",
+          "bytes": 25447,
+          "sha256": "d98af0c3253a9293075211aef08a683c6a79fa327614b55c91cbd52a89a54e9b"
+        }
+      ]
+    },
+    {
+      "fixture": "silence",
+      "inputBytes": 41249,
+      "elapsedS": 0.148,
+      "audioState": "present",
+      "artifacts": [
+        {
+          "name": "audio.wav",
+          "bytes": 32846,
+          "sha256": "f14654d18deda1a1921286918e10019a203bc04f3151d3aa887d39097213b6c9"
+        },
+        {
+          "name": "video.mp4",
+          "bytes": 18611,
+          "sha256": "593c47433dbc49cd63b3486eca44b07fd2d976fa578a62d655f2b69245658303"
+        }
+      ]
+    },
+    {
+      "fixture": "no_audio",
+      "inputBytes": 40355,
+      "elapsedS": 0.1092,
+      "audioState": "none",
+      "artifacts": [
+        {
+          "name": "video.mp4",
+          "bytes": 17697,
+          "sha256": "cb6ece4b693a63e9a5b79f379bed3f41e705c3fa33a0445e5345777f60c3cca3"
+        }
+      ]
+    }
+  ],
+  "largeFixtureWarning": "600MiB sparse MP4 free-box padding, not a real high-entropy video processing benchmark"
+}
