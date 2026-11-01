@@ -88,7 +88,7 @@ export function TemplateEditModal({ template, variables, onClose, onSaved }: Pro
           </Select>
         </div>
         <Tabs<MessageLang> label="본문 언어" tabs={LANG_TABS} value={lang} onChange={setLang} />
-        <Textarea autoGrow id={bodyId} label={`${LANG_LABEL[lang]} 본문`} hint="비워 두면 이 언어로는 보내지 않고 다른 언어 본문을 써요." rows={8} value={draft.bodies[lang]} onChange={(e) => setBody(e.target.value)} error={fields[`bodies.${lang}`]} />
+        <Textarea autoGrow id={bodyId} label={`${LANG_LABEL[lang]} 본문`} hint={lang === "ko" ? "비워 두면 이 언어로는 보내지 않고 다른 언어 본문을 써요. 변수 뒤 조사는 값에 맞게 자동으로 바뀌어요." : "비워 두면 이 언어로는 보내지 않고 다른 언어 본문을 써요."} rows={8} value={draft.bodies[lang]} onChange={(e) => setBody(e.target.value)} error={fields[`bodies.${lang}`]} />
         <VariableButtons variables={variables} onInsert={(key) => setBody(insertAt(bodyId, draft.bodies[lang], varToken(key)))} />
         {draft.bodies[lang].trim() && <MessagePreview label="예시 값으로 본 미리보기" result={renderMessage(draft.bodies[lang], examples)} />}
       </form>
