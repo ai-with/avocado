@@ -5,8 +5,8 @@ app-owned adapter and operational activation are separate concerns. Local Docker
 Workerd RPC and synthetic-media checks passed. These compute checks created no
 Cloud resource, subscription or credential and used no real AI, Meta, SMS, email
 or browser. Cloud processing time and production behavior remain **unmeasured**.
-This directory supplies a local configuration example; production configuration
-and activation are separate.
+This directory supplies separate local and private production configurations.
+Operational activation is performed separately by Root.
 
 ## What runs locally
 
@@ -42,9 +42,10 @@ TypeScript `7.0.2` / Workers types `5.20261014.1`; Node tests use built-in APIs.
 The exact host FFmpeg/ffprobe tested is `8.1.1`, Python `3.13.3`.
 The Docker recipe pins FFmpeg `8.1.1` and the SHA256 of its official source archive.
 The official 11,709,440-byte tarball was streamed once to calculate that checksum.
-The image was built locally for Linux/amd64. The Python base tag is version-pinned
-rather than digest-pinned, and OS/x264 package versions are not frozen. Resolve
-the base/image digests for a production release. Local Linux limits were tested;
+The image was built locally for Linux/amd64. The release recipe now pins the
+official Python manifest digest supplied/reviewed by Root; the earlier local
+proof used the same version tag. OS/x264 package versions are not frozen. Record
+the final built image digest for each release. Local Linux limits were tested;
 actual Cloud resource enforcement remains unmeasured.
 
 The build context is this POC directory, with a deny-by-default `.dockerignore`
@@ -224,7 +225,9 @@ The **actual native prototype standard-1** at 180 seconds/full allocated CPU is
 90vCPU-seconds +720GiB-seconds +1,440GB-seconds, or **$0.0037008** compute overage.
 Both are rate calculations, **not measured runtime, per-job pricing, or a budget**.
 Actual Cloud cold-start, transfer throughput, CPU throttling, peak memory, failure
-rate, processing duration and billing remain unmeasured. No paid plan was checked.
+rate, processing duration and billing remain unmeasured. Root subsequently verified
+the existing account's Containers entitlement and standard-1 capacity through
+read-only management GETs; no new plan, subscription or grants were created.
 
 Primary references:
 
@@ -233,7 +236,7 @@ Primary references:
 - [private Service Binding RPC](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/rpc/), [byte-stream RPC](https://developers.cloudflare.com/workers/runtime-apis/rpc/), [ffprobe official options](https://www.ffmpeg.org/ffprobe-all.html), [FFmpeg source releases](https://www.ffmpeg.org/releases/)
 - [native Container API](https://developers.cloudflare.com/containers/api/durable-object-container/), [scheduling policy/basic limitations](https://developers.cloudflare.com/containers/configuration/scheduling-policy/), [local development](https://developers.cloudflare.com/containers/guides/local-dev/)
 
-## Still needed before a paid production proposal
+## Operational activation checks
 
 - Cloud validation of the concrete native supervisor, including deployed
   disconnect/alarm/restart/teardown failures. Local Workerd RPC passed; these
@@ -243,9 +246,9 @@ Primary references:
 - Compressed-media manifest and exact-key purge integration, coexistence with
   browser audio, timeout/retry policy and immutable request identities.
 - Real, licensed high-entropy >500MiB/2GiB edge samples and Cloud measurements.
-- Verify current plan entitlements, operational capacity and cost controls, and
-  review the deploy diff, image digest/versions, permissions and rollback. New
-  paid-plan purchases require approval. Production configuration is separate.
+- Review operational capacity, cost controls, deploy diff, final image digest,
+  permissions and rollback. The existing Containers entitlement is verified;
+  actual Cloud behavior and consumption still need bounded validation.
 
 Separate Root-owned native measurements now also cover actual high-entropy
 synthetic data: a 594,520,009-byte three-second 1080p FFV1+sine clip (15.021s ARM),
@@ -257,6 +260,75 @@ Normal Linux/amd64 image runs subsequently passed both cases with network off,
 no host mounts, Docker memory 1GiB/PIDs64 and child AS768MiB. These remain local
 ARM-host/emulated-amd64 observations, not deployed Cloud timing or three-minute
 capacity/performance evidence.
+
+## Private production deploy and rollback
+
+`wrangler.production.json` targets only `avocado-media-preparation` in the reviewed
+account. It has no route, workers.dev/preview URL, secrets, R2/D1 bindings, outbound
+proxy or HTTP probe. Both Worker and Container logs are disabled. The public
+fetch handlers return 404. The application's separate Service Binding must select
+the named `MediaPreparation` entrypoint; application config is managed by Root.
+
+The native `durable_object` policy uses a SQLite export and named image `base`.
+Do not add `max_instances`: this policy does not accept that control. The constant
+DO name and ownership lease serialize this entrypoint's work. `ContainerTransport`
+fixes standard-1, `enableInternet:false`, fixed exec argv and empty runtime env;
+these are code controls, not implied by the Wrangler defaults. No normal HTTP
+request can start a job.
+
+From the release worktree root, use the repository-pinned Wrangler **4.151.0** CLI
+and the dedicated Docker context. `MEDIA_WRANGLER_CLI` below is the absolute path
+to that installed `node_modules/wrangler/wrangler-dist/cli.js` (the release worktree
+may share the installation from the primary checkout):
+
+```sh
+node "$MEDIA_WRANGLER_CLI" deploy --dry-run \
+  --config poc/media-preparation/wrangler.production.json \
+  --outdir /tmp/OWNED-MEDIA-DRYRUN
+```
+
+This dry-run validates/bundles Worker configuration and can build a **local**
+Docker image, but does not push/deploy to Cloudflare. The release configuration
+passed Wrangler 4.151.0 dry-run; its dedicated image build reused the reviewed
+compiler/runtime layers and Wrangler removed its temporary image tag. This does
+not validate deployed Cloud execution. Root separately records the final
+Linux/amd64 registry image digest, Worker version, git
+revision and effective config. The Python base now pins manifest
+`sha256:56a11364ffe0fee3bd60af6d6d5209eba8a99c2c16dc4c7c5861dc06261503cc`;
+changing a FROM reference may rebuild the compiler layer. The compiler recipe and
+verified FFmpeg source hash are unchanged. Debian/x264 dependencies still resolve
+at build time, so preserve the resulting image digest for an exact rollback.
+
+Root's actual deployment command, after review, is:
+
+```sh
+node "$MEDIA_WRANGLER_CLI" deploy \
+  --config poc/media-preparation/wrangler.production.json
+```
+
+Keep application scheduling disabled until private compute deployment and a
+bounded owned-synthetic Service Binding check succeed. No public probe or
+additional HTTP authentication route is needed. First provision can take minutes;
+CLI success alone is not evidence of media processing. Record input/output hashes,
+limits and elapsed time separately; local timings above are not Cloud timings.
+
+For rollback, first stop new preparation claims through Root's reviewed application
+rollback. Cancel known active job IDs through the existing private RPC and confirm
+teardown; an uncertain owner stays blocked for recovery. Do not delete its DO
+storage, application staged-object/purge ledger or originals to clear a failure.
+For a later compute release, redeploy the last verified compute code/config with
+its exact saved managed-registry image digest in `images.base.image` instead of
+rebuilding a historical Dockerfile against mutable OS packages. Review/dry-run
+that complete combination before deploying it. Native-policy containers select
+their image in `start()`; application-wide rollout flags are not its rollback
+mechanism. A Worker-only version rollback is insufficient evidence that the
+intended image was selected. On this first compute release there is no older
+compute version: keep the app disabled while repairing the deployment.
+
+Sources: [native scheduling policy](https://developers.cloudflare.com/containers/configuration/scheduling-policy/),
+[image selection and rollout scope](https://developers.cloudflare.com/containers/configuration/rollouts/),
+[deployment behavior](https://developers.cloudflare.com/containers/guides/deploy/).
+No Cloud deploy or image push was performed when preparing this configuration.
 
 ## Optional Root-only local Service Binding smoke
 

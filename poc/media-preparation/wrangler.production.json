@@ -1,0 +1,19 @@
+{
+  "name": "avocado-media-preparation",
+  "account_id": "b892760eb0b5abbe06704be355c4be1c",
+  "main": "worker-entrypoint.ts",
+  "compatibility_date": "2026-10-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "observability": { "enabled": false },
+  "containers": [{
+    "class_name": "MediaContainer",
+    "scheduling_policy": "durable_object",
+    "images": { "base": { "dockerfile": "./Dockerfile", "build_context": "." } },
+    "observability": { "logs": { "enabled": false } }
+  }],
+  "durable_objects": { "bindings": [{ "name": "CONTAINERS", "class_name": "MediaContainer" }] },
+  "exports": { "MediaContainer": { "type": "durable-object", "storage": "sqlite" } }
+}
