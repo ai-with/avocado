@@ -52,12 +52,15 @@ export const withJosa = (word: string, pair: JosaPair) => `${word}${josa(word, p
 
 // forms: [받침 있을 때, 없을 때]. ro: 으로/로 계열(ㄹ 받침이면 로). plain: 단독형 표기, explicit: 병기형 표기
 // tail: 조사 뒤에 더 이어져도 되는 어미·조사 (그 밖의 한글이 이어지면 단어의 일부로 보고 건드리지 않는다)
-type Rule = { forms: readonly [string, string]; ro?: boolean; plain: string[]; explicit: string[]; tail?: RegExp };
+// after: 조사 뒤 글이 이 패턴일 때만 고친다 (단독형 야 용)
+type Rule = { forms: readonly [string, string]; ro?: boolean; plain: string[]; explicit: string[]; tail?: RegExp; after?: RegExp };
 
 const RULES: Rule[] = [
-  { forms: ["이에요", "예요"], plain: ["이에요", "예요"], explicit: ["(이)에요"] },
+  { forms: ["이에요", "예요"], plain: ["이에요", "예요", "에요"], explicit: ["(이)에요"] },
   { forms: ["이었", "였"], plain: ["이었", "였"], explicit: ["(이)었", "(이)였"], tail: /^(어|다|던|고|는|지|으|을|습|죠|기)/ },
   { forms: ["이야", "야"], plain: ["이야"], explicit: ["(이)야"] },
+  // 단독 "야"는 뒤에 ? . 가 올 때만 서술격(이야)으로 본다. 그 밖(달밤툰야!)은 호격일 수 있어 손대지 않는다
+  { forms: ["이야", "야"], plain: ["야"], explicit: [], after: /^[.?]/ },
   { forms: ["이라고", "라고"], plain: ["이라고", "라고"], explicit: ["(이)라고"], tail: /^(요|도|는|만)/ },
   { forms: ["이랑", "랑"], plain: ["이랑", "랑"], explicit: ["(이)랑"] },
   { forms: ["이나", "나"], plain: ["이나", "나"], explicit: ["(이)나"] },
@@ -68,8 +71,8 @@ const RULES: Rule[] = [
   { forms: ["을", "를"], plain: ["을", "를"], explicit: ["을/를", "를/을", "(을)를"] },
   { forms: ["은", "는"], plain: ["은", "는"], explicit: ["은/는", "는/은", "(은)는"] },
   { forms: ["과", "와"], plain: ["과", "와"], explicit: ["과/와", "와/과", "(과)와"] },
-  // 호격. "야"는 이야/야 보다 호격으로 본다 (달밤툰야 -> 달밤툰아)
-  { forms: ["아", "야"], plain: ["아", "야"], explicit: ["아/야", "야/아"] },
+  // 호격 (달밤툰아 / 토너야)
+  { forms: ["아", "야"], plain: ["아"], explicit: ["아/야", "야/아"] },
 ];
 
 // 병기형을 먼저, 같은 종류 안에서는 긴 표기 먼저
@@ -78,8 +81,11 @@ const CANDIDATES = RULES.flatMap((rule) => [
   ...rule.plain.map((text) => ({ text, rule, explicit: false })),
 ]).sort((a, b) => Number(b.explicit) - Number(a.explicit) || b.text.length - a.text.length);
 
-// 조사 뒤 경계: 끝, 공백, 문장부호, 다음 {{ 토큰
-const BOUNDARY = /^(\s|[.,!?~…)\]'"”’」』:;])/;
+// 조사 뒤 경계: 끝이거나 다음 글자가 한글 음절·영문·숫자가 아님 (공백, 문장부호, 이모지, ㅎㅎ, ^^, 다음 {{ 토큰 모두 경계)
+const BOUNDARY = /^[^가-힣A-Za-z0-9]/;
+
+// 값의 끝(끝 문장부호 제외)이 한글 음절인가. 단독형 조사는 이때만 고친다 (영문·약어·숫자·% 는 읽기를 알 수 없어 작성자 표기 유지)
+const endsWithHangul = (value: string) => /[가-힣]$/.test(value.replace(/[^0-9A-Za-z가-힣]+$/, ""));
 
 function pickForm(rule: Rule, coda: Coda): string {
   const [withCoda, withoutCoda] = rule.forms;
@@ -90,10 +96,12 @@ function pickForm(rule: Rule, coda: Coda): string {
 // 값 바로 뒤 글(following)이 조사로 시작하면 값에 맞게 고쳐 돌려준다. 단독형은 뒤가 경계(또는 허용 어미)일 때만, 병기형은 항상
 export function fixJosaAfter(value: string, following: string): string {
   const coda = lastCoda(value);
+  const hangul = endsWithHangul(value);
   for (const { text, rule, explicit } of CANDIDATES) {
-    if (!following.startsWith(text)) continue;
+    if (!following.startsWith(text) || (!explicit && !hangul)) continue;
     const rest = following.slice(text.length);
-    const ok = explicit || rest === "" || rest.startsWith("{{") || BOUNDARY.test(rest) || rule.tail?.test(rest);
+    if (rule.after && !rule.after.test(rest)) continue;
+    const ok = explicit || rest === "" || BOUNDARY.test(rest) || rule.tail?.test(rest);
     if (ok) return pickForm(rule, coda) + rest;
   }
   return following;
