@@ -10,6 +10,8 @@ Hono(API) + React(SPA)를 Cloudflare Worker 하나로 배포한다. 저장소는
 - Cloudflare 계정 (배포 시. 로컬 실행만 할 때도 Workers AI를 실제로 부르려면 `npx wrangler login` 필요. `AI_FAKE=1`이면 필요 없음)
 - 영상 프레임·오디오 추출은 업로드하는 브라우저가 한다. 서버에 ffmpeg는 없다
 
+큰 영상의 서버 처리 방식은 [Containers + FFmpeg 비교·선정 기록](findings/media-preparation.md)을 따른다. 운영 적용과 실제 Cloud 성능 검증은 아직 남아 있다.
+
 ## 로컬 실행
 
 ```bash
@@ -105,7 +107,7 @@ SDK 새 원본은 기존 R2 `FILES`에 저장한다. `0036_sdk_raw_retention.sql
 |------|------|---------|
 | `RESEND_API_KEY` | 이메일 발송 (Resend) | 메일을 보내지 않고 로그만. 발송 로그는 `no_provider` |
 | `RESEND_WEBHOOK_SECRET` | Resend 반송 웹훅 서명 검증 (`whsec_`로 시작하는 Signing Secret) | `/webhooks/resend`가 503을 반환하며 반송을 반영하지 않는다 |
-| `EMAIL_FROM` | 발신 주소 (Resend에서 인증한 도메인) | `no-reply@example.com` |
+| `EMAIL_FROM` | 발신 주소 (Resend에서 인증한 도메인) | 메일 미발송 (`no_provider`) |
 | `SUPPORT_EMAIL` | 도움 받기 문의를 받을 운영 주소 (선택, 실제 발송은 `RESEND_API_KEY`도 필요) | 문의를 저장만 하고 메일은 보내지 않는다 |
 | `SMS_PROVIDER` | `solapi`로 두면 문자 발송 | 문자 미발송. 운영에서는 인증번호를 받을 수 없어 가입이 막힌다 (필수) |
 | `SOLAPI_API_KEY`, `SOLAPI_API_SECRET` | Solapi 인증 | 위와 같음 |
