@@ -165,7 +165,16 @@ export function createMediaPreparation(options: { targets?: Targets; fixedLength
       if (!original || !("body" in original) || !original.body || original.etag !== job.source_etag || original.size !== job.source_bytes) throw preparationError();
       sourceStream = boundedMediaStream(original.body, job.source_bytes, PREPARATION_CAPS.inputBytes, cheapCheck, () => { inputComplete = true; });
       const targets = await (options.targets ?? defaultTargets)(permit, sink);
-      await Promise.race([env.MEDIA_PREPARATION.prepare(input, sourceStream, targets.permit, targets.sink), new Promise<never>((_, reject) => { timer = setTimeout(() => { stopped = true; reject(preparationError()); }, Math.max(1, job.lease_until - now())); })]);
+      const result = await Promise.race([env.MEDIA_PREPARATION.prepare(input, sourceStream, targets.permit, targets.sink), new Promise<never>((_, reject) => { timer = setTimeout(() => { stopped = true; reject(preparationError()); }, Math.max(1, job.lease_until - now())); })]);
+      if (result && "status" in result) {
+        if (result.status !== "busy" || Object.keys(result).length !== 1) throw preparationError();
+        // Healthy global contention is retryable, not a failed source. A busy
+        // response is valid only before this attempt has staged any artifact.
+        const retired = await db.run(sql`UPDATE media_preparations SET state='retired',error='compute_busy' WHERE id=${id} AND state='preparing'
+          AND NOT EXISTS(SELECT 1 FROM prepared_media_objects WHERE job_id=${id})`);
+        if (!retired.meta.changes) throw preparationError();
+        return "busy";
+      }
       if (!await db.get(sql`SELECT 1 WHERE ${selected(job)}`)) throw preparationError();
     } catch {
       // The service may report failure after a successful app commit.

@@ -7,7 +7,7 @@ import { audioHash, claimAnalysis } from "../pipeline/analysis";
 import type { Ctx } from "../pipeline/context";
 import { processSubmission } from "../pipeline/run";
 import * as preparation from "./media-preparation";
-import { boundedMediaStream, type PreparationJob, type PreparationManifest, type PreparationPermit, type PreparationSink } from "./media-preparation-contract";
+import { boundedMediaStream, type PreparationJob, type PreparationManifest, type PreparationPermit, type PreparationResult, type PreparationSink } from "./media-preparation-contract";
 import { cleanupRetiredAudio, runMediaPurges, withdrawMedia } from "./media-purge";
 import { fileRoutes } from "../routes/reviews/files";
 import { mediaRoutes } from "../routes/public-guide/media";
@@ -66,7 +66,7 @@ async function setup(audio = true) {
     objects.set(key, stored); await hooks.afterPut?.(key); return objectMeta(key, stored);
   });
   const remove = vi.fn(async (keys: string | string[]) => { for (const key of typeof keys === "string" ? [keys] : keys) objects.delete(key); });
-  const service = { cancel: vi.fn(async (_jobId: string) => {}), prepare: vi.fn(async (job: PreparationJob, input: ReadableStream<Uint8Array>, permit: PreparationPermit, sink: PreparationSink) => {
+  const service = { cancel: vi.fn(async (_jobId: string) => {}), prepare: vi.fn(async (job: PreparationJob, input: ReadableStream<Uint8Array>, permit: PreparationPermit, sink: PreparationSink): Promise<PreparationResult> => {
     if (hooks.delayService) await hooks.delayService;
     if (hooks.failService) throw new Error("PRIVATE service error");
     await permit.assertCurrent(job); const reader = input.getReader(); while (!(await reader.read()).done) {} reader.releaseLock();
@@ -112,6 +112,29 @@ describe("optional app-owned media preparation", () => {
   });
   it("a terminal unavailable service is attempted once per source/generation and cannot starve the browser fallback", async () => {
     const s = await setup(); s.hooks.failService = true; expect(await s.prepare(s.env, "s")).toBe("yield"); expect(await s.prepare(s.env, "s")).toBe("original"); expect(s.service.prepare).toHaveBeenCalledOnce(); expect(s.state().generation).toBe(0);
+  });
+  it("healthy global busy retires without copying or rotating, then retries the same generation and selects", async () => {
+    const s = await setup(); s.service.prepare.mockResolvedValueOnce({ status: "busy" });
+    await processSubmission({ submissionId: "s" }, s.env);
+    expect(s.env.PIPELINE.send).toHaveBeenLastCalledWith({ type: "process_submission", payload: { submissionId: "s" } }, { delaySeconds: 20 });
+    expect(s.db.prepare("SELECT state,error FROM media_preparations").all()).toEqual([{ state: "retired", error: "compute_busy" }]);
+    expect(s.state()).toMatchObject({ generation: 0, claim_token: null }); expect(s.put).not.toHaveBeenCalled(); expect(s.remove).not.toHaveBeenCalled(); expect(s.service.cancel).not.toHaveBeenCalled();
+    expect(s.db.prepare("SELECT * FROM prepared_media_objects").all()).toHaveLength(0); expect(s.db.prepare("SELECT * FROM processing_jobs").all()).toHaveLength(0);
+    vi.mocked(Date.now).mockReturnValue(NOW + 20_000); await processSubmission({ submissionId: "s" }, s.env);
+    expect(s.service.prepare).toHaveBeenCalledTimes(2); expect(s.service.prepare.mock.calls.map((call) => call[0].generation)).toEqual([0, 0]);
+    expect(s.service.prepare.mock.calls[0]![0].jobId).not.toBe(s.service.prepare.mock.calls[1]![0].jobId);
+    expect(s.state()).toMatchObject({ generation: 1, claim_token: null }); expect(s.objects.size).toBe(3); expect(await s.prepare(s.env, "s")).toBe("ready");
+    expect(s.db.prepare("SELECT state FROM media_preparations ORDER BY created_at,rowid").all()).toEqual([{ state: "retired" }, { state: "selected" }]);
+    expect(s.env.AI.run).not.toHaveBeenCalled();
+  });
+  it("busy after staging is inconsistent and remains a terminal cleanup failure", async () => {
+    const s = await setup();
+    s.service.prepare.mockImplementationOnce(async (_job, _source, _permit, sink) => {
+      const bytes = encoder.encode("partial"), metadata = { name: "audio.wav" as const, bytes: bytes.byteLength, sha256: await audioHash(asBuffer(bytes)) };
+      await sink.stage(metadata.name, bytesStream(bytes), metadata); return { status: "busy" };
+    });
+    expect(await s.prepare(s.env, "s")).toBe("yield"); expect(s.db.prepare("SELECT state FROM media_preparations").all()).toEqual([{ state: "failed" }]);
+    expect(await s.prepare(s.env, "s")).toBe("original"); expect(s.state().generation).toBe(0); expect(s.objects.size).toBe(1); expect(s.service.prepare).toHaveBeenCalledOnce();
   });
   it("metadata-only conditional GET and checksum mismatch never publish", async () => {
     const a = await setup(); a.hooks.metadataOnly = true; await a.prepare(a.env, "s"); expect(a.service.prepare).not.toHaveBeenCalled(); expect(a.db.prepare("SELECT state FROM media_preparations").all()).toEqual([{ state: "failed" }]);

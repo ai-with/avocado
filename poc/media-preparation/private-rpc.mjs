@@ -1,6 +1,8 @@
 /** Private service contract. No URL, bucket key, API token, or master secret input.
  * executor.run is injected: the native Container DO implements it; tests fake the
- * Cloud API. Nothing is deployed. The app owns permit and sink RpcTargets.
+ * Cloud API. The app owns permit and sink RpcTargets. The DO wrapper returns
+ * { status: "busy" } for a healthy active owner before this service runs; the
+ * unchanged manifest is the successful result. Cleanup uncertainty still fails.
  */
 export const CAPS = Object.freeze({ inputBytes: 2 * 1024 ** 3, durationS: 180,
   videoBytes: 64 * 1024 ** 2, audioBytes: 6 * 1024 ** 2, chunkBytes: 1024 ** 2 });

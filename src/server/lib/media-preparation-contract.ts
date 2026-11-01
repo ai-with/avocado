@@ -7,7 +7,8 @@ export type PreparationManifest = { v: 1; generation: number; consentId: string;
   audio: { state: "present"; sampleRate: 16000; durationS: number } | { state: "none"; proof: "complete_probe_and_video_decode_no_audio" }; artifacts: PreparedArtifact[] };
 export type PreparationPermit = { assertCurrent(job: PreparationJob): Promise<void> };
 export type PreparationSink = { stage(name: ArtifactName, stream: ReadableStream<Uint8Array>, metadata: PreparedArtifact): Promise<void>; commit(manifest: PreparationManifest): Promise<void>; retireUnselected(): Promise<void> };
-export type MediaPreparationService = { prepare(job: PreparationJob, source: ReadableStream<Uint8Array>, permit: PreparationPermit, sink: PreparationSink): Promise<PreparationManifest>; cancel?(jobId: string): Promise<void> };
+export type PreparationResult = PreparationManifest | { status: "busy" };
+export type MediaPreparationService = { prepare(job: PreparationJob, source: ReadableStream<Uint8Array>, permit: PreparationPermit, sink: PreparationSink): Promise<PreparationResult>; cancel?(jobId: string): Promise<void> };
 export const preparationError = () => new Error("media_preparation_unavailable");
 export function managedPreparedKey(submissionId: string, key: string) {
   return /^[\w-]+$/.test(submissionId) && new RegExp(`^prepared/${submissionId}/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/video\\.mp4$`).test(key);

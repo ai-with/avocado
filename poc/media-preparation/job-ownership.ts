@@ -1,10 +1,15 @@
 /** Actual DO ownership logic; metadata only, no media or app credentials. */
 type Marker = { token: string; jobId: string; deadline: number };
-export type Lease<T> = Marker & { resource: T; revoked: boolean; cleanup?: Promise<void> };
+export type Lease<T> = Marker & { resource: T; acquired: boolean; revoked: boolean; cleanup?: Promise<void> };
 type Storage = Pick<DurableObjectStorage, "get" | "transaction">;
+/** Local-only signal, converted to an explicit result before crossing RPC. */
+export class ActiveJobBusy extends Error {
+  constructor() { super("container_busy"); }
+}
 export class JobOwnership<T> {
   private owner: Lease<T> | null = null; private recovering = false; private storage: Storage;
-  constructor(storage: Storage) { this.storage = storage; }
+  private now: () => number;
+  constructor(storage: Storage, now = Date.now) { this.storage = storage; this.now = now; }
   current() { return this.owner; }
   assert(lease: Lease<T>) {
     if (this.owner !== lease || lease.revoked) throw new Error("job_lease_stale");
@@ -16,8 +21,11 @@ export class JobOwnership<T> {
     });
   }
   async acquire(jobId: string, deadline: number, resource: T) {
-    if (this.owner || this.recovering) throw new Error("container_busy");
-    const lease: Lease<T> = { token: crypto.randomUUID(), jobId, deadline, resource, revoked: false };
+    if (this.owner || this.recovering) {
+      if (this.owner?.acquired && !this.owner.revoked && this.owner.deadline > this.now()) throw new ActiveJobBusy();
+      throw new Error("container_cleanup_pending");
+    }
+    const lease: Lease<T> = { token: crypto.randomUUID(), jobId, deadline, resource, acquired: false, revoked: false };
     this.owner = lease; // Before the first await: another request cannot reserve.
     try {
       await this.storage.transaction(async tx => {
@@ -25,6 +33,7 @@ export class JobOwnership<T> {
         const marker: Marker = { token: lease.token, jobId, deadline };
         await tx.put("active", marker); await tx.setAlarm(deadline + 3000);
       });
+      lease.acquired = true;
       return lease;
     } catch (cause) { if (this.owner === lease) this.owner = null; throw cause; }
   }
