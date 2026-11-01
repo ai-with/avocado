@@ -1,4 +1,6 @@
-// 메시지 템플릿 렌더 (TASK-073, AIWITH-484). 서버와 화면이 같이 쓴다. 본문 표기는 {{key}}
+// 메시지 템플릿 렌더 (TASK-073, AIWITH-484, AIWITH-567). 서버와 화면이 같이 쓴다. 본문 표기는 {{key}}
+
+import { fixJosaAfter } from "./josa";
 
 export const MESSAGE_LANGS = ["ko", "en"] as const;
 export type MessageLang = (typeof MESSAGE_LANGS)[number];
@@ -52,7 +54,7 @@ export function keysIn(body: string): string[] {
 export type RenderPart = { text: string } | { key: string; value: string; state: "ok" | "empty" | "unknown" };
 export type RenderResult = { text: string; parts: RenderPart[]; empty: string[]; unknown: string[] };
 
-// 본문 + 값 사전 → 결과. 값 사전에 없는 key 는 없는 변수, 값이 빈 문자열이면 빠진 값. 둘 다 {{key}} 를 그대로 남긴다
+// 본문 + 값 사전 → 결과. 변수 뒤 조사는 값 받침에 맞게 고친다(josa.ts). 값 사전에 없는 key 는 없는 변수, 값이 빈 문자열이면 빠진 값. 둘 다 {{key}} 를 그대로 남긴다
 export function renderMessage(body: string, values: Readonly<Record<string, string>>): RenderResult {
   const parts: RenderPart[] = [];
   let last = 0;
@@ -64,6 +66,11 @@ export function renderMessage(body: string, values: Readonly<Record<string, stri
     last = m.index + m[0].length;
   }
   if (last < body.length) parts.push({ text: body.slice(last) });
+  // 값이 채워진 변수 바로 뒤 글의 조사를 값에 맞춘다. 변수 part 는 그대로, 뒤 text part 만 바뀐다
+  parts.forEach((p, i) => {
+    const prev = parts[i - 1];
+    if ("text" in p && prev && "key" in prev && prev.state === "ok") p.text = fixJosaAfter(prev.value, p.text);
+  });
   const keysWith = (state: "empty" | "unknown") => [...new Set(parts.flatMap((p) => ("key" in p && p.state === state ? [p.key] : [])))];
   return { text: parts.map((p) => ("key" in p ? p.value : p.text)).join(""), parts, empty: keysWith("empty"), unknown: keysWith("unknown") };
 }
