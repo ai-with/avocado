@@ -41,6 +41,13 @@ describe("프레임 완료 뒤 분석 receipt", () => {
   it("실 audio는 WAV endpoint를 쓰며 decoder exception은 완료 receipt가 아니다", async () => {
     extract.audio.mockResolvedValue({ kind: "audio", blob: new Blob(["wav"]), sampleRate: 16000, durationS: 1 }); expect(await run()).toBe(false);
     expect(requests[1]!.path.endsWith("/audio")).toBe(true); expect(requests[1]!.body).toBeInstanceOf(FormData);
+    expect((requests[1]!.body as FormData).get("frameHandshakeVersion")).toBe("1"); expect((requests[1]!.body as FormData).get("frameCount")).toBe("1");
     extract.audio.mockRejectedValue(new Error("decoder failure")); requests = []; expect(await run()).toBe(true); expect(requests).toHaveLength(1);
+  });
+  it("partial frame failure marks a versioned audio upload without claiming frame completion", async () => {
+    extract.audio.mockResolvedValue({ kind: "audio", blob: new Blob(["wav"]), sampleRate: 16000, durationS: 1 });
+    vi.mocked(fetch).mockImplementation(async (input, init) => { requests.push({ path: String(input), body: init?.body }); return new Response(null, { status: String(input).endsWith("/frames") ? 503 : 201 }); });
+    expect(await run()).toBe(true); const audio = requests.find((r) => r.path.endsWith("/audio"))!.body as FormData;
+    expect(audio.get("frameHandshakeVersion")).toBe("1"); expect(audio.has("frameCount")).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ import { assertMediaWritable, withMediaWrite } from "../../lib/media-purge";
 import { analysisSqlBatch, writableSql } from "../../pipeline/analysis";
 import { storeAudio } from "../../lib/audio-write";
 import { AUDIO_UNAVAILABLE_REASONS, NO_AUDIO_PROOF } from "../../../shared/audio-analysis";
+import { completePreparedFrames } from "../../lib/media-preparation";
 
 // 업로드 완료 뒤 브라우저가 뽑아 보내는 분석 재료 (프레임, 오디오)
 
@@ -53,8 +54,9 @@ export function readAnalysisReceipt(request: Request) {
   if (!pending) { pending = parseReceipt(request); receiptCache.set(request, pending); }
   return pending;
 }
-async function wake(env: Env, submissionId: string) {
-  try { await env.PIPELINE.send({ type: "process_submission", payload: { submissionId } }); }
+async function wake(env: Env, submissionId: string, prepared?: { retryDetect: boolean; generation: number } | null) {
+  try { await env.PIPELINE.send({ type: "process_submission", payload: { submissionId,
+    ...(prepared?.retryDetect ? { stages: ["detect"], requestId: `prepared-frames:${prepared.generation}` } : {}) } }); }
   catch { throw new ApiError(503, "analysis_queue_unavailable", "분석 요청을 확인하지 못했어요. 다시 시도해 주세요."); }
 }
 
@@ -64,6 +66,10 @@ export const mediaRoutes = new Hono<AppEnv>()
     const body = await readAnalysisReceipt(c.req.raw), db = c.var.db;
     const { gi } = await uploadCtx(c), s = await findSubmission(db, gi, body.submissionId);
     if (!s.originalKey || !["uploaded", "processing", "ready", "failed"].includes(s.status)) throw new ApiError(409, "analysis_not_ready", "영상 업로드를 먼저 완료해 주세요.");
+    if (c.env.MEDIA_PREPARATION) {
+      const prepared = await completePreparedFrames(c.env, db, s.id, body.frameCount);
+      if (prepared) { await wake(c.env, s.id, prepared); return c.json({ ok: true }); }
+    }
     const reason = body.outcome.kind === "no_audio" ? NO_AUDIO_PROOF : body.outcome.reason;
     let changed: { audio_state: string }[];
     try { const result = await analysisSqlBatch(c.env.DB, [sql`UPDATE submission_analysis SET
@@ -121,8 +127,16 @@ export const mediaRoutes = new Hono<AppEnv>()
     const audio = form.get("audio");
     const sampleRate = Number(form.get("sampleRate"));
     const durationS = Number(form.get("durationS"));
+    const frameCount = c.env.MEDIA_PREPARATION && form.has("frameCount") ? Number(form.get("frameCount")) : null;
+    if (frameCount !== null && (!Number.isInteger(frameCount) || frameCount < 1 || frameCount > UPLOAD_LIMITS.maxFrames)) throw new ApiError(400, "bad_frames", "프레임 전송 상태를 확인해 주세요.");
     if (!(audio instanceof File) || audio.size > MAX_AUDIO_BYTES || !Number.isFinite(durationS)) throw new ApiError(400, "bad_audio", "오디오 형식이 올바르지 않아요.");
+    if (c.env.MEDIA_PREPARATION) {
+      const prepared = await completePreparedFrames(c.env, db, s.id, frameCount, !form.has("frameHandshakeVersion"));
+      if (prepared) { await wake(c.env, s.id, prepared); return c.json({ ok: true }, 201); }
+    }
     await storeAudio(c.env, db, s.id, await audio.arrayBuffer(), sampleRate, durationS);
+    if (c.env.MEDIA_PREPARATION && (frameCount !== null || !form.has("frameHandshakeVersion"))) await db.run(sql`UPDATE submission_analysis SET frames_complete=1 WHERE submission_id=${s.id}
+      AND (SELECT count(*) FROM frames WHERE submission_id=${s.id}) ${frameCount === null ? sql`>0` : sql`=${frameCount}`} AND ${writableSql(s.id)}`);
     await wake(c.env, s.id);
     return c.json({ ok: true }, 201);
   });

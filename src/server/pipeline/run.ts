@@ -11,6 +11,7 @@ import { stageDetect } from "./stages/detect";
 import { stageNotify } from "./stages/notify";
 import { mediaWritable } from "../lib/media-purge";
 import { analysisWrite, claimAnalysis, finishAnalysis, processingEvent, releaseAnalysis, renewAnalysis, StaleAnalysis } from "./analysis";
+import { prepareSubmissionMedia } from "../lib/media-preparation";
 
 // F-60 처리 파이프라인. Queue 메시지 { type: "process_submission", payload: { submissionId, stages? } }
 // 단계마다 processing_jobs 1행을 갱신하고, 한 단계가 실패해도 다음 단계는 가능한 범위에서 계속한다
@@ -45,6 +46,9 @@ async function loadCtx(env: Env, db: Db, submissionId: string): Promise<Ctx | nu
 // 전체 처리 요청인데 오디오가 아직 안 왔으면 잠시 뒤 다시 넣는다
 async function requeueIfEarly(ctx: Ctx, payload: Payload) {
   if (payload.stages) return false;
+  if (ctx.env.MEDIA_PREPARATION && now() - (ctx.sub.uploadedAt ?? 0) < WAIT_FOR_ANALYSIS_MS && await preparedFramesMissing(ctx)) {
+    await ctx.env.PIPELINE.send({ type: "process_submission", payload }, { delaySeconds: REQUEUE_DELAY_S }); return true;
+  }
   const audio = await ctx.db.select({ id: audioTracks.id }).from(audioTracks).where(eq(audioTracks.submissionId, ctx.sub.id)).get();
   const receipt = await ctx.db.get<{ ready: number }>(sql`SELECT 1 AS ready FROM submission_analysis WHERE submission_id=${ctx.sub.id} AND audio_state='none' AND frames_complete=1`);
   if (audio || receipt || now() - (ctx.sub.uploadedAt ?? 0) >= WAIT_FOR_ANALYSIS_MS) return false;
@@ -74,6 +78,13 @@ export async function processSubmission(raw: unknown, env: Env) {
   const ctx = await loadCtx(env, db, payload.submissionId);
   if (!ctx) return;
   if (!(await mediaWritable(db, ctx.sub.id))) return cancelJobs(db, [ctx.sub.id]);
+  if (env.MEDIA_PREPARATION) {
+    const preparation = await prepareSubmissionMedia(env, ctx.sub.id);
+    if (preparation === "yield" || preparation === "busy") {
+      await env.PIPELINE.send({ type: "process_submission", payload }, preparation === "busy" ? { delaySeconds: REQUEUE_DELAY_S } : undefined);
+      return;
+    }
+  }
   if (await requeueIfEarly(ctx, payload)) return;
 
   try {
@@ -81,12 +92,19 @@ export async function processSubmission(raw: unknown, env: Env) {
     const claim = await claimAnalysis(ctx, requestId);
     if (claim === "done") return;
     if (claim === "busy") { await env.PIPELINE.send({ type: "process_submission", payload }, { delaySeconds: REQUEUE_DELAY_S }); return; }
+    const frameRequest = requestId?.match(/^prepared-frames:(\d+)$/);
+    if (frameRequest && Number(frameRequest[1]) !== ctx.analysis!.generation) { await releaseAnalysis(ctx); return; }
+    let retries: readonly JobStage[] = payload.stages ?? [];
+    if (frameRequest) {
+      const detect = await db.select({ status: processingJobs.status, error: processingJobs.error }).from(processingJobs).where(jobWhere(ctx.sub.id, "detect")).get();
+      retries = detect?.status === "skipped" && detect.error === "frames_unavailable" ? ["detect"] : [];
+    }
     // A detect retry must not stamp old transcripts as terminal for a new audio
     // generation before that generation's transcription has run.
     const requested = payload.stages;
     const stages: JobStage[] = requested && ctx.analysis!.pendingGeneration && requested.some((stage) => stage === "detect" || stage === "translate")
       ? [...new Set<JobStage>(["transcribe", "translate", ...requested])] : requested ?? [...JOB_STAGES];
-    const pending = await queueStages(ctx, stages, payload.stages ?? []);
+    const pending = await queueStages(ctx, stages, retries);
     for (const stage of pending) { await renewAnalysis(ctx); await runStage(ctx, stage); }
     await finishAnalysis(ctx, pending.length > 0);
   } catch (error) {
@@ -103,6 +121,7 @@ async function runStage(ctx: Ctx, stage: JobStage) {
   const startedAt = now();
   await analysisWrite(ctx, [db.update(processingJobs).set({ status: "running", startedAt }).where(where)]);
   try {
+    if (stage === "detect" && ctx.env.MEDIA_PREPARATION && await preparedFramesMissing(ctx)) throw new StageSkip("frames_unavailable");
     const note = await STAGE_FNS[stage](ctx);
     await analysisWrite(ctx, [db.update(processingJobs).set({ status: "done", finishedAt: now(), error: note }).where(where),
       processingEvent(ctx, "processing_job_completed", { stage, duration_ms: now() - startedAt })]);
@@ -114,6 +133,11 @@ async function runStage(ctx: Ctx, stage: JobStage) {
       ...(!skipped ? [processingEvent(ctx, "processing_job_failed", { stage, reason })] : [])]);
     if (!skipped) console.error("[pipeline]", stage, sub.id, e);
   }
+}
+
+async function preparedFramesMissing(ctx: Ctx) {
+  return Boolean(await ctx.db.get(sql`SELECT 1 FROM submission_analysis a JOIN media_preparations p ON p.submission_id=a.submission_id
+    WHERE a.submission_id=${ctx.sub.id} AND p.state='selected' AND p.selected_generation=a.generation AND a.frames_complete=0`));
 }
 
 // 동의 철회 시 대기·진행 중인 작업을 멈춘다 (F-60 예외)

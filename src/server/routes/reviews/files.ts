@@ -10,6 +10,7 @@ import { findGuide, findGuideInfluencer } from "../../lib/guides";
 import { editorsOnly, workspaceCtx } from "../../middleware/auth";
 import { postUrlBody } from "./shared";
 import { assertMediaWritable } from "../../lib/media-purge";
+import { currentPreparedVideo } from "../../lib/media-preparation";
 
 // 키 모양: originals/{guideId}/..., frames/{submissionId}/...,
 // audio/{submissionId}/{hash}/{writeId}.wav (legacy audio/{submissionId}.wav도 지원)
@@ -38,8 +39,24 @@ export const fileRoutes = new Hono<AppEnv>().get("/:key{.+}", async (c) => {
   if (!owner) throw new ApiError(404, "file_not_found", "파일을 찾을 수 없어요.");
   await findGuide(db, workspace.id, owner.guideId);
   await assertMediaWritable(db, owner.submissionId);
-  return streamObject(c.env.FILES, key, c.req.raw.headers, c.req.query("download") === "1");
+  const download = c.req.query("download") === "1";
+  if (!download && kindOf(key) === "originals" && c.env.MEDIA_PREPARATION) {
+    let response: Response | undefined;
+    try {
+      const playback = await currentPreparedVideo(c.env, db, owner.submissionId);
+      if (playback) {
+        response = await streamObject(c.env.FILES, playback, c.req.raw.headers, false);
+        if (await currentPreparedVideo(c.env, db, owner.submissionId) === playback) {
+          await assertMediaWritable(db, owner.submissionId); return response;
+        }
+      }
+    } catch { /* An unavailable/stale proxy never hides a readable original. */ }
+    await response?.body?.cancel().catch(() => {});
+    await assertMediaWritable(db, owner.submissionId);
+  }
+  return streamObject(c.env.FILES, key, c.req.raw.headers, download);
 });
+const kindOf = (key: string) => key.split("/", 1)[0];
 
 // 게시물 URL: 브랜드가 가이드 상세 인플루언서 행에서 넣는다 (F-48)
 export const guideContentRoutes = new Hono<AppEnv>().post("/:id/influencers/:giId/post-url", editorsOnly, async (c) => {

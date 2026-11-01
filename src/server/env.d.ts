@@ -1,6 +1,8 @@
 // 시크릿은 wrangler types 결과에 없으므로 여기서 선택값으로 선언한다. 없으면 해당 기능을 끈다.
 // wrangler.jsonc vars 에 있는 이름(APP_URL, APP_ENV 등)은 생성물에 들어가므로 여기에 다시 쓰지 않는다
 interface Env {
+  // Optional private service capability. No binding is added by this change.
+  MEDIA_PREPARATION?: import("./lib/media-preparation-contract").MediaPreparationService;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   RESEND_API_KEY?: string;

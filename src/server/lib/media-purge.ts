@@ -3,6 +3,7 @@ import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
 import { getDb, type Db } from "../db";
 import { ApiError } from "./errors";
 import { newId, now } from "./ids";
+import { managedPreparedKey } from "./media-preparation-contract";
 
 type Resource = { key: string; kind: "object" | "multipart"; uploadId?: string | null };
 type Purge = { submissionId: string; consentId: string; completedAt: number | null };
@@ -89,6 +90,7 @@ export function validMediaKey(submissionId: string, key: string): boolean {
   if (!TOKEN.test(submissionId) || /[\\\u0000-\u0020\u007f]/.test(key)) return false;
   if (key === `audio/${submissionId}.wav`) return true;
   if (managedAudioKey(submissionId, key)) return true;
+  if (managedPreparedKey(submissionId, key)) return true;
   const frame = key.match(/^frames\/([\w-]+)\/(\d+)\.jpg$/);
   if (frame) return frame[1] === submissionId;
   const original = key.match(/^originals\/([\w-]+)\/([\w-]+)\/([\w-]+)\.(mp4|mov|webm)$/);
@@ -114,13 +116,17 @@ export async function cleanupRetiredAudio(env: Env, db: Db, submissionId?: strin
   const result = await mediaBatch(db, [sql`UPDATE media_purge_objects AS p SET retired_at=${at}
     WHERE id IN(SELECT id FROM media_purge_objects WHERE audio_write_until<=${at} AND audio_committed_at IS NULL AND retired_at IS NULL
       AND (${scope} IS NULL OR submission_id=${scope}) ORDER BY audio_write_until,id LIMIT 100)
-    AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)`,
+    AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)
+    AND NOT EXISTS(SELECT 1 FROM media_preparations j JOIN submissions s ON s.id=j.submission_id JOIN submission_analysis a ON a.submission_id=s.id
+      WHERE j.video_key=p.key AND j.state='selected' AND j.selected_generation=a.generation AND j.source_key=s.original_key AND j.source_etag=s.original_etag)`,
     sql`SELECT p.id,p.submission_id AS submissionId,p.key FROM media_purge_objects p WHERE p.retired_at IS NOT NULL AND p.kind='object'
       AND (${scope} IS NULL OR p.submission_id=${scope})
       AND NOT EXISTS(SELECT 1 FROM audio_tracks a WHERE a.submission_id=p.submission_id AND a.key=p.key)
+      AND NOT EXISTS(SELECT 1 FROM media_preparations j JOIN submissions s ON s.id=j.submission_id JOIN submission_analysis a ON a.submission_id=s.id
+        WHERE j.video_key=p.key AND j.state='selected' AND j.selected_generation=a.generation AND j.source_key=s.original_key AND j.source_etag=s.original_etag)
       ORDER BY p.deleted_at,p.retired_at,p.id LIMIT 100`]);
   const objects = result[1]!.results as { id: string; submissionId: string; key: string }[];
-  if (objects.some((object) => !managedAudioKey(object.submissionId, object.key))) throw new Error("invalid_media_key");
+  if (objects.some((object) => !managedAudioKey(object.submissionId, object.key) && !managedPreparedKey(object.submissionId, object.key))) throw new Error("invalid_media_key");
   if (!objects.length) return 0;
   await env.FILES.delete(objects.map((object) => object.key));
   await db.run(sql`UPDATE media_purge_objects SET deleted_at=${at} WHERE id IN(SELECT value FROM json_each(${JSON.stringify(objects.map((object) => object.id))}))`);
@@ -136,13 +142,16 @@ async function snapshotResources(env: Env, db: Db, submissionId: string) {
   const rows = await db.all<{ key: string; uploadId: string | null }>(sql`
     SELECT original_key AS key,upload_id AS uploadId FROM submissions WHERE id=${submissionId} AND original_key IS NOT NULL
     UNION ALL SELECT image_key,NULL FROM frames WHERE submission_id=${submissionId}
-    UNION ALL SELECT key,NULL FROM audio_tracks WHERE submission_id=${submissionId}`);
+    UNION ALL SELECT key,NULL FROM audio_tracks WHERE submission_id=${submissionId}
+    UNION ALL SELECT key,NULL FROM prepared_media_objects WHERE submission_id=${submissionId}`);
   for (const row of rows) {
     add({ key: row.key, kind: "object" });
     if (row.uploadId) add({ key: row.key, kind: "multipart", uploadId: row.uploadId });
   }
   // 원장을 쓴 뒤 중단된 put이나 DB 참조 없이 남은 프레임도 정확한 제출물 prefix 안에서만 찾는다.
-  for (const prefix of [`frames/${submissionId}/`, `audio/${submissionId}/`]) {
+  const prefixes = [`frames/${submissionId}/`, `audio/${submissionId}/`];
+  if (rows.some((row) => managedPreparedKey(submissionId, row.key))) prefixes.push(`prepared/${submissionId}/`);
+  for (const prefix of prefixes) {
     let cursor: string | undefined;
     do {
       const page = await env.FILES.list({ prefix, cursor });
@@ -193,6 +202,7 @@ export async function purgeSubmissionMedia(env: Env, submissionId: string): Prom
       sql`DELETE FROM audio_tracks WHERE submission_id=${submissionId}`,
       sql`DELETE FROM upload_parts WHERE submission_id=${submissionId}`,
       sql`UPDATE submissions SET original_key=NULL,upload_id=NULL,drive_url=NULL,drive_access=NULL,media_purged_at=${at} WHERE id=${submissionId}`,
+      ...(objects.some((object) => object.id.startsWith("prepared:") || managedPreparedKey(submissionId, object.key)) ? [sql`UPDATE media_preparations SET state='retired' WHERE submission_id=${submissionId}`] : []),
       sql`UPDATE media_purges SET completed_at=coalesce(completed_at,${at}),checked_at=${at},attempts=attempts+1,last_error=NULL,next_attempt_at=0 WHERE submission_id=${submissionId}`,
     ]);
     counts.transcriptsDeleted = results[0]?.results.length ?? 0;

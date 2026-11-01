@@ -152,6 +152,7 @@ export const submissions = sqliteTable(
     fileName: text("file_name"),
     sizeBytes: integer("size_bytes"),
     originalKey: text("original_key"),
+    originalEtag: text("original_etag"),
     durationS: real("duration_s"),
     sizeMb: real("size_mb"),
     width: integer("width"),

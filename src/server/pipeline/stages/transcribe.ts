@@ -32,7 +32,7 @@ export async function stageTranscribe(ctx: Ctx): Promise<string | null> {
   if (!audio) {
     const receipt = await db.query.submissionAnalysis.findFirst({ where: (a, { eq }) => eq(a.submissionId, sub.id) });
     await assertCurrentAnalysis(ctx);
-    throw new StageSkip(receipt?.audioState === "none" && receipt.framesComplete ? "no_audio_track" : "audio_unavailable");
+    throw new StageSkip(receipt?.audioState === "none" && (receipt.framesComplete || receipt.audioReason === "server_prepared_no_audio") ? "no_audio_track" : "audio_unavailable");
   }
   const obj = await env.FILES.get(audio.key);
   if (!obj) throw new StageSkip("audio_unavailable");

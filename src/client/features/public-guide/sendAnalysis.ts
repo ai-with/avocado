@@ -37,6 +37,8 @@ async function sendAudio(base: string, submissionId: string, file: File, frames:
   form.set("submissionId", submissionId);
   form.set("sampleRate", String(audio.sampleRate));
   form.set("durationS", String(audio.durationS));
+  form.set("frameHandshakeVersion", "1");
+  if (!frames.failed && frames.count > 0) form.set("frameCount", String(frames.count));
   form.set("audio", audio.blob, "audio.wav");
   return !(await postWithRetry(base, "audio", form));
 }

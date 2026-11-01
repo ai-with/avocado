@@ -16,7 +16,8 @@ export const writableSql = (id: string) => sql`EXISTS(SELECT 1 FROM submissions 
  AND NOT EXISTS(SELECT 1 FROM media_purges p WHERE p.submission_id=s.id))`;
 function scope(ctx: Ctx): SQL {
   const claim = ctx.analysis;
-  return claim ? sql`${writableSql(ctx.sub.id)} AND EXISTS(SELECT 1 FROM submission_analysis a WHERE a.submission_id=${ctx.sub.id}
+  const source = ctx.env.MEDIA_PREPARATION && ctx.sub.originalEtag ? sql`EXISTS(SELECT 1 FROM submissions WHERE id=${ctx.sub.id} AND original_key=${ctx.sub.originalKey} AND original_etag=${ctx.sub.originalEtag})` : sql`1`;
+  return claim ? sql`${writableSql(ctx.sub.id)} AND ${source} AND EXISTS(SELECT 1 FROM submission_analysis a WHERE a.submission_id=${ctx.sub.id}
     AND a.generation=${claim.generation} AND a.claim_token=${claim.token} AND a.claim_until>${now()})` : writableSql(ctx.sub.id);
 }
 export async function assertCurrentAnalysis(ctx: Ctx) {
@@ -47,14 +48,15 @@ export function processingEvent(ctx: Ctx, name: "processing_job_completed" | "pr
 }
 export async function claimAnalysis(ctx: Ctx, requestId: string | null) {
   const token = newToken(), at = now();
+  const prepBusy = ctx.env.MEDIA_PREPARATION ? sql`EXISTS(SELECT 1 FROM media_preparations WHERE submission_id=${ctx.sub.id} AND state='preparing' AND lease_until>${at})` : sql`0`;
   const rows = await ctx.db.all<{ generation: number; completed_generation: number }>(sql`UPDATE submission_analysis SET claim_token=${token},claim_until=${at + CLAIM_MS}
-    WHERE submission_id=${ctx.sub.id} AND ${writableSql(ctx.sub.id)} AND (claim_token IS NULL OR claim_until<=${at})
+    WHERE submission_id=${ctx.sub.id} AND ${writableSql(ctx.sub.id)} AND NOT (${prepBusy}) AND (claim_token IS NULL OR claim_until<=${at})
     AND ((${requestId} IS NULL AND completed_generation<generation) OR (${requestId} IS NOT NULL AND NOT EXISTS(
       SELECT 1 FROM submission_analysis_retries r WHERE r.submission_id=${ctx.sub.id} AND r.request_id=${requestId} AND r.completed_at IS NOT NULL))) RETURNING generation,completed_generation`);
   if (rows[0]) { ctx.analysis = { generation: rows[0].generation, token, requestId, pendingGeneration: rows[0].completed_generation < rows[0].generation }; return "claimed" as const; }
   await assertMediaWritable(ctx.db, ctx.sub.id);
-  const state = await ctx.db.get<{ claim_token: string | null; claim_until: number | null }>(sql`SELECT claim_token,claim_until FROM submission_analysis WHERE submission_id=${ctx.sub.id}`);
-  return state?.claim_token && (state.claim_until ?? 0) > at ? "busy" as const : "done" as const;
+  const state = await ctx.db.get<{ claim_token: string | null; claim_until: number | null; prep_busy: number }>(sql`SELECT claim_token,claim_until,${prepBusy} AS prep_busy FROM submission_analysis WHERE submission_id=${ctx.sub.id}`);
+  return state?.prep_busy || (state?.claim_token && (state.claim_until ?? 0) > at) ? "busy" as const : "done" as const;
 }
 export async function renewAnalysis(ctx: Ctx) {
   await analysisWrite(ctx, [sql`UPDATE submission_analysis SET claim_until=${now() + CLAIM_MS} WHERE submission_id=${ctx.sub.id}`]);
