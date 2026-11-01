@@ -18,7 +18,7 @@ const closes: (() => void)[] = [];
 beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(NOW); vi.spyOn(console, "error").mockImplementation(() => {}); vi.spyOn(console, "log").mockImplementation(() => {}); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("No real provider/AI"); })); });
 afterEach(() => { closes.splice(0).forEach((close) => close()); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 const asBuffer = (value: Uint8Array) => value.slice().buffer as ArrayBuffer;
-function bytesStream(value: Uint8Array) { let sent = false; return new ReadableStream({ type: "bytes", pull(controller) { if (sent) controller.close(); else { sent = true; controller.enqueue(value.slice()); } } }); }
+function bytesStream(value: Uint8Array) { let sent = false; return new ReadableStream({ type: "bytes", pull(controller) { if (sent) { controller.close(); controller.byobRequest?.respond(0); } else { sent = true; controller.enqueue(value.slice()); } } }); }
 type Stored = { bytes: Uint8Array; etag: string; sha?: ArrayBuffer; type?: string };
 async function setup(audio = true) {
   const base = await createSqliteD1(); closes.push(base.close); const { db } = base;

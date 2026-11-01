@@ -10,18 +10,24 @@ const input = () => new ReadableStream({type:"bytes",start(c){c.enqueue(new Uint
 const manifest = () => ({v:1,generation:1,consentId:"synthetic",sourceEtag:"immutable",inputBytes:3,inputSha256:"a".repeat(64),durationS:1,audio:{state:"none",proof:"complete_probe_and_video_decode_no_audio"},artifacts:[{name:"video.mp4",bytes:3,sha256:"b".repeat(64)}]});
 const delay = ms => new Promise(resolve=>setTimeout(resolve,ms));
 async function collect(stream) { let total=0; for await(const chunk of stream)total+=chunk.length; return total; }
-function runtime(mode="normal") {
-  const events=[]; let done; let alive=false;
-  return {events,images:{base:"fake-image"},get running(){return alive;},
+function runtime(mode="normal",actualJob=job) {
+  const events=[],inputFrames=[]; let done; let alive=false;
+  return {events,inputFrames,images:{base:"fake-image"},get running(){return alive;},
     start(options){assert.equal(options.instance,"standard-2");assert.equal(options.enableInternet,false);assert.deepEqual(options.env,{});alive=true;events.push("start");},
     async setInactivityTimeout(ms){assert.ok(ms>5000);events.push("idle-policy");},
     signal(n){events.push("signal:"+n);done?.(137);},
     async destroy(){events.push("destroy");alive=false;done?.(137);},
     async exec(command,options){
       assert.deepEqual(command,["python3","/app/protocol.py"]); assert.equal(options.user,"65532:65532"); assert.deepEqual(Object.keys(options.env).sort(),["PYTHONDONTWRITEBYTECODE","TMPDIR"]);
-      const size=await collect(options.stdin); assert.ok(size>job.declaredBytes); events.push("input-eof");
+      let size=0,first=true,eof=false;
+      for await(const chunk of options.stdin) {
+        const n=new DataView(chunk.buffer,chunk.byteOffset,chunk.byteLength).getUint32(0);assert.equal(chunk.length,n+4);size+=chunk.length;
+        if(first){first=false;assert.equal(JSON.parse(new TextDecoder().decode(chunk.subarray(4))).declaredBytes,actualJob.declaredBytes);}
+        else if(n)inputFrames.push(n);else eof=true;
+      }
+      assert.ok(size>actualJob.declaredBytes);assert.equal(eof,true);events.push("input-eof");
       const exitCode=new Promise(resolve=>{done=resolve;});
-      const chunks=[packet(bytes(JSON.stringify(manifest()))),packet(new Uint8Array([4,5,6])),empty(),empty()];
+      const chunks=[packet(bytes(JSON.stringify({...manifest(),inputBytes:actualJob.declaredBytes}))),packet(new Uint8Array([4,5,6])),empty(),empty()];
       if(mode==="trailing")chunks.push(new Uint8Array([99]));
       if(mode==="missing-footer")chunks.pop();
       let index=0, sent=false;
@@ -90,4 +96,28 @@ test("input stall and raw provider errors emit no identifiers; a failing logger 
   assert.deepEqual(raw.logs.filter(r=>r.event==="abort").map(r=>[r.phase,r.code]),[["startup","container_preparation_failed"]]);
   assert.equal(/https|SECRET|private|userId|submissionId|sourceEtag|consentId|jobId/.test(JSON.stringify(raw.logs)),false);
   const unobservable=setup("normal",{log(){throw Error("logger unavailable");}});await unobservable.run();assert.equal(unobservable.state().selected,true);
+});
+test("607918275 virtual input bytes in 16KiB source chunks become exactly 580 native payload frames",async()=>{
+  const total=607918275,MIB=1024**2,large={...job,declaredBytes:total};let sent=0,pulls=0,selected=false;
+  const source=new ReadableStream({type:"bytes",pull(c){pulls++;const n=Math.min(16384,total-sent);if(!n){c.close();return;}sent+=n;c.enqueue(new Uint8Array(n));}});
+  const c=runtime("normal",large),logs=[];
+  const transport=new ContainerTransport(c,{totalMs:10000,idleMs:5000,log:r=>logs.push(r)});
+  const permit={async assertCurrent(){}};
+  const sink={async stage(_,stream){await collect(stream);},async commit(){selected=true;},async retireUnselected(){}};
+  await createMediaService(transport).prepare(large,source,permit,sink);
+  assert.equal(selected,true);assert.equal(sent,total);assert.equal(pulls,Math.ceil(total/16384)+1);
+  assert.equal(c.inputFrames.length,Math.ceil(total/MIB));assert.equal(c.inputFrames.length,580);
+  assert.equal(c.inputFrames.reduce((a,b)=>a+b,0),total);assert.ok(c.inputFrames.every(n=>n<=MIB));
+  assert.equal(logs.find(r=>r.event==="input_eof").inputBytes,total);
+});
+test("batched input still rejects a one-byte truncation and one-byte excess before publish",async()=>{
+  const MIB=1024**2,large={...job,declaredBytes:MIB+7};
+  for(const delta of [-1,1]) {
+    let remaining=large.declaredBytes+delta,selected=false;
+    const source=new ReadableStream({type:"bytes",pull(c){const n=Math.min(257,remaining);if(!n){c.close();return;}remaining-=n;c.enqueue(new Uint8Array(n));}});
+    const c=runtime("normal",large),transport=new ContainerTransport(c,{totalMs:1000,log(){}});
+    await assert.rejects(createMediaService(transport).prepare(large,source,{async assertCurrent(){}},
+      {async stage(_,stream){await collect(stream);},async commit(){selected=true;},async retireUnselected(){}}));
+    assert.equal(selected,false);assert.ok(c.events.includes("destroy"));
+  }
 });

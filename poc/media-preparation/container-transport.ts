@@ -2,6 +2,7 @@
  * No HTTP server/proxy, bucket binding, secret or arbitrary command execution.
  * RPC disconnect is NOT an abort signal: explicit cancel + watchdog/alarm own it.
  */
+import { BoundedByteReader } from "./byte-reader.ts";
 export type Job = { jobId: string; generation: number; consentId: string; sourceEtag: string; declaredBytes: number };
 export type Gate = { check(): Promise<void>; force(): Promise<void>; cancel(): void };
 type Runtime = Pick<Container, "running" | "images" | "start" | "exec" | "destroy" | "signal" | "setInactivityTimeout">;
@@ -156,14 +157,14 @@ export class ContainerTransport {
       // Native exec's effect on inactivity is not specified. Never use a short
       // idle window during compute; explicit destroy/alarm bound the whole job.
       await wait(this.runtime.setInactivityTimeout(this.limits.totalMs + this.limits.cleanupMs + 5000));
-      const reader = source.getReader(); let first = true, ended = false, sent = 0;
+      const reader = new BoundedByteReader(source); let first = true, ended = false, sent = 0;
       a.cancelInput = () => { void reader.cancel().catch(() => {}); };
       const input = new ReadableStream<Uint8Array>({ type: "bytes", pull: async controller => {
         try {
           if (first) { first = false; const meta = new TextEncoder().encode(JSON.stringify(job)); if (meta.byteLength > 4096) throw error("job_header_limit"); controller.enqueue(frame(meta)); return; }
           a.phase = "input";
-          const part = await wait(reader.read()); touch();
-          if (part.done) { if (sent !== job.declaredBytes) throw error("input_incomplete"); ended = true; a.phase = "compute"; reader.releaseLock(); controller.enqueue(frame(new Uint8Array())); controller.close(); this.record(a, "input_eof"); return; }
+          const part = await reader.read(Math.max(1, Math.min(CHUNK, job.declaredBytes - sent)), gate.check, wait); touch();
+          if (part.done) { if (sent !== job.declaredBytes) throw error("input_incomplete"); ended = true; a.phase = "compute"; reader.releaseLock(); controller.enqueue(frame(new Uint8Array())); controller.close(); if ("byobRequest" in controller) controller.byobRequest?.respond(0); this.record(a, "input_eof"); return; }
           if (!(part.value instanceof Uint8Array) || part.value.byteLength > CHUNK) throw error("input_chunk_limit");
           sent += part.value.byteLength;
           if (sent > job.declaredBytes || sent > 2 * 1024 ** 3) throw error("input_size_limit");
@@ -200,7 +201,7 @@ export class ContainerTransport {
             }
             // Last output never closes until footer+stdout EOF+stderr+exit0 and
             // whole-container teardown are known. A manifest is not completion.
-            controller.close();
+            controller.close(); if ("byobRequest" in controller) controller.byobRequest?.respond(0);
           } catch (cause) { this.abort(a, diagnosticCode(cause, "output_transfer_failed")); controller.error(error("output_transfer_failed")); }
         }, cancel: async () => { await this.cancel(job.jobId); } });
       }

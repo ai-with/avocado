@@ -4,6 +4,7 @@
  * { status: "busy" } for a healthy active owner before this service runs; the
  * unchanged manifest is the successful result. Cleanup uncertainty still fails.
  */
+import { BoundedByteReader } from "./byte-reader.ts";
 export const CAPS = Object.freeze({ inputBytes: 2 * 1024 ** 3, durationS: 180,
   videoBytes: 64 * 1024 ** 2, audioBytes: 6 * 1024 ** 2, chunkBytes: 1024 ** 2 });
 
@@ -13,14 +14,14 @@ const exactKeys = (value, keys) => value && typeof value === "object"
   && Object.keys(value).sort().join() === [...keys].sort().join();
 
 function countedStream(source, cap, expected, check, completed) {
-  const reader = source.getReader(); let total = 0;
+  const reader = new BoundedByteReader(source); let total = 0;
   return new ReadableStream({ type: "bytes",
     async pull(controller) {
       try {
-        await check(); const item = await reader.read();
+        const item = await reader.read(Math.max(1, Math.min(CAPS.chunkBytes, expected - total)), check);
         if (item.done) {
           if (total !== expected) fail("stream_incomplete");
-          completed(); reader.releaseLock(); controller.close(); return;
+          completed(); reader.releaseLock(); controller.close(); controller.byobRequest?.respond(0); return;
         }
         if (!(item.value instanceof Uint8Array) || item.value.byteLength > CAPS.chunkBytes) fail("stream_chunk_limit");
         total += item.value.byteLength;
