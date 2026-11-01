@@ -22,6 +22,7 @@
     }
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "avocado-files" }],
+  "services": [{ "binding": "MEDIA_PREPARATION", "service": "avocado-media-preparation", "entrypoint": "MediaPreparation" }],
   "queues": {
     "producers": [
       { "binding": "PIPELINE", "queue": "avocado-pipeline" },
