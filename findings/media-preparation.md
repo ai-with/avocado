@@ -15,6 +15,8 @@ Containers 포함량은 월 메모리 25GiB-hours·CPU 375vCPU-minutes·디스�
 
 근거: [Stream 요금](https://developers.cloudflare.com/stream/pricing/), [Containers 요금](https://developers.cloudflare.com/containers/platform/pricing/), [인스턴스·제한](https://developers.cloudflare.com/containers/platform/limits/). 가격·API는 2026-11-01 공식 문서를 확인했다.
 
+비공개 `exec()` 프로토타입은 [Durable Object Container API](https://developers.cloudflare.com/containers/api/durable-object-container/)의 `durable_object` 정책을 쓴다. 이 API 문서와 저장소에 고정된 Workers 타입의 명명된 크기는 `lite`, `standard-1` 이상이며 `basic`은 나열되어 있지 않다. 따라서 이 프로토타입은 **standard-1(½vCPU·4GiB·8GB)**을 사용한다. 같은 180초 계산의 세 항목 초과분은 약 **$0.0037008**이며 부대비용·포함량·실측 조건은 위와 같다. basic 계산은 일반 인스턴스 요금 비교용이다. 실제 배포 제안은 사용하는 API 정책과 인스턴스 크기를 함께 명시해야 한다.
+
 ## 처리 시간 비교
 
 | 단계 | Stream | Containers + FFmpeg |
