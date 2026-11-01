@@ -38,7 +38,7 @@ async function setup() {
   base.db.exec("INSERT INTO workspaces(id,name,created_at) VALUES('w','QA',1)");
   base.db.exec("INSERT INTO sites(id,workspace_id,site_key,name,allowed_domains,collect_raw_email,created_at) VALUES('site','w','site-key','QA','[\"shop.test\"]',1,1)");
   const counted = meter(base.d1), sent: PipelineMessage[] = [];
-  const sendBatch = vi.fn(async (batch: { body: PipelineMessage }[]) => { sent.push(...batch.map((item) => item.body)); });
+  const sendBatch = vi.fn(async (batch: { body: PipelineMessage }[]) => { sent.push(...batch.map((item) => item.body).filter((message) => message.type === "collect_identify")); });
   const env = { DB: counted.d1, TOKEN_ENC_KEY: "collect-retry-private-key", PIPELINE: { sendBatch } } as unknown as Env;
   return { ...base, ...counted, env, sent, sendBatch };
 }
@@ -160,11 +160,11 @@ describe("collect lease, outbox and Worker redelivery", () => {
     hooks.batch = (sql) => { conversionStatements += sql.filter((text) => text.includes("INSERT OR IGNORE INTO site_conversions")).length; };
     const conversions = Array.from({ length: 50 }, (_, i) => event(`conversion-${i}`, { t: "conversion", kind: "purchase", value: 1, orderId: `order-${i}` }));
     expect((await collect(env, envelope(conversions, { attr }))).action).toBe("ack");
-    expect(conversionStatements).toBe(1); expect(stats().physical).toBeLessThanOrEqual(15); expect(stats().api).toBeLessThanOrEqual(6);
+    expect(conversionStatements).toBe(1); expect(stats().physical).toBeLessThanOrEqual(18); expect(stats().api).toBeLessThanOrEqual(6);
     reset();
     const identities = Array.from({ length: 50 }, (_, i) => event(`identify-${i}`, { t: "identify", emailHash: i.toString(16).padStart(64, "0") }));
     expect((await collect(env, envelope(identities, { sess: "second-session", attr }))).action).toBe("ack");
-    expect(stats().physical).toBeLessThanOrEqual(15); expect(stats().api).toBeLessThanOrEqual(6); expect(stats().binds).toBeLessThanOrEqual(100);
+    expect(stats().physical).toBeLessThanOrEqual(18); expect(stats().api).toBeLessThanOrEqual(6); expect(stats().binds).toBeLessThanOrEqual(100);
   });
 
   it("같은 봉투 안의 duplicate ID도 한 번만 집계한다", () => {

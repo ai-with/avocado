@@ -40,8 +40,11 @@ scheduledTasks.push(cleanupAuthRecords);
 
 // TASK-029: 웹 SDK 수집 큐 소비자, 이벤트 중복 제거 기록 정리, 기존 리드 이메일 해시 채우기
 import { consumeCollect, pruneEventIds } from "./lib/collect/consume";
+import { maintainSdkStorage, processRawBatch } from "./lib/collect/raw";
 import { backfillEmailHashes } from "./lib/leads";
 batchQueueHandlers["avocado-collect"] = consumeCollect;
+queueHandlers.collect_raw = processRawBatch;
+queueHandlers.sdk_storage_maintenance = (_payload, env) => maintainSdkStorage(env);
 scheduledTasks.push(pruneEventIds, backfillEmailHashes);
 
 // AIWITH-283: 개인정보 작업별 Queue 호출로 Cron과 D1/R2 호출 예산을 분리한다.

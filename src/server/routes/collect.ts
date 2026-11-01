@@ -6,7 +6,7 @@ import { now } from "../lib/ids";
 import { deviceOf, isBotUA } from "../lib/links";
 import { MAX_BODY_BYTES, parseEnvelope } from "../lib/collect/schema";
 import { hostAllowed, hostOf } from "../lib/collect/origin";
-import { writeEvents } from "../lib/collect/analytics-engine";
+import { stageCollectIntake } from "../lib/collect/intake";
 import type { CollectMessage } from "../lib/collect/consume";
 import type { Envelope } from "../../shared/sdk-events";
 
@@ -28,8 +28,23 @@ export function shouldDrop(env: Envelope, site: Pick<Site, "consentMode">, ua: s
 
 async function readBody(c: Context<AppEnv>): Promise<string | null> {
   if (Number(c.req.header("content-length") ?? 0) > MAX_BODY_BYTES) return null;
-  const buf = await c.req.arrayBuffer();
-  return buf.byteLength > MAX_BODY_BYTES ? null : new TextDecoder().decode(buf);
+  const reader = c.req.raw.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > MAX_BODY_BYTES) { await reader.cancel().catch(() => {}); return null; }
+      chunks.push(next.value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  try { return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes); } catch { return ""; }
 }
 
 export function freezeConversionCurrency(envelope: Envelope, currency: string): Envelope {
@@ -39,7 +54,6 @@ export function freezeConversionCurrency(envelope: Envelope, currency: string): 
 async function enqueue(c: Context<AppEnv>, site: Site, incoming: Envelope) {
   // Freeze the accepted source unit before site settings can change in Queue.
   const envelope = freezeConversionCurrency(incoming, site.currency);
-  writeEvents(c.env.SITE_EVENTS, site.id, envelope);
   const ua = c.req.header("user-agent");
   const payload: CollectMessage = {
     siteId: site.id,
@@ -49,7 +63,11 @@ async function enqueue(c: Context<AppEnv>, site: Site, incoming: Envelope) {
     device: deviceOf(ua),
     envelope,
   };
-  await c.env.COLLECT.send({ type: "collect", payload });
+  const id = await stageCollectIntake(c.env, payload);
+  if (id) {
+    try { await c.env.COLLECT.send({ type: "collect", payload: { id } }); }
+    catch { throw new Error("sdk_intake_enqueue_failed"); }
+  }
 }
 
 export const collectRoutes = new Hono<AppEnv>()

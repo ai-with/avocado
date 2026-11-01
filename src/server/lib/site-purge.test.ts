@@ -37,7 +37,7 @@ describe("사이트 개인정보 파기", () => {
     for (const id of ["due", "future", "active", "other"]) { site(db, id, null, id === "other" ? "w2" : "w1"); children(db, id); }
     db.prepare("UPDATE sites SET deleted_at = ? WHERE id = 'due'").run(CUTOFF);
     db.prepare("UPDATE sites SET deleted_at = ? WHERE id = 'future'").run(CUTOFF + 1);
-    await purgeDeletedSites({ DB: d1 } as Env, controller);
+    await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
     expect(db.prepare("SELECT count(*) AS n FROM sites WHERE id = 'due'").all()[0]?.n).toBe(0);
     for (const table of ["site_sessions", "site_conversions", "site_people", "site_daily_stats", "site_event_ids", "site_identify_jobs"]) {
       expect(count(db, table, "due")).toBe(0);
@@ -46,7 +46,7 @@ describe("사이트 개인정보 파기", () => {
     const record = db.prepare("SELECT props FROM events WHERE name='site_privacy_cleanup_completed'").all()[0];
     expect(JSON.parse(String(record?.props))).toMatchObject({ sites_deleted: 1, event_ids_deleted: 1, overdue_remaining: 0, failures: 0, analytics_engine: "provider_retention_unresolved" });
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-    await purgeDeletedSites({ DB: d1 } as Env, controller);
+    await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
     expect(db.prepare("SELECT count(*) AS n FROM sites").all()[0]?.n).toBe(3);
   });
 
@@ -56,12 +56,12 @@ describe("사이트 개인정보 파기", () => {
     site(db, "due"); children(db, "due");
     db.prepare("UPDATE sites SET deleted_at=? WHERE id='due'").run(CUTOFF);
     db.exec("CREATE TRIGGER fail_site_delete BEFORE DELETE ON sites BEGIN SELECT RAISE(ABORT,'test'); END");
-    await expect(purgeDeletedSites({ DB: d1 } as Env, controller)).rejects.toThrow();
+    await expect(purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller)).rejects.toThrow();
     expect(count(db, "site_event_ids", "due")).toBe(1);
     expect(db.prepare("SELECT count(*) AS n FROM events WHERE name='site_privacy_cleanup_completed'").all()[0]?.n).toBe(0);
     db.exec("DROP TRIGGER fail_site_delete");
     vi.spyOn(console, "log").mockImplementation(() => {});
-    await purgeDeletedSites({ DB: d1 } as Env, controller);
+    await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
     expect(count(db, "site_event_ids", "due")).toBe(0);
   });
 
@@ -69,10 +69,10 @@ describe("사이트 개인정보 파기", () => {
     const { db, d1 } = await setup();
     vi.spyOn(console, "log").mockImplementation(() => {});
     for (let i = 0; i < 101; i++) site(db, `s${i}`, CUTOFF);
-    await purgeDeletedSites({ DB: d1 } as Env, controller);
-    const props = JSON.parse(String(db.prepare("SELECT props FROM events WHERE name='site_privacy_cleanup_completed'").all()[0]?.props));
+    await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
+    const props = JSON.parse(String(db.prepare("SELECT props FROM events WHERE name='site_privacy_cleanup_progress'").all()[0]?.props));
     expect(props).toMatchObject({ sites_deleted: 100, overdue_before: 101, overdue_remaining: 1 });
-    await purgeDeletedSites({ DB: d1 } as Env, controller);
+    await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
     expect(db.prepare("SELECT count(*) AS n FROM sites").all()[0]?.n).toBe(0);
   });
 
@@ -85,7 +85,7 @@ describe("사이트 개인정보 파기", () => {
     db.prepare("UPDATE sites SET deleted_at=? WHERE id='s'").run(CUTOFF);
     if (kind === "hard") {
       vi.spyOn(console, "log").mockImplementation(() => {});
-      await purgeDeletedSites({ DB: d1 } as Env, controller);
+      await purgeDeletedSites({ DB: d1, PIPELINE: { sendBatch: vi.fn() } } as unknown as Env, controller);
     }
     await d1.batch([session, conversion, stats, insertEventIds(d1, "s", ["late"], NOW), markFirstEvent(d1, "s", NOW),
       d1.prepare("INSERT INTO site_people(id,site_id,anon_ids,email_hash,created_at) VALUES('late','s','[]','stale-hash',1)"),

@@ -4,7 +4,7 @@ import { getDb } from "../db";
 import type { AppEnv } from "../types";
 import { collectRoutes } from "./collect";
 import { createSqliteD1, type TestSqlite } from "../test/sqlite-d1";
-import type { CollectMessage } from "../lib/collect/consume";
+import { loadCollectMessage } from "../lib/collect/intake";
 const databases: TestSqlite[] = [];
 afterEach(() => databases.splice(0).forEach((db) => db.close()));
 it("HTTP 시점의 site currency만 생략 conversion에 고정하고 명시 currency/다른 이벤트를 보존한다", async () => {
@@ -17,10 +17,11 @@ it("HTTP 시점의 site currency만 생략 conversion에 고정하고 명시 cur
   const page = { ...base, id: "event_000003", t: "pageview", title: "Shop" };
   const body = { v: 1, sdk: "1.1.0", site: "site_test", anon: "anon_00000001", sess: "sess_00000001", consent: "granted", attr: { first: null, last: null }, screen: { w: 1, h: 1, dpr: 1 }, sentAt: 2_000,
     events: [{ ...base, id: "event_000001", t: "conversion", kind: "purchase", value: 10 }, explicit, page] };
-  const response = await app.request("https://app.test/collect", { method: "POST", headers: { Origin: "https://shop.example.com", "User-Agent": "Mozilla/5.0 Chrome/130" }, body: JSON.stringify(body) }, { DB: d1, COLLECT: { send } } as unknown as Env);
+  const response = await app.request("https://app.test/collect", { method: "POST", headers: { Origin: "https://shop.example.com", "User-Agent": "Mozilla/5.0 Chrome/130" }, body: JSON.stringify(body) }, { DB: d1, TOKEN_ENC_KEY: "currency-test-key", COLLECT: { send } } as unknown as Env);
   expect(response.status).toBe(204); expect(send).toHaveBeenCalledTimes(1);
   db.exec("UPDATE sites SET currency='KRW'");
-  const accepted = send.mock.calls[0]![0].payload as CollectMessage;
+  expect(Object.keys(send.mock.calls[0]![0].payload)).toEqual(["id"]);
+  const accepted = (await loadCollectMessage({ DB: d1, TOKEN_ENC_KEY: "currency-test-key" } as Env, send.mock.calls[0]![0].payload))!;
   expect(accepted.envelope.events[0]).toMatchObject({ t: "conversion", value: 10, currency: "USD" });
   expect(accepted.envelope.events[1]).toEqual(explicit); expect(accepted.envelope.events[2]).toEqual(page);
   expect(body.events[0]).not.toHaveProperty("currency");

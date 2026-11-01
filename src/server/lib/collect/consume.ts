@@ -6,10 +6,12 @@ import type { IdentifyJob } from "./people";
 import { prepareIdentifyJobs } from "./identify-outbox";
 import { assertCollectLease, claimCollectLease, CollectLeaseBusy, releaseCollectLease } from "./lease";
 import { insertConversionsBulk, insertEventIds, markFirstEvent, upsertDaily, upsertSession, type SessionKey } from "./statements";
+import { currentIntake, INTAKE_TTL_MS, loadCollectMessage } from "./intake";
+import { prepareRawBatch } from "./raw";
 
 // Queue avocado-collect 소비자 (docs/14 6-3). 배치를 사이트별로 묶어 D1 batch 한 번으로 쓴다
 
-export type CollectMessage = { siteId: string; workspaceId: string; receivedAt: number; country: string | null; device: string; envelope: Envelope };
+export type CollectMessage = { siteId: string; workspaceId: string; receivedAt: number; country: string | null; device: string; envelope: Envelope; intakeId?: string };
 type SiteRow = { id: string; workspaceId: string; currency: string; collectRawEmail: boolean };
 type KnownSession = { maxScroll: number; attr: SessionAttribution; isMember: boolean };
 type SiteState = { site: SiteRow; seen: Set<string>; sessions: Map<string, KnownSession>; orders: Set<string> };
@@ -80,31 +82,49 @@ async function processSite(env: Env, siteId: string, msgs: CollectMessage[]): Pr
     if (!state) return;
     const writes: D1PreparedStatement[] = [];
     const jobs: IdentifyJob[] = [];
+    const rawIds: string[] = [];
     const newIds: string[] = [];
     for (const m of msgs) {
-      if (m.workspaceId !== state.site.workspaceId) continue;
+      if (m.workspaceId !== state.site.workspaceId || !currentIntake(m.receivedAt)) continue;
       const d = sessionDelta(m.envelope, m.receivedAt, state.seen);
       if (!d) continue;
-      const fresh = freshEvents(m.envelope, state.seen).map((e) => e.id);
+      const freshList = freshEvents(m.envelope, state.seen);
+      const fresh = freshList.map((e) => e.id);
       for (const id of fresh) state.seen.add(id);
       newIds.push(...fresh);
       const known = await knownSession(env.DB, state, m);
       writes.push(...writesFor(env.DB, state, m, d, known));
+      const raw = await prepareRawBatch(env, siteId, state.site.workspaceId, m.receivedAt, m.envelope, freshList);
+      writes.push(raw.statement); rawIds.push(raw.id);
       // 동의 전(pending)에는 사람 연결을 하지 않는다 (docs/14 7장)
       if (m.envelope.consent !== "granted") continue;
       for (const event of d.identifies) jobs.push({ site: state.site, anonId: m.envelope.anon, sessionId: m.envelope.sess, linkId: known.attr.linkId, event, receivedAt: m.receivedAt });
     }
     const prepared = await prepareIdentifyJobs(env, jobs);
     const at = Math.max(...msgs.map((m) => m.receivedAt));
+    const commitAt = Date.now();
+    const receipts = JSON.stringify(msgs.map((m) => ({ receivedAt: m.receivedAt, intakeId: m.intakeId ?? null })));
     // 이벤트 ID 기록을 같은 batch(트랜잭션)에 넣어 실패 후 재시도 때 이벤트가 빠지지 않게 한다
-    await env.DB.batch([assertCollectLease(env.DB, lease), ...writes,
+    await env.DB.batch([assertCollectLease(env.DB, lease),
+      env.DB.prepare(`SELECT json(CASE WHEN NOT EXISTS(SELECT 1 FROM json_each(?) r
+        WHERE json_extract(r.value,'$.receivedAt')>? OR json_extract(r.value,'$.receivedAt')<=?
+        OR (json_extract(r.value,'$.intakeId') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM site_collect_intakes i
+          WHERE i.id=json_extract(r.value,'$.intakeId') AND i.site_id=? AND i.workspace_id=? AND i.expires_at>?)))
+        THEN 'true' ELSE 'collect_intake_expired' END) AS current`).bind(receipts, commitAt, commitAt - INTAKE_TTL_MS, siteId, state.site.workspaceId, commitAt),
+      ...writes,
       ...(writes.length ? [insertEventIds(env.DB, siteId, newIds, at), markFirstEvent(env.DB, siteId, at)] : []),
-      ...(prepared.statement ? [prepared.statement] : []), releaseCollectLease(env.DB, lease)]);
+      ...(prepared.statement ? [prepared.statement] : []),
+      env.DB.prepare("DELETE FROM site_collect_intakes WHERE id IN(SELECT value FROM json_each(?)) AND site_id=? AND workspace_id=?")
+        .bind(JSON.stringify(msgs.flatMap((m) => m.intakeId ? [m.intakeId] : [])), siteId, state.site.workspaceId),
+      releaseCollectLease(env.DB, lease)]);
     released = true;
-    if (prepared.ids.length) {
-      try { await env.PIPELINE.sendBatch(prepared.ids.map((id) => ({ body: { type: "collect_identify", payload: { id } } }))); }
+    if (prepared.ids.length || rawIds.length) {
+      try { await env.PIPELINE.sendBatch([
+        ...prepared.ids.map((id) => ({ body: { type: "collect_identify", payload: { id } } })),
+        ...rawIds.map((id) => ({ body: { type: "collect_raw", payload: { id } } })),
+      ]); }
       catch {
-        await env.DB.prepare("UPDATE site_identify_jobs SET last_error='identify_enqueue_failed' WHERE status='pending' AND id IN (SELECT value FROM json_each(?))")
+        if (prepared.ids.length) await env.DB.prepare("UPDATE site_identify_jobs SET last_error='identify_enqueue_failed' WHERE status='pending' AND id IN (SELECT value FROM json_each(?))")
           .bind(JSON.stringify(prepared.ids)).run();
         throw new Error("identify_enqueue_failed");
       }
@@ -116,11 +136,12 @@ async function processSite(env: Env, siteId: string, msgs: CollectMessage[]): Pr
 
 export async function consumeCollect(batch: MessageBatch<PipelineMessage>, env: Env) {
   const bySite = new Map<string, CollectMessage[]>();
-  for (const msg of batch.messages) {
-    const m = msg.body.payload as CollectMessage;
-    bySite.set(m.siteId, [...(bySite.get(m.siteId) ?? []), m]);
-  }
   try {
+    for (const msg of batch.messages) {
+      if (msg.body.type !== "collect") continue;
+      const m = await loadCollectMessage(env, msg.body.payload);
+      if (m) bySite.set(m.siteId, [...(bySite.get(m.siteId) ?? []), m]);
+    }
     for (const [siteId, msgs] of bySite) await processSite(env, siteId, msgs);
   } catch (error) {
     if (error instanceof CollectLeaseBusy) {

@@ -20,6 +20,7 @@ export * from "./instagram-lifecycle";
 export * from "./public-join";
 export * from "./site-fx";
 export * from "./site-identify";
+export * from "./site-storage";
 export * from "./site-alerts";
 
 export * from "./lead-imports";

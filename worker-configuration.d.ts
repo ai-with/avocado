@@ -4,7 +4,6 @@
 interface __BaseEnv_Env {
 	FILES: R2Bucket;
 	DB: D1Database;
-	SITE_EVENTS: AnalyticsEngineDataset;
 	PIPELINE: Queue;
 	COLLECT: Queue;
 	AI: Ai;

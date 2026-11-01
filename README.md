@@ -1,7 +1,7 @@
 # avocado
 
 브랜드와 크리에이터 협업(가이드, 검수, 리드 수집, 발송, 성과)을 다루는 앱이다.
-Hono(API) + React(SPA)를 Cloudflare Worker 하나로 배포한다. 저장소는 D1(DB), R2(파일), Queues(업로드 처리, 사이트 이벤트 수집), Analytics Engine(사이트 원본 이벤트), Workers AI(전사·번역·판정), Cron(15분)을 쓴다.
+Hono(API) + React(SPA)를 Cloudflare Worker 하나로 배포한다. 저장소는 D1(DB), R2(파일), Queues(업로드 처리, 사이트 이벤트 수집), Workers AI(전사·번역·판정), Cron(15분)을 쓴다.
 브랜드 사이트에 심는 웹 SDK는 `sdk/`에 따로 있다 (아래 "웹 SDK" 절).
 
 ## 요구 사항
@@ -87,7 +87,7 @@ npx wrangler queues create avocado-pipeline
 npx wrangler queues create avocado-collect
 ```
 
-Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 만들 필요 없다. 첫 쓰기 때 생긴다 (계정에서 Analytics Engine이 켜져 있어야 한다).
+SDK 새 원본은 기존 R2 `FILES`에 저장한다. `0036_sdk_raw_retention.sql`을 먼저 적용한 뒤 배포하며 기존 `TOKEN_ENC_KEY`가 있어야 수집할 수 있다. Analytics Engine 쓰기 바인딩은 제거했다. 이 변경은 과거 `avc_events` 데이터를 삭제하지 않는다.
 
 `d1 create`가 출력한 `database_id`를 `wrangler.jsonc`의 `d1_databases[0].database_id`에 넣는다 (지금은 0으로 채운 자리값).
 
@@ -113,7 +113,7 @@ Analytics Engine 데이터셋(`avc_events`, 바인딩 `SITE_EVENTS`)은 따로 �
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | 구글 로그인 및 별도 Google Sheets 추가 동의 (둘 다 필요) | 로그인·가입과 시트 연결이 준비 중으로 표시됨 |
 | `META_APP_ID`, `META_APP_SECRET` | 인스타그램 연결 OAuth, 웹훅 서명 검증 (필수) | 인스타그램 연결, 키워드 DM이 "연결 준비 중" |
 | `META_VERIFY_TOKEN` | 웹훅 등록 확인용 임의 문자열 (필수) | 웹훅 등록 불가 |
-| `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰, 임시 내보내기 자료와 SDK identify 작업 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램·시트 연결과 SDK identify 작업 처리 불가 |
+| `TOKEN_ENC_KEY` | 인스타그램·Google Sheets 토큰, 임시 내보내기 자료와 SDK intake·raw outbox·identify 작업 암호화, 32바이트 이상 (바꾸면 기존 연결·임시 자료 복호화 불가) | 인스타그램·시트 연결과 SDK 수집·identify 작업 처리 불가 |
 | `TURNSTILE_SITE_KEY` | 공용 가이드 참여용 Turnstile sitekey. 클라이언트에 공개되는 값 | 공용 참여는 준비 중으로 표시되고 신청은 거절됨 |
 | `TURNSTILE_SECRET_KEY` | 같은 위젯의 Siteverify secret. 서버 시크릿으로만 등록 | 위와 같음. 검증 없이 가입하지 않음 |
 | `CF_API_TOKEN_AE` | Analytics Engine SQL API 조회용 토큰 (선택, 아직 읽는 화면 없음) | 영향 없음. 사이트 분석 화면은 D1 집계만 쓴다 |
@@ -226,7 +226,7 @@ DB 실패는 5xx로 재시도한다. 발송 기록보다 반송이 먼저 도착
 
 - 삭제 리드는 요청 후 7일이 최대 기한이다. 다음 15분 안에 기한이 오는 행까지 이번 실행에서 처리하므로 최대 15분 먼저 지울 수 있다. 한 실행에서 최대 500명을 처리하며 실제 삭제 수와 기한 초과 잔여 수를 기록한다. 폼 답변·자료 열람·SDK 식별자와 연결된 세션·전환·옛 자동 발송도 함께 정리한다. 삭제 후 폼·게이트에서 다시 등록하면 새 리드 ID·프로필·수신 거부 토큰을 만들며, 현재 자료 열람 세션은 이어 볼 수 있게 보존한다. SDK identify는 삭제된 리드를 자동으로 복구하지 않으며, 오래된 작업을 새 등록에 연결하지 않는다.
 - 링크 클릭은 30일이 지난 `ip_hash`만 비운다. 클릭 행과 통계는 보존한다.
-- 삭제 사이트는 30일 후 D1의 세션·전환·식별자·일별 집계·이벤트 중복 제거 기록을 파기한다. 한 실행에서 최대 100개 사이트를 처리한다. 삭제된 사이트로 오는 늦은 SDK 쓰기는 SQL 실행 시에도 차단한다. **아래 Analytics Engine 원본 제한은 별개다.**
+- 삭제 사이트는 30일 후 기록된 새 R2 원본 키를 모두 삭제한 뒤 D1의 intake·raw outbox·세션·전환·식별자·일별 집계·이벤트 중복 제거 기록을 파기한다. 한 실행에서 최대 100개 사이트·R2 키 1,000개·새 raw/intake 자식 각각 1,000행을 처리하며 추가 페이지는 별도 Queue 호출로 이어 간다. R2 실패·진행 중 쓰기 lease·남은 페이지가 있으면 사이트와 재시도 증거를 보존하고 전체 완료로 기록하지 않는다. 삭제된 사이트로 오는 늦은 SDK 쓰기는 SQL 실행 시에도 차단한다. **과거 Analytics Engine 원본 제한은 아래와 같이 별개다.**
 - 동의 철회는 해당 동의로 만든 기존 제출물만 파기 예약한다. R2에 쓰기 전에 정확한 키를 영속 원장에 기록하고, 철회 중 완료된 업로드는 보상 삭제한다. 미완료 multipart, 원본·프레임·음성 객체를 지운 다음 DB의 미디어 참조와 전사·번역을 정리한다. 재동의한 뒤 새로 올린 제출물과 검수·승인 메타데이터는 이 파기로 삭제하지 않는다. R2 부분 실패는 참조와 작업을 남겨 재시도하며, 완료한 제출물도 다시 검사해 늦게 완료된 쓰기를 회수한다.
 
 R2 multipart 생성 직후 Worker가 종료되어 `upload_id`를 저장하지 못한 경우는 `media_purge_objects`에 `kind='multipart'`, `upload_id IS NULL`, `deleted_at IS NULL`로 남긴다. 이 상태는 파기 성공으로 처리하지 않으며 `multipart_upload_id_unknown` 오류로 재시도한다. Workers R2 바인딩에는 미완료 multipart 목록 API가 없어 운영 확인이 필요할 수 있다. 새 S3 자격증명이나 R2 lifecycle 변경을 자동으로 만들지 않는다.
@@ -235,7 +235,13 @@ R2 multipart 생성 직후 Worker가 종료되어 `upload_id`를 저장하지 �
 
 각 정리 결과는 개인정보 없이 Workers 로그와 `events`에 기록한다. 오류나 배치 상한으로 남은 기한 초과 작업을 확인해야 한다. Queue에 넣기 실패하면 Cron이 실패하고, 실행 실패하면 기존 Queue consumer가 오류를 기록하고 메시지를 재시도한다. 재시도 한도를 지나도 다음 15분 Cron이 영속 작업을 다시 확인하게 한다. Queue 지연·실패도 감시해야 한다. `media_purges.last_error`, `completed_at`, `next_attempt_at`과 미확인 multipart 원장도 함께 점검한다. 정상 캠페인의 원본 90일·전사 및 피드백 1년 보존 정책 자동 정리는 이번 철회 파기 범위에 포함되지 않는다.
 
-**Analytics Engine 제한:** `avc_events`의 기존 원본은 Cloudflare가 [3개월 보관](https://developers.cloudflare.com/analytics/analytics-engine/limits/)하며, 공개 [SQL API는 DELETE를 지원하지 않는다](https://developers.cloudflare.com/analytics/sql-api/sql-reference/). 사이트 삭제 후 30일에 이 원본까지 물리 파기했다고 보장할 수 없다. D1 삭제나 조회 제외는 AE 원본 삭제를 대신하지 않는다. 별도 저장소·정책 결정 또는 Cloudflare 지원 확인 전까지 AIWITH-357의 이 조건과 부모 AIWITH-283은 미해결이다.
+`0036_sdk_raw_retention.sql` 이후 `/collect`는 실제 body stream 64KiB 상한과 기존 동의·봇·Origin 검사를 거쳐 전체 봉투를 기존 키로 암호화한 D1 intake에 넣고 COLLECT에는 ID만 보낸다. intake의 기술 TTL은 최대 24시간이며 기존 15분 개인정보 Queue가 다음 실행 전 만료될 행까지 최대 15분 먼저 정리한다. 처리 성공은 집계와 같은 transaction에서 intake를 지운다. 살아 있는 사이트·workspace·수신 시각을 다시 검사하므로 삭제/만료된 봉투나 구형 Queue payload는 집계·식별자·원본을 다시 만들지 못한다. 구형 전체 봉투 Queue도 형식/크기·24시간 수신 나이 검사 후 처리하며 새 메시지는 ID만 담는다. Queue 유실·재시도 소진 뒤에도 다음 개인정보 작업이 영속 pending을 다시 보낸다.
+
+기존 사이트 lease·이벤트 중복 제거와 같은 native D1 batch에 집계와 fresh 이벤트의 암호화 raw outbox를 기록한다. raw writer의 PIPELINE 메시지도 ID만 담는다. 새 R2 원본은 이전 AE와 같은 종류의 projection(종류·URL pathname·selector/track name·세션/클릭 ID·viewport·좌표·scroll/dwell/value)만 보존한다. 이메일·identify 프로필·track props·URL query·클릭 text/href는 복사하지 않는다. 세션·클릭 ID 역시 개인정보로 취급한다. 새 원본의 명시적 **기술 TTL은 수신 후 90일**이며 기존 개인정보 Queue가 만료 원본을 정리한다. 이는 기존 AE의 **3개월** 정책과 동일하다는 뜻이 아니며 법률상 보유 기간 승인도 아니다. 원본 조회 HTTP endpoint/UI는 추가하지 않았다. 기존 화면 통계는 계속 D1을 쓴다.
+
+R2 PUT 전에 정확한 불변 attempt UUID 키를 비FK 원장에 기록한다. 현재 write token·살아 있는 사이트가 같은 batch에서 확인될 때만 선택하며, 만료/교체/실패한 PUT은 보상 삭제한다. 16분 lease는 Queue consumer의 15분 최대 실행 시간보다 길다. 삭제 뒤 늦은 PUT이 다시 나타나는 경우도 회수할 수 있도록 retired 원장을 반복 삭제한다. 원장은 부모 hard delete로 지우지 않으며 현재 무기한 보존하는 최소 삭제 증거(id·site ID·정확한 키·상태·시각)다. 원본 이벤트·세션/클릭 ID·연락처·프로필을 원장이나 로그에 넣지 않는다. 이 원장을 삭제하면 불확실한 PUT 키를 잃으므로 별도 확인 없이 TTL을 추가하지 않는다. 기존 R2/D1/Queue/Cron을 쓰며 신규 유료 리소스·키 발급·lifecycle 변경은 없다. 공용 Sheets/identify 정리 예산과 별도 사이트 개인정보 작업에서 유지보수를 실행하고, 재전송 오류가 있어도 기한 지난 사이트 파기는 독립적으로 시도한다. 배치 상한·Queue 지연·실패로 남은 기한 초과 대상은 운영 감시와 추가 실행이 필요하다.
+
+**Analytics Engine 제한:** `avc_events`의 기존 원본은 Cloudflare가 [3개월 보관](https://developers.cloudflare.com/analytics/analytics-engine/limits/)하며, 공개 [SQL API는 DELETE를 지원하지 않는다](https://developers.cloudflare.com/analytics/sql-api/sql-reference/). 사이트 삭제 후 30일에 이 원본까지 물리 파기했다고 보장할 수 없다. D1 삭제나 조회 제외는 AE 원본 삭제를 대신하지 않는다. 새 수집은 기존 R2로 이관했지만 과거 AE 원본의 삭제 후 30일 물리 파기 조건과 부모 AIWITH-283은 여전히 미해결이다. 과거 AE의 마지막 실제 쓰기·완전 중지 시각은 **미확인**이며 마이그레이션/배포 시각을 대신 쓰지 않는다. 과거 데이터셋 전체 삭제나 완료 주장은 하지 않는다.
 
 ## 성과 수집과 Google Sheets 내보내기
 
@@ -459,7 +465,7 @@ HTTP audience 집계는 COUNT/사유별 aggregate만 반환한다. 기존 canSen
 - SDK archive는 확보한 v1.0.0 운영 원본부터 보존한다. 보존 전 같은 URL로 배포됐던 다른 과거 바이트와 SRI까지 복구했다고 보장하지 않는다
 - 0009 이전에 들어온 리드는 이메일 해시가 비어 있어, Cron이 200건씩 채우기 전까지 SDK `identify`(해시)로 기존 리드와 연결되지 않는다
 - SDK 스크롤 깊이는 scroll 이벤트를 200ms마다 확인한다. 화면보다 짧은 페이지는 로드 즉시 100%로 잡힌다
-- Analytics Engine 원본 이벤트(클릭 좌표 등)는 쓰기만 하고 아직 읽는 화면이 없다
+- R2 새 SDK 원본 projection(클릭 좌표 등)은 보관만 하고 아직 읽는 화면이 없다. 과거 Analytics Engine 데이터 파기 조건은 미해결이다
 
 ### 수신자별 발송 Queue (AIWITH-398)
 
