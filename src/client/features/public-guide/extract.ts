@@ -1,5 +1,5 @@
 // 브라우저에서 영상의 프레임과 오디오를 뽑는다 (F-60 일부를 클라이언트로 옮김)
-import { frameTargets, sceneChanged, sceneSample, validateFrameDuration, validateFrameLimit, type SceneSample } from "./frame-scenes";
+import { frameTargets, retainSceneCut, sceneChanged, sceneSample, validateFrameDuration, validateFrameLimit, type SceneSample } from "./frame-scenes";
 import type { AudioExtraction } from "../../../shared/audio-analysis";
 import { probeAudioTracks } from "./audio-probe";
 
@@ -89,7 +89,7 @@ export async function extractFrames(file: File, max: number, onProgress?: (ratio
       sctx.drawImage(v, 0, 0, SMALL, SMALL);
       const px = sctx.getImageData(0, 0, SMALL, SMALL).data;
       const current = sceneSample(px), changed = sceneChanged(current, prev); prev = current;
-      if (changed && cuts.length < max) cuts.push(Math.round(t * 1000));
+      if (changed) retainSceneCut(cuts, Math.round(t * 1000), max);
       onProgress?.(0.8 * t / end);
     }
     const targets = frameTargets(end, max, cuts), shots: FrameShot[] = [];

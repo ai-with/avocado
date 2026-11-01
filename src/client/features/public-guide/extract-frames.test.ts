@@ -64,6 +64,12 @@ describe("extractFrames with DOM fake video/canvas, no native media or network",
     const media = mockMedia({ duration: 3600 }); const shots = await extractFrames(file(), 5);
     expect(media.samples).toBe(7200); expect(shots.map((s) => s.tMs)).toEqual([0, 720000, 1440000, 2160000, 2880000]); expect(media.encodes).toHaveLength(5); expect(media.seeks).toHaveLength(7205);
   });
+  it("does not stop retaining cuts halfway through a dense 180-second video", async () => {
+    const media = mockMedia({ duration: 180, pixels: (t) => solid(Math.floor(t * 2) % 2 ? 255 : 0) });
+    const shots = await extractFrames(file(), 180);
+    expect(shots).toHaveLength(180); expect(shots[0]!.tMs).toBe(500); expect(shots.at(-1)!.tMs).toBe(179500);
+    expect(media.samples).toBe(360); expect(media.encodes).toHaveLength(180); expect(media.seeks.length).toBeLessThanOrEqual(540);
+  });
   it("zero max avoids loading and invalid limits fail before a URL is created", async () => {
     const media = mockMedia(); expect(await extractFrames(file(), 0)).toEqual([]);
     for (const max of [-1, NaN, Infinity]) await expect(extractFrames(file(), max)).rejects.toThrow("frame_limit_invalid"); expect(media.create).not.toHaveBeenCalled();

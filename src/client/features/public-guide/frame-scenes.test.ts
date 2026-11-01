@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorHistogram, frameTargets, histogramDistance, HISTOGRAM_BINS, sceneChanged, sceneSample, SCENE_HISTOGRAM_THRESHOLD, SCENE_SPATIAL_THRESHOLD, spatialLumaDifference, type SceneSample } from "./frame-scenes";
+import { colorHistogram, frameTargets, histogramDistance, HISTOGRAM_BINS, retainSceneCut, sceneChanged, sceneSample, SCENE_HISTOGRAM_THRESHOLD, SCENE_SPATIAL_THRESHOLD, spatialLumaDifference, type SceneSample } from "./frame-scenes";
 
 type Color = readonly [number, number, number];
 const RED: Color = [255, 0, 0], GREEN: Color = [0, 130, 0];
@@ -57,6 +57,35 @@ describe("bounded frame target union", () => {
     const selected = frameTargets(3600, 5, []); expect(selected).toHaveLength(5); expect(selected.map((r) => r.tMs)).toEqual([0, 720000, 1440000, 2160000, 2880000]);
     expect(frameTargets(180, 3, [500, 1000, 1500, 2000])).toHaveLength(3);
   });
+  it("keeps sparse cuts and the first/latest dense cuts within a bounded chronological set", () => {
+    const cuts: number[] = [];
+    for (const t of [500, 2000, 3000]) retainSceneCut(cuts, t, 4);
+    expect(cuts).toEqual([500, 2000, 3000]); retainSceneCut(cuts, 2000, 4); expect(cuts).toHaveLength(3);
+    for (let t = 3500; t < 180000; t += 500) { retainSceneCut(cuts, t, 4); expect(cuts.length).toBeLessThanOrEqual(4); }
+    expect(cuts[0]).toBe(500); expect(cuts.at(-1)).toBe(179500); expect(cuts).toEqual([...cuts].sort((a,b) => a-b));
+    expect(new Set(cuts).size).toBe(cuts.length); expect(cuts.some((t) => t > 90000 && t < 179500)).toBe(true);
+    const single: number[] = []; for (const t of [1000, 1500, 5000]) retainSceneCut(single, t, 1); expect(single).toEqual([1000]);
+    expect(() => retainSceneCut([], -1, 4)).toThrow("frame_time_invalid");
+  });
+  it("preserves a late golden forbidden segment after the production 180-frame cut cap and server sampling", async () => {
+    // Runtime-load the actual server pure functions without bringing Worker Env
+    // globals into the client's DOM typechecking project.
+    const { sampleFrames, aggregateVotes } = await import(new URL("../../../server/pipeline/rules.ts", import.meta.url).href) as {
+      sampleFrames<T extends { tMs: number }>(all: T[], n: number, window: null): T[];
+      aggregateVotes(kind: "forbidden", votes: { frameId: string; yes: boolean; confidence: "high" }[], asked: number): { result: string };
+    };
+    const cuts: number[] = [];
+    for (let t = 500; t < 180000; t += 500) retainSceneCut(cuts, t, 180);
+    const selected = frameTargets(180, 180, cuts), modelInputs = sampleFrames(selected, 12, null);
+    expect(selected).toHaveLength(180); expect(selected.at(-1)?.tMs).toBe(179500);
+    expect(modelInputs.at(-1)?.tMs).toBe(179500);
+    // Deterministic oracle: tests sampling/aggregation, not AI perception.
+    const votes = modelInputs.map((f) => ({ frameId: String(f.tMs), yes: f.tMs >= 179500, confidence: "high" as const }));
+    expect(aggregateVotes("forbidden", votes, modelInputs.length).result).toBe("candidate");
+    const before = frameTargets(180, 180, Array.from({ length: 180 }, (_, i) => (i+1)*500));
+    expect(before.at(-1)?.tMs).toBe(90000);
+    expect(aggregateVotes("forbidden", sampleFrames(before, 12, null).map((f) => ({ frameId: String(f.tMs), yes: f.tMs >= 179500, confidence: "high" as const })), 12).result).toBe("compliant");
+  });
   it("handles zero, invalid limits, duration and out-of-range cut times explicitly", () => {
     expect(frameTargets(10, 0, [500])).toEqual([]); expect(frameTargets(0, 5, [])).toEqual([]);
     for (const max of [-1, NaN, Infinity, 1.5]) expect(() => frameTargets(1, max, [])).toThrow("frame_limit_invalid");
@@ -88,7 +117,7 @@ it("reports frame count, JPEG/seek work and known synthetic interval coverage wi
       const image = clip.at(t), sample = sceneSample(image), oldCut = legacyLuma(image, previous) > 30;
       if (Number.isInteger(t)) fps.push(t * 1000); else if (oldCut) scene.push(t * 1000);
       if (Number.isInteger(t) || oldCut) oldJpeg++;
-      if (sceneChanged(sample, previousSample) && cuts.length < clip.max) cuts.push(t * 1000);
+      if (sceneChanged(sample, previousSample)) retainSceneCut(cuts, t * 1000, clip.max);
       previous = image; previousSample = sample;
     }
     const oldScene = scene.slice(0, clip.max), budget = clip.max - oldScene.length, stride = budget ? Math.ceil(fps.length / budget) : Infinity;

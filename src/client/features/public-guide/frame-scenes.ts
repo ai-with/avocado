@@ -44,6 +44,24 @@ export function validateFrameLimit(max: number) {
 export function validateFrameDuration(durationS: number) {
   if (!Number.isFinite(durationS) || durationS < 0 || !Number.isSafeInteger(Math.ceil(durationS))) throw new Error("video_duration_invalid");
 }
+// Keep sparse cuts unchanged. Once full, compact the densest interior time span
+// instead of keeping only the beginning of a long video. First/latest survive
+// for max>=2; max=1 keeps its existing first-cut contract. At most max+1 numeric
+// timestamps exist during insertion, and at most max remain on return.
+export function retainSceneCut(cuts: number[], tMs: number, max: number): void {
+  validateFrameLimit(max);
+  if (!Number.isSafeInteger(tMs) || tMs < 0) throw new Error("frame_time_invalid");
+  if (!max || cuts.includes(tMs) || max === 1 && cuts.length) return;
+  const next = cuts.findIndex((time) => time > tMs);
+  cuts.splice(next < 0 ? cuts.length : next, 0, tMs);
+  if (cuts.length <= max) return;
+  let remove = 1, span = Infinity;
+  for (let i = 1; i < cuts.length - 1; i++) {
+    const around = cuts[i + 1]! - cuts[i - 1]!;
+    if (around < span) { remove = i; span = around; }
+  }
+  cuts.splice(remove, 1);
+}
 // Only metadata is retained during scanning. Integer-second cuts keep their
 // existing public 'fps' label, but cut priority prevents stride from losing them.
 export function frameTargets(durationS: number, max: number, cutTimesMs: readonly number[]): FrameTarget[] {
@@ -52,11 +70,9 @@ export function frameTargets(durationS: number, max: number, cutTimesMs: readonl
   if (!max || !durationS) return [];
   const cuts: number[] = [];
   for (const t of cutTimesMs) {
-    if (cuts.length >= max) break;
     if (!Number.isSafeInteger(t) || t < 0 || t >= durationS * 1000) throw new Error("frame_time_invalid");
-    if (!cuts.includes(t)) cuts.push(t);
+    retainSceneCut(cuts, t, max);
   }
-  cuts.sort((a, b) => a - b);
   const reserved = cuts.filter((t) => t % 1000 === 0).map((t) => t / 1000);
   const count = Math.ceil(durationS) - reserved.length, budget = max - cuts.length, stride = budget > 0 ? Math.ceil(count / budget) : Infinity;
   const result: FrameTarget[] = cuts.map((tMs) => ({ tMs, source: tMs % 1000 === 0 ? "fps" : "scene", cut: true }));
