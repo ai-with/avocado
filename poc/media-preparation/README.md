@@ -182,16 +182,14 @@ and a full resource-enforcement matrix still need separate validation.
 The current pipeline already has consent/purge fencing, analysis generations and
 15-minute claims (`pipeline/analysis.ts`), immutable audio writes plus retirement
 (`lib/audio-write.ts`), and a three-minute wait for browser analysis (`pipeline/run.ts`).
-The current 500MiB limit is browser audio decode memory, separate from the existing
-2GiB upload allowance. A later integration needs a preparation job/claim before
-STT, reuse of `storeAudio`, and a separate compressed-artifact selection/ledger.
-`validMediaKey`, withdrawal enumeration, retirement and orphan cleanup must be
-extended together before a compressed key is accepted. No production schema or
-pipeline change is included here. Browser frame extraction is also unchanged.
-In particular, inserting server audio rotates the analysis generation; it cannot
-be bolted into an old claim as if that claim remained current. Preparation must
-settle before STT claims its fresh generation, and must not race the existing
-three-minute browser-analysis wait.
+The 500MiB limit is browser audio decode memory, separate from the existing
+2GiB upload allowance. The app integration uses a preparation claim before STT,
+immutable audio writes and a separate compressed-artifact ledger. Key validation,
+withdrawal enumeration, retirement and orphan cleanup include the new media keys.
+Browser frame extraction remains separate. Inserting server audio rotates the
+analysis generation, so preparation settles before a fresh STT claim. The browser
+frame handshake and the existing wait window are handled by the app adapter;
+server audio does not imply that browser frames completed.
 
 ## Current official options, reviewed 2026-11-01
 
