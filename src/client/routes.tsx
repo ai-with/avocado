@@ -6,6 +6,7 @@ import { HomePage } from "./pages/Home";
 import { LoginPage } from "./pages/Login";
 import { SignupPage } from "./pages/Signup";
 import { NotFoundPage } from "./pages/NotFound";
+import { RouteErrorPage } from "./pages/RouteError";
 import { LandingPage } from "./pages/landing/LandingPage";
 import { guidesToCampaigns, legacyRoutes } from "./LegacyRedirect";
 import { LoadingState } from "./ui";
@@ -79,10 +80,11 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
     ]
   : [];
 
-export const router = createBrowserRouter([
+export const routeTree: RouteObject[] = [{ errorElement: <RouteErrorPage />, children: [
   ...publicRoutes,
   ...devRoutes,
   { path: "/dashboard", element: <AppShell />, children: appRoutes },
   ...legacyRoutes,
   { path: "*", element: <NotFoundPage /> },
-]);
+] }];
+export const router = createBrowserRouter(routeTree);
