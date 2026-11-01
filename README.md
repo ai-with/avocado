@@ -524,9 +524,9 @@ DM 정책은 기존 이메일/알림톡의 업무 한도 정책 `productionMessa
 
 자동 reload나 재시도 타이머는 없다. 사용자가 ‘페이지 다시 열기’를 누를 때만 클릭마다 reload를 한 번 호출하며 자체 confirm이나 일반적인 미저장 경고는 추가하지 않는다. 기존 beforeunload 처리는 브라우저에 맡기고, 사용자가 이를 취소해도 재열기 버튼은 계속 사용할 수 있다. 쿠키·세션·브라우저 저장소를 수정하지 않으며 현재 URL은 브라우저의 정상 reload로 이어진다. 이미 이전 버전이 로드된 탭에는 새 오류 화면 코드가 없으므로 한 번 새로 열어 최신 entry를 받아야 한다. 이 복구는 미저장 폼 보존을 보장하지 않으며 CUA 실제 화면 검증은 별도다.
 
-## 선택적인 서버 미디어 준비 통합 소스 (379/380)
+## 서버 미디어 준비 (379/380)
 
-`0037_media_preparation.sql`과 앱 통합 소스만 준비했다. 이 분기에서 운영 D1 마이그레이션·배포·서비스 binding 설정·리소스 생성·AI/provider 실행은 하지 않는다. 향후 배포 전에는 새 열과 원장을 쓰므로 0037을 먼저 검토·적용해야 한다. `MEDIA_PREPARATION` binding은 선택적 타입으로만 선언하며 Wrangler에 추가하지 않았다. binding이 없으면 원래 브라우저 분석·STT·원본 재생 경로를 유지하고 준비 서비스와 원본 head/get 추가 호출을 하지 않는다. 배포 가능한 컨테이너·요금/업무 한도 승인·실 Cloud RPC/R2 실행 검증은 별도이며 379/380 전체 완료를 뜻하지 않는다.
+비공개 처리 서비스는 `poc/media-preparation/wrangler.production.json`으로 먼저 배포하고 `0037_media_preparation.sql`을 적용한 뒤 앱을 배포한다. 앱의 `MEDIA_PREPARATION` Service Binding은 `avocado-media-preparation#MediaPreparation`을 연결한다. 처리 서비스에는 공개 URL·라우트·버킷 자격증명이 없다. 배포·롤백 순서는 [처리 서비스 문서](poc/media-preparation/README.md)를 따른다. binding을 제거하면 원래 브라우저 분석·STT·원본 재생 경로를 유지하고 준비 서비스와 원본 head/get 추가 호출을 하지 않는다. 실제 지원 코덱·큰 파일·운영 RPC/R2 및 파기 검증은 별도로 수행한다.
 
 앱이 원본 R2 key/ETag/size, 동의 세대, 현재 analysis generation과 별도 준비 job claim을 소유한다. 준비 claim과 analysis claim은 서로의 활성 상태를 원자 조건으로 검사한다. 준비는 기존 analysis claim을 잡기 전에만 수행하며, audio_tracks trigger가 세대를 회전시킨 뒤에는 기존 PIPELINE 메시지를 새로 깨우고 반환한다. 새 Queue 호출이 새 context와 claim으로 전사한다. 준비 도중 옛 claim을 전사 claim으로 재사용하지 않는다. 서비스에는 jobId/generation/consentId/sourceEtag/declaredBytes와 byte stream, permit/sink RpcTarget만 전달한다. URL·버킷 key·토큰·범용 R2 권한은 전달하지 않는다.
 
@@ -534,7 +534,7 @@ DM 정책은 기존 이메일/알림톡의 업무 한도 정책 `productionMessa
 
 각 PUT 전 불변 job/write UUID key를 기존 비FK media_purge_objects 원장과 prepared_media_objects에 기록한다. manifest/완료된 artifact/정확한 purge intent/활성 job/원본 identity/동의/current generation/활성 analysis claim 없음이 같은 native batch에서 증명될 때만 audio와 proxy를 선택한다. 선택 후 ACK가 없어도 selected_generation과 현재 key 참조로 완료를 인정하며 선택 결과를 보상 삭제하지 않는다. 미선택·만료·불확실 PUT은 retire하고 기존 bounded tombstone 정리가 늦게 나타난 객체도 반복 삭제한다. 부모 삭제·동의 철회 파기 역시 새 key 종류와 원장을 포함하며 재동의한 새 제출물은 지우지 않는다. 원장 메타데이터는 현재 삭제 증거로 남고 개인정보의 전체 보유 정책 승인을 대신하지 않는다.
 
-chunk별 검사는 byte bounds와 로컬 deadline/cancel만 수행한다. authoritative D1 재검사는 20초 간격 캐시와 시작/출력 stage/commit 경계에서 실행하며 최대 16회다. 서비스의 10초 RPC poll과 앱의 20초 권한 캐시가 겹치므로 중단 관찰 지연은 보수적으로 최대 20초 캐시 + 다음 10초 poll + 5초 RPC deadline과 스케줄 지연이다. 즉시 취소를 보장하지 않는다. 최종 선택 CAS는 캐시와 무관하다. 4분 deadline 또는 기술적 검사 예산을 넘거나 서비스가 실패하면 해당 source/generation을 terminal 실패로 기록하고 다음 호출은 기존 브라우저 경로로 돌아간다. 선택되지 않은 job의 native retirement barrier가 저장됐을 때만 optional cancel(jobId)을 같은 job ID로 최대 250ms best-effort 요청한다. 선택 완료/lost ACK에는 cancel하지 않으며 cancel 실패도 영속 원장 정리를 대신하지 않는다. 무한 준비 재시도는 하지 않는다. 최대 permit 경로와 실패 compensation까지 물리 SQL 50개 이하, bind 100개 이하를 로컬 계측하며 준비와 후속 AI 분석은 같은 호출에서 실행하지 않는다. 이 계측은 기존 모든 AI/프레임 조합의 호출 예산을 증명하지 않는다.
+chunk별 검사는 byte bounds와 로컬 deadline/cancel만 수행한다. authoritative D1 재검사는 20초 간격 캐시와 시작/출력 stage/commit 경계에서 실행하며 최대 16회다. 서비스의 10초 RPC poll과 앱의 20초 권한 캐시가 겹치므로 중단 관찰 지연은 보수적으로 최대 20초 캐시 + 다음 10초 poll + 5초 RPC deadline과 스케줄 지연이다. 즉시 취소를 보장하지 않는다. 최종 선택 CAS는 캐시와 무관하다. 정상 작업이 실행 중이면 서비스는 명시적인 busy 결과를 반환한다. 아직 산출물을 stage하지 않은 시도만 retire하고 기존 Queue가 20초 뒤 같은 generation의 새 시도로 재시도한다. 4분 deadline 또는 기술적 검사 예산을 넘거나 서비스가 실제로 실패하면 해당 source/generation을 terminal 실패로 기록하고 다음 호출은 기존 브라우저 경로로 돌아간다. 선택되지 않은 job의 native retirement barrier가 저장됐을 때만 optional cancel(jobId)을 같은 job ID로 최대 250ms best-effort 요청한다. 선택 완료/lost ACK에는 cancel하지 않으며 cancel 실패도 영속 원장 정리를 대신하지 않는다. 실패한 시도를 무한 재실행하지 않는다. 최대 permit 경로와 실패 compensation까지 물리 SQL 50개 이하, bind 100개 이하를 로컬 계측하며 준비와 후속 AI 분석은 같은 호출에서 실행하지 않는다. 이 계측은 기존 모든 AI/프레임 조합의 호출 예산을 증명하지 않는다.
 
 검수의 기존 파일 URL을 유지한다. 재생은 현재 동의/원본/generation에 연결된 proxy를 우선하고 proxy 선택·읽기에 실패하면 권한을 다시 확인한 뒤 원본을 사용한다. `download=1`은 항상 원본이다. proxy를 읽은 뒤 선택이 바뀌었거나 철회되면 그 응답을 버린다. 별도 공개 디버그 endpoint나 HTTP 활성화 토글은 없다.
 
