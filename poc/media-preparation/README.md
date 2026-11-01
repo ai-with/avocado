@@ -125,7 +125,9 @@ They do not prove a real Cloud D1/R2 transaction or provider erasure latency.
 The private entrypoint routes to one constant DO name. That DO uses
 `container-transport.ts` and the built-in `ctx.container` API, with no new SDK
 dependency. `start()` receives the configured digest reference, `enableInternet:
-false`, empty env, and **standard-1 (½vCPU/4GiB/8GB)**. The pinned native API and
+false`, empty env, and **standard-2 (1vCPU/6GiB/12GB)**. The earlier local Workerd
+measurements used standard-1; this resource change does not establish a Cloud
+timing result. The pinned native API and
 official scheduling-policy contract do not accept `basic`; no cast bypasses that.
 The durable-object policy has no `max_instances` limit, so the single route and
 per-DO lease/busy ownership enforce one job for this private application path.
@@ -221,12 +223,12 @@ Illustration only: a fully busy `basic` instance for 180 seconds would have
 45 vCPU-seconds, 180GiB-seconds and 720GB-seconds: about **$0.0014004** overage
 before allowances, startup/idle time, network, Workers, DO, logs and storage.
 That `basic` figure is only a separate legacy-policy measurement candidate.
-The **actual native prototype standard-1** at 180 seconds/full allocated CPU is
-90vCPU-seconds +720GiB-seconds +1,440GB-seconds, or **$0.0037008** compute overage.
+The **actual native release standard-2** at 180 seconds/full allocated CPU is
+180vCPU-seconds +1,080GiB-seconds +2,160GB-seconds, or **$0.0064512** compute overage.
 Both are rate calculations, **not measured runtime, per-job pricing, or a budget**.
 Actual Cloud cold-start, transfer throughput, CPU throttling, peak memory, failure
 rate, processing duration and billing remain unmeasured. Root subsequently verified
-the existing account's Containers entitlement and standard-1 capacity through
+the existing account's Containers entitlement and standard-2 capacity through
 read-only management GETs; no new plan, subscription or grants were created.
 
 Primary references:
@@ -272,7 +274,7 @@ the named `MediaPreparation` entrypoint; application config is managed by Root.
 The native `durable_object` policy uses a SQLite export and named image `base`.
 Do not add `max_instances`: this policy does not accept that control. The constant
 DO name and ownership lease serialize this entrypoint's work. `ContainerTransport`
-fixes standard-1, `enableInternet:false`, fixed exec argv and empty runtime env;
+fixes standard-2, `enableInternet:false`, fixed exec argv and empty runtime env;
 these are code controls, not implied by the Wrangler defaults. No normal HTTP
 request can start a job.
 

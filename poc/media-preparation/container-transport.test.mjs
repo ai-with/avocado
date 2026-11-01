@@ -13,7 +13,7 @@ async function collect(stream) { let total=0; for await(const chunk of stream)to
 function runtime(mode="normal") {
   const events=[]; let done; let alive=false;
   return {events,images:{base:"fake-image"},get running(){return alive;},
-    start(options){assert.equal(options.enableInternet,false);assert.deepEqual(options.env,{});alive=true;events.push("start");},
+    start(options){assert.equal(options.instance,"standard-2");assert.equal(options.enableInternet,false);assert.deepEqual(options.env,{});alive=true;events.push("start");},
     async setInactivityTimeout(ms){assert.ok(ms>5000);events.push("idle-policy");},
     signal(n){events.push("signal:"+n);done?.(137);},
     async destroy(){events.push("destroy");alive=false;done?.(137);},
@@ -36,11 +36,11 @@ function runtime(mode="normal") {
     }};
 }
 function setup(mode="normal",options={}) {
-  const c=runtime(mode);let current=true,selected=false,staged=0,checks=0;
+  const c=runtime(mode),logs=[];let current=true,selected=false,staged=0,checks=0;
   const permit={async assertCurrent(){checks++;if(!current)throw new Error("withdrawn");}};
   const sink={async stage(name,stream){assert.equal(name,"video.mp4");await collect(stream);staged++;},async commit(){await permit.assertCurrent();selected=true;},async retireUnselected(){if(!selected)staged=0;}};
-  const transport=new ContainerTransport(c,{totalMs:300,idleMs:80,graceMs:1,cleanupMs:30,...options});
-  return {c,transport,run:()=>createMediaService(transport).prepare(job,input(),permit,sink),state:()=>({selected,staged,checks}),withdraw(){current=false;}};
+  const transport=new ContainerTransport(c,{totalMs:300,idleMs:80,graceMs:1,cleanupMs:30,log:record=>logs.push(record),...options});
+  return {c,transport,logs,run:(source=input())=>createMediaService(transport).prepare(job,source,permit,sink),state:()=>({selected,staged,checks}),withdraw(){current=false;}};
 }
 test("native API options/stream framing, zero public ports, whole-container cleanup",async()=>{
   const s=setup();await s.run();assert.equal(s.state().selected,true);assert.ok(s.c.events.includes("destroy"));
@@ -65,4 +65,29 @@ test("total deadline applies even during quiet compute",async()=>{
 test("ignored SIGTERM escalates to whole-container SIGKILL/destroy",async()=>{
   const s=setup("ignore-term-stall",{idleMs:20});await assert.rejects(s.run());
   assert.ok(s.c.events.includes("kill:15"));assert.ok(s.c.events.includes("signal:9"));assert.ok(s.c.events.includes("destroy"));assert.equal(s.state().selected,false);
+});
+test("fixed phase records distinguish completed transfer, quiet compute and final exit failure",async()=>{
+  const normal=setup();await normal.run();
+  assert.deepEqual(normal.logs.map(r=>r.event),["start_requested","input_eof","exec_ready","manifest","completed"]);
+  assert.equal(normal.logs.find(r=>r.event==="input_eof").inputBytes,3);
+  assert.equal(normal.logs.find(r=>r.event==="input_eof").phase,"compute");
+  const quiet=setup("compute-delay",{totalMs:10,idleMs:200});await assert.rejects(quiet.run());
+  assert.deepEqual(quiet.logs.filter(r=>r.event==="abort").map(r=>[r.phase,r.code,r.inputBytes]),[["compute","job_timeout",3]]);
+  const late=setup("exit1");await assert.rejects(late.run());
+  assert.deepEqual(late.logs.filter(r=>r.event==="abort").map(r=>[r.phase,r.code]),[["output","process_failed"]]);
+  for(const record of [...normal.logs,...quiet.logs,...late.logs]) {
+    assert.ok(Object.keys(record).every(k=>["event","phase","elapsedMs","inputBytes","code"].includes(k)));
+    assert.ok(Number.isSafeInteger(record.elapsedMs)&&record.elapsedMs>=0);
+  }
+});
+test("input stall and raw provider errors emit no identifiers; a failing logger cannot fail a job",async()=>{
+  const stalled=setup("normal",{totalMs:10,idleMs:200});
+  await assert.rejects(stalled.run(new ReadableStream({type:"bytes",start(c){c.enqueue(new Uint8Array([1,2,3]));}})));
+  assert.equal(stalled.logs.some(r=>r.event==="input_eof"),false);
+  assert.deepEqual(stalled.logs.filter(r=>r.event==="abort").map(r=>[r.phase,r.code,r.inputBytes]),[["input","job_timeout",3]]);
+  const raw=setup();raw.c.exec=async()=>{throw Error("https://private.invalid/key?token=SECRET userId=private submissionId=private");};
+  await assert.rejects(raw.run());
+  assert.deepEqual(raw.logs.filter(r=>r.event==="abort").map(r=>[r.phase,r.code]),[["startup","container_preparation_failed"]]);
+  assert.equal(/https|SECRET|private|userId|submissionId|sourceEtag|consentId|jobId/.test(JSON.stringify(raw.logs)),false);
+  const unobservable=setup("normal",{log(){throw Error("logger unavailable");}});await unobservable.run();assert.equal(unobservable.state().selected,true);
 });
