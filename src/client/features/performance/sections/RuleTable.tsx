@@ -2,9 +2,9 @@ import { Badge, Button, Table } from "../../../ui";
 import { api } from "../../../lib/api";
 import { STATUS, type Act, type Rule } from "../kdmTypes";
 
-type RowProps = { r: Rule; canEdit: boolean; act: Act; onEdit: (r: Rule) => void; onLog: (r: Rule) => void };
+type RowProps = { r: Rule; canEdit: boolean; canSend: boolean; act: Act; onEdit: (r: Rule) => void; onLog: (r: Rule) => void };
 
-function RuleActions({ r, canEdit, act, onEdit, onLog }: RowProps) {
+function RuleActions({ r, canEdit, canSend, act, onEdit, onLog }: RowProps) {
   const remove = () => confirm("규칙을 지울까요? 발송 기록도 함께 지워져요.") && void act(() => api.del(`/keyword-dm/${r.id}`), "규칙을 지웠어요.");
   return (
     <td className="text-right nowrap">
@@ -15,7 +15,7 @@ function RuleActions({ r, canEdit, act, onEdit, onLog }: RowProps) {
           {r.status === "on" ? (
             <Button size="sm" variant="secondary" onClick={() => void act(() => api.post(`/keyword-dm/${r.id}/toggle`, { on: false }), "규칙을 껐어요.")}>끄기</Button>
           ) : (
-            <Button size="sm" onClick={() => void act(() => api.post(`/keyword-dm/${r.id}/toggle`, { on: true }), "규칙을 켰어요. 이제 키워드 댓글에 DM이 나가요.")}>켜기</Button>
+            <Button size="sm" disabled={!canSend} onClick={() => void act(() => api.post(`/keyword-dm/${r.id}/toggle`, { on: true }), "규칙을 켰어요. 이제 키워드 댓글에 DM이 나가요.")}>켜기</Button>
           )}
           <Button size="sm" variant="ghost" onClick={remove}>삭제</Button>
         </>
@@ -25,7 +25,7 @@ function RuleActions({ r, canEdit, act, onEdit, onLog }: RowProps) {
 }
 
 function RuleRow(props: RowProps) {
-  const { r } = props;
+  const { r, canSend } = props;
   return (
     <tr>
       <td>
@@ -34,7 +34,7 @@ function RuleRow(props: RowProps) {
       </td>
       <td>{r.guideName}<div className="text-caption">{r.influencerName}</div></td>
       <td className="wrap">{r.keywords.join(", ")}</td>
-      <td><Badge tone={STATUS[r.status][1]}>{STATUS[r.status][0]}</Badge>{r.pausedReason && <div className="text-caption">연결 끊김</div>}</td>
+      <td><Badge tone={!canSend && r.status === "on" ? "warn" : STATUS[r.status][1]}>{!canSend && r.status === "on" ? "발송 기준 준비 중" : STATUS[r.status][0]}</Badge>{r.pausedReason && <div className="text-caption">연결 끊김</div>}</td>
       <td className="num">{r.todaySent}</td>
       <td className="num">{r.clicks}</td>
       <td className="num">{r.leads}</td>

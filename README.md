@@ -23,7 +23,7 @@ npm run dev                # http://localhost:5173
 ```bash
 APP_ENV=development   # 필수. 없으면 wrangler.jsonc 의 production 값이 적용되어 휴대폰 인증번호가 화면에 나오지 않는다
 AI_FAKE=1             # 선택. Workers AI 대신 고정 응답 (로그인 없이 검수 흐름 확인)
-IG_FAKE=1             # 선택. 인스타그램 API 대신 가짜 응답 (연결, 스냅샷, 키워드 DM)
+IG_FAKE=1             # 선택. 인스타그램 API 대신 가짜 응답 (연결, 스냅샷). DM 발송 정책은 우회하지 않음
 ```
 
 개발 모드에서 SMS 설정이 없으면 휴대폰 인증번호가 화면에 "개발 모드 인증번호"로 보인다. 이메일 키가 없으면 메일은 dev 서버 콘솔에 `[email:no_provider]`로만 찍히고, 자동·1회성 발송 로그는 `skipped / no_provider`로 남는다.
@@ -482,3 +482,14 @@ AIWITH-347/280의 업무상 인원·월 한도·비용/환불 기준은 아직 �
 반송이 접수 응답보다 먼저 와도 서명 검증 뒤 provider ID·delivery ID·수신자 HMAC만 최대 24시간 영속 보관한다. 실제 접수 ID가 확인돼야 같은 리드 birth revision에 적용한다. 태그·같은 주소만으로 추정하지 않으며 삭제/재등록한 새 리드에 옛 반송을 적용하지 않는다. 완료/취소 시 고정 본문과 HMAC을 지우고 리드·워크스페이스 파기에도 scrubbing/cascade한다. FK 없는 최소 접수 증거에는 연락처/본문/리드·사람·워크스페이스 ID가 없으며 첫 시도 후 30일에 정리 대상이 된다. 유지보수는 불확실한 수신자 최대 100건·만료 반송/증거 각 1000건·종료 작업 100건씩 정리하므로 대기량이 많으면 다음 주기에 이어 처리한다.
 
 실제 migrations+SQLite 회귀의 2만 리드/가짜 provider 3천 접수는 invocation 최대 physical SQL 17문장(D1 API 11회), bind 15개, SQL 3830B, D1 결과 4304B였다. 39개 실제 문장은 compound SELECT 5·열 100·식 깊이 100·함수 인자 32·bind 100·SQL 100KB·VDBE 21504 제한에서 EXPLAIN했고 2000 ops 미만이었다. 성공 외에도 롤백/최종 권한 경합/취소 중 응답/lease 교체/반송 선도착/야간 경계/응답 유실을 가짜 transport로 검증한다. 이 수치는 로컬 기술 회귀이며 운영 속도·사업자 요금·업무 quota 약속이나 실제 메일 QA를 대신하지 않는다. [D1 한도](https://developers.cloudflare.com/d1/platform/limits/)와 [Queues 중복/재시도 계약](https://developers.cloudflare.com/queues/configuration/batching-retries/)을 따른다.
+
+
+## DM 발송 기준 준비 중
+
+AIWITH-409/296의 새 발송 차단은 광고성 여부를 임의로 분류하거나 동의·철회 처리 완료를 뜻하지 않는다. 제품의 구체적인 DM 분류·채널 동의·야간 처리·법률 검토 기준이 아직 미구성이라 중앙 `productionDmPolicy.configured=false`로 실제 private reply와 그 후속 public reply를 모두 HTTP 전에 차단한다. 모든 댓글 DM을 광고로 단정하거나 순수 서비스 DM 예외를 추정 허용하지 않는다. AIWITH-407의 외부 자문을 받았다고 주장하지 않으며, 409 전체 요구가 완료된 것도 아니다.
+
+DM 정책은 기존 이메일/알림톡의 업무 한도 정책 `productionMessagePolicy`와 독립이다. Meta 키·유효 연결·기존 켜진 규칙·`IG_FAKE`가 있어도 운영 DM은 열리지 않고 Env/HTTP 허용 토글도 없다. 새 규칙 켜기는 503 `send_policy_unconfigured`와 준비 중 문구를 반환한다. 초안 작성·편집·끄기와 기존 설정 데이터는 유지한다. 과거 켜짐 값은 보존하지만 화면은 실제 발송 차단 상태를 표시한다. webhook/cron의 아직 보내지 않은 queued 행은 `failed/send_policy_unconfigured`, 발송 시각 없음으로 기록하며 같은 댓글 재전달이나 후속 cron은 실제 발송·실패 감사 기록을 중복 생성하지 않는다. DB 실패는 민감정보 없는 오류로 전파하고 원래 queued 행을 다음 실행에서 다시 확인한다. 허용 경로 테스트만 생성자 DI의 가짜 정책·가짜 provider를 쓰며, 실제 provider helper는 자체 운영 정책도 재검사한다.
+
+실 DM 진입점은 댓글 webhook과 기존 cron의 keyword DM 처리다. 가이드의 `channel=dm`은 사용자가 복사 후 직접 보냈다고 기록하는 경로라 provider HTTP가 없으며 변경하지 않았다. 별도 실제 DM 테스트 발송 API는 없다. 기존 이메일 테스트 발송과 transactional 이메일·인스타그램 연결 끊김 알림은 이 변경으로 허용/차단하지 않는다.
+
+현재 DM footer의 “더 받지 않으려면 답장으로 알려 주세요” 문구에 대응하는 수신거부 답장 처리와 영속 차단은 아직 구현되지 않았다. 발송 허용 전에는 구체적인 분류·필요 동의와 야간 기준·수신거부 처리를 구현·확인해야 한다. 이 차단으로 자문·동의·철회 인수를 완료했다고 주장하지 않는다. 마이그레이션·새 리소스·새 자격증명·Meta 실호출은 추가하지 않는다.

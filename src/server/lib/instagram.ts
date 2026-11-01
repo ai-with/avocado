@@ -3,12 +3,13 @@
 // IG_FAKE=1 이면 네트워크 없이 고정 응답을 돌려준다 (로컬 흐름 확인용)
 import { IG_SCOPES, parsePostUrl, type Metric, type MissingReason } from "../../shared/performance";
 import { hmacHex, safeEqual } from "./crypto";
+import { dmPolicyStatus } from "./message-policy";
 
 const V = "v26.0";
 const IG = `https://graph.instagram.com/${V}`;
 const FB = `https://graph.facebook.com/${V}`;
 
-export type IgFail = { ok: false; reason: MissingReason | "not_configured" | "grant_unverified" | "invalid_response" | "personal_account"; code?: number; subcode?: number; message?: string; transient?: boolean; authFailure?: boolean };
+export type IgFail = { ok: false; reason: MissingReason | "not_configured" | "grant_unverified" | "invalid_response" | "personal_account" | "send_policy_unconfigured"; code?: number; subcode?: number; message?: string; transient?: boolean; authFailure?: boolean };
 export type IgResult<T> = { ok: true; data: T } | IgFail;
 
 export const isFake = (env: Env) => env.IG_FAKE === "1";
@@ -224,6 +225,8 @@ export async function recentMedia(env: Env, token: string): Promise<IgResult<IgM
 // 댓글 트리거 비공개 답장 (C1-a): POST /{ig-user-id}/messages, recipient.comment_id
 // [검증 필요] 인스타그램 로그인 경로에서 이 형식 그대로인지 앱 검수 전 테스터 계정으로 확인
 export async function sendPrivateReply(env: Env, token: string, igUserId: string, commentId: string, text: string): Promise<IgResult<{ message_id?: string }>> {
+  const policy = dmPolicyStatus();
+  if (!policy.configured) return { ok: false, reason: policy.reason, message: policy.message };
   if (isFake(env)) return { ok: true, data: { message_id: `fake_msg_${commentId}` } };
   return call(`${IG}/${igUserId}/messages`, {
     method: "POST",
@@ -233,6 +236,8 @@ export async function sendPrivateReply(env: Env, token: string, igUserId: string
 }
 
 export async function sendPublicReply(env: Env, token: string, commentId: string, text: string): Promise<IgResult<{ id?: string }>> {
+  const policy = dmPolicyStatus();
+  if (!policy.configured) return { ok: false, reason: policy.reason, message: policy.message };
   if (isFake(env)) return { ok: true, data: { id: `fake_reply_${commentId}` } };
   return call(`${IG}/${commentId}/replies?${q({ message: text, access_token: token })}`, { method: "POST" });
 }

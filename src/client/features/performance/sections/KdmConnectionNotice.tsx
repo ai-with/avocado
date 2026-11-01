@@ -12,5 +12,5 @@ export function KdmConnectionNotice({ data }: { data: KdmData }) {
     return <Card><p>브랜드 계정 연결이 끊겼어요. 켜진 규칙은 일시정지됐어요. <Link to="/dashboard/settings/integrations">다시 연결하기</Link></p></Card>;
   if (!data.connection.connected)
     return <Card><p>계정과 허용한 권한을 다시 확인해야 해요. <Link to="/dashboard/settings/integrations">연결 확인하기</Link></p></Card>;
-  return <p className="text-caption">연결된 계정: @{data.connection.username} · 댓글 작성 후 7일 안, 한 사람에게 한 번만 보내요.</p>;
+  return <p className="text-caption">연결된 계정: @{data.connection.username}{data.sendPolicy?.configured === true && " · 댓글 작성 후 7일 안, 한 사람에게 한 번만 보내요."}</p>;
 }

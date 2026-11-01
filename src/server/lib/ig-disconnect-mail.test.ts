@@ -15,7 +15,7 @@ import worker from "../index";
 import type { PipelineMessage } from "../jobs";
 import { Hono } from "hono";
 import type { AppEnv, Auth } from "../types";
-import { keywordDmRoutes } from "../routes/keyword-dm";
+import { createKeywordDmRoutes } from "../routes/keyword-dm";
 import { ApiError, errorBody } from "./errors";
 
 const NOW = Date.parse("2026-11-01T10:00:00Z"), KEY = "lifecycle-test-encryption-key";
@@ -312,7 +312,7 @@ describe("수집·화면·키워드 DM의 공통 usable", () => {
     db.exec("INSERT INTO short_links(id,workspace_id,guide_id,influencer_id,channel_key,slug,destination_type,destination_url,utm,og,created_at) VALUES('link','w','guide','creator','ig_bio','link-slug','url','https://example.test','{}','{}',1)");
     db.exec("INSERT INTO keyword_dm_rules(id,workspace_id,guide_id,influencer_id,ig_connection_id,ig_media_id,keywords,message,public_reply_variants,status,enabled,created_at,updated_at) VALUES('rule','w','guide','creator','sender','123','[\"give\"]','{link}','[]','off',0,1,1)");
     const auth: Auth = { sessionId: "session", user: { id: "owner", name: "owner", email: "owner@example.test" }, role: "owner", phone: null, phoneVerified: true, workspace: { id: "w", name: "w", plan: "starter", onboardedAt: 1 } };
-    const app = new Hono<AppEnv>(); app.use("*", async (c, next) => { c.set("db", getDb(c.env.DB)); c.set("auth", auth); await next(); }); app.route("/keyword", keywordDmRoutes);
+    const app = new Hono<AppEnv>(); app.use("*", async (c, next) => { c.set("db", getDb(c.env.DB)); c.set("auth", auth); await next(); }); app.route("/keyword", createKeywordDmRoutes({ configured: true }));
     app.onError((error, c) => error instanceof ApiError ? c.json(errorBody(error.code, error.message), error.status) : c.text(String(error), 500));
     const configuredEnv = { ...env, META_APP_ID: "fake-app", META_APP_SECRET: "fake-secret", PUBLIC_SHORT_BASE: "https://app.example.test/l" } as Env;
     const get = () => app.request("/keyword", undefined, configuredEnv);

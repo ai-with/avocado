@@ -23,7 +23,7 @@ export function SendsModal({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <td className="nowrap">{fmtDateTime(s.commentAt)}</td>
                 <td className="wrap">{s.username ? `@${s.username} ` : ""}{s.commentText}</td>
                 <td className="nowrap">{fmtDateTime(s.sentAt)}</td>
-                <td>{SEND_STATUS_LABELS[s.status]}{s.reason && <div className="text-caption">{s.reason}</div>}</td>
+                <td>{SEND_STATUS_LABELS[s.status]}{s.reason && <div className="text-caption">{s.reason === "send_policy_unconfigured" ? "DM 발송 기준 준비 중" : s.reason}</div>}</td>
               </tr>
             ))}
           </tbody>

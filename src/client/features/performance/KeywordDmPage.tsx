@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, EmptyState, LoadingState, PageHeader } from "../../ui";
+import { Button, Card, EmptyState, LoadingState, PageHeader } from "../../ui";
 import { api } from "../../lib/api";
 import { useMe } from "../../lib/me";
 import type { KdmData, Rule } from "./kdmTypes";
@@ -27,16 +27,19 @@ export function KeywordDmPage() {
 
   return (
     <>
-      <PageHeader title={TITLE} description={DESCRIPTION} actions={canEdit && data.configured && <Button onClick={() => setEditing("new")}>규칙 만들기</Button>} />
+      <PageHeader title={TITLE} description={DESCRIPTION} actions={canEdit && <Button onClick={() => setEditing("new")}>규칙 만들기</Button>} />
       <div className="stack">
+        {data.sendPolicy?.configured !== true && <Card><p role="status">{data.sendPolicy?.message ?? "DM 발송 기준을 준비하고 있어요. 실제 DM과 후속 공개 답글은 아직 사용할 수 없어요."}</p></Card>}
         <KdmConnectionNotice data={data} />
         {data.rules.length === 0 ? (
-          <EmptyState title="아직 규칙이 없어요" description="게시물에 '댓글에 키워드를 남기면 DM으로 자료를 보내 드려요'라고 쓰고 규칙을 만들어 보세요." />
+          <EmptyState title="아직 규칙이 없어요" description={data.sendPolicy?.configured === true
+            ? "게시물에 '댓글에 키워드를 남기면 DM으로 자료를 보내 드려요'라고 쓰고 규칙을 만들어 보세요."
+            : "DM 발송 기준을 준비하고 있어요. 규칙 초안을 미리 작성할 수 있어요."} />
         ) : (
-          <RuleTable rules={data.rules} canEdit={canEdit} act={act} onEdit={setEditing} onLog={setLogOf} />
+          <RuleTable rules={data.rules} canEdit={canEdit} canSend={data.sendPolicy?.configured === true} act={act} onEdit={setEditing} onLog={setLogOf} />
         )}
       </div>
-      {editing && <RuleEditor rule={editing === "new" ? null : editing} defaults={data.defaultPublicReplies} brand={me?.workspace?.name ?? ""} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await load(); }} />}
+      {editing && <RuleEditor rule={editing === "new" ? null : editing} defaults={data.defaultPublicReplies} canSend={data.sendPolicy?.configured === true} brand={me?.workspace?.name ?? ""} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await load(); }} />}
       <SendsModal rule={logOf} onClose={() => setLogOf(null)} />
     </>
   );

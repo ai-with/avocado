@@ -10,8 +10,30 @@ import { logEvent } from "./events";
 import { newId, now } from "./ids";
 import { definitiveIgDisconnect, igConnectionState, igConnectionUsable, igGrantVerified } from "./ig-connection-state";
 import { disconnectIgConnection } from "./ig-disconnect-mail";
+import { productionDmPolicy, type DmPolicy } from "./message-policy";
 
 type Rule = typeof keywordDmRules.$inferSelect;
+type DmProvider = { privateReply: typeof sendPrivateReply; publicReply: typeof sendPublicReply };
+type Dependencies = { policy: DmPolicy; provider: DmProvider };
+
+function blockStatements(db: Db, rows: { rule: Rule; sendId: string }[], at: number) {
+  const candidates = JSON.stringify(rows.map(({ rule, sendId }) => ({ sendId, ruleId: rule.id, workspaceId: rule.workspaceId })));
+  return [
+    db.$client.prepare(`UPDATE keyword_dm_sends AS s SET status='failed',reason='send_policy_unconfigured' WHERE s.status='queued'
+      AND EXISTS(SELECT 1 FROM json_each(?) c JOIN keyword_dm_rules r ON r.id=json_extract(c.value,'$.ruleId')
+        WHERE s.id=json_extract(c.value,'$.sendId') AND s.rule_id=r.id AND r.workspace_id=json_extract(c.value,'$.workspaceId'))`).bind(candidates),
+    // Deterministic event IDs make a concurrent/lost-response replay idempotent.
+    db.$client.prepare(`INSERT OR IGNORE INTO events(id,workspace_id,name,props,at)
+      SELECT 'keyword_dm_policy_blocked:'||s.id,r.workspace_id,'keyword_dm_failed',json_object('rule_id',r.id,'reason','send_policy_unconfigured'),?
+      FROM json_each(?) c JOIN keyword_dm_sends s ON s.id=json_extract(c.value,'$.sendId') AND s.rule_id=json_extract(c.value,'$.ruleId')
+      JOIN keyword_dm_rules r ON r.id=s.rule_id AND r.workspace_id=json_extract(c.value,'$.workspaceId')
+      WHERE s.status='failed' AND s.reason='send_policy_unconfigured'`).bind(at, candidates),
+  ];
+}
+async function blockUnconfigured(db: Db, rule: Rule, sendId: string): Promise<KeywordDmSendStatus> {
+  await db.$client.batch(blockStatements(db, [{ rule, sendId }], now()));
+  return "failed";
+}
 
 // 규칙의 인플루언서 ig_comment_dm 링크. 없으면 같은 가이드·인플루언서(없으면 가이드)의 다른 링크 목적지로 만든다
 export async function ensureCommentDmLink(db: Db, rule: Pick<Rule, "workspaceId" | "guideId" | "influencerId">) {
@@ -73,13 +95,16 @@ async function sentLastHour(db: Db, connectionId: string) {
 }
 
 // 한 건 발송 시도. 기록(keyword_dm_sends)은 호출 측이 만든 행을 갱신한다
-async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commentId: string; commentAt: number }): Promise<KeywordDmSendStatus> {
+async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commentId: string; commentAt: number }, { policy, provider }: Dependencies): Promise<KeywordDmSendStatus> {
   const set = async (status: KeywordDmSendStatus, reason: string | null, extra: { sentAt?: number; linkId?: string } = {}) => {
-    await db.update(keywordDmSends).set({ status, reason, ...extra }).where(eq(keywordDmSends.id, sendId));
+    const changed = await db.update(keywordDmSends).set({ status, reason, ...extra }).where(and(eq(keywordDmSends.id, sendId), eq(keywordDmSends.status, "queued"))).returning({ id: keywordDmSends.id });
+    if (!changed.length) return status;
     if (status === "sent") await logEvent(db, rule.workspaceId, "keyword_dm_sent", { rule_id: rule.id });
     if (status === "failed" || status === "expired") await logEvent(db, rule.workspaceId, "keyword_dm_failed", { rule_id: rule.id, reason });
     return status;
   };
+  // Block before token decryption, link creation, disconnect mail or providers.
+  if (!policy.configured) return blockUnconfigured(db, rule, sendId);
   if (now() - c.commentAt > PRIVATE_REPLY_WINDOW_MS) return set("expired", "older_than_7d");
 
   const key = tokenKey(env);
@@ -94,17 +119,19 @@ async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commen
   const ws = await db.select({ name: workspaces.name }).from(workspaces).where(eq(workspaces.id, rule.workspaceId)).get();
   const token = await decryptToken(key, conn.tokenEnc);
   const text = renderDm(rule.message, `${env.PUBLIC_SHORT_BASE}/${link.slug}`, ws?.name ?? "");
-  const r = await sendPrivateReply(env, token, conn.igUserId, c.commentId, text);
+  if (!policy.configured) return blockUnconfigured(db, rule, sendId);
+  const r = await provider.privateReply(env, token, conn.igUserId, c.commentId, text);
   if (!r.ok) {
+    if (r.reason === "send_policy_unconfigured") return blockUnconfigured(db, rule, sendId);
     const reason = definitiveIgDisconnect(r);
     if (reason) await disconnectIgConnection(env, db, conn, reason);
     if (r.reason === "api_error") return set("queued", `api_error:${r.code ?? ""}`, { linkId: link.id });
     return set("failed", r.message ? `${r.reason}: ${r.message}`.slice(0, 300) : r.reason, { linkId: link.id });
   }
-  if (rule.publicReplyVariants.length > 0) {
+  if (policy.configured && rule.publicReplyVariants.length > 0) {
     const pick = rule.publicReplyVariants[Math.floor(Math.random() * rule.publicReplyVariants.length)];
     if (pick) {
-      const reply = await sendPublicReply(env, token, c.commentId, pick);
+      const reply = await provider.publicReply(env, token, c.commentId, pick);
       if (!reply.ok) { const reason = definitiveIgDisconnect(reply); if (reason) await disconnectIgConnection(env, db, conn, reason); }
     }
   }
@@ -112,7 +139,7 @@ async function deliver(db: Db, env: Env, rule: Rule, sendId: string, c: { commen
 }
 
 // 웹훅 comments 한 건. igAccountId = entry.id (댓글이 달린 브랜드 계정)
-export async function handleComment(db: Db, env: Env, igAccountId: string, comment: IgComment, commentAt: number) {
+async function handleCommentWith(db: Db, env: Env, igAccountId: string, comment: IgComment, commentAt: number, deps: Dependencies) {
   if (comment.from.id === igAccountId) return; // 브랜드 자신의 댓글(공개 답글 포함)
   const rules = await db
     .select({ rule: keywordDmRules })
@@ -121,8 +148,8 @@ export async function handleComment(db: Db, env: Env, igAccountId: string, comme
     .where(and(eq(keywordDmRules.igMediaId, comment.media.id), eq(keywordDmRules.status, "on"), eq(igConnections.igUserId, igAccountId)));
   for (const { rule } of rules) {
     if (!matchKeyword(comment.text, rule.keywords)) continue;
-    await logEvent(db, rule.workspaceId, "keyword_dm_matched", { rule_id: rule.id });
-    const dup = await db.select({ id: keywordDmSends.id }).from(keywordDmSends).where(and(eq(keywordDmSends.ruleId, rule.id), eq(keywordDmSends.igUserId, comment.from.id))).get();
+    const dup = await db.select({ id: keywordDmSends.id }).from(keywordDmSends).where(and(eq(keywordDmSends.ruleId, rule.id), eq(keywordDmSends.igUserId, comment.from.id),
+      sql`NOT (${keywordDmSends.status}='failed' AND coalesce(${keywordDmSends.reason},'')='send_policy_unconfigured')`)).get();
     const id = newId();
     const inserted = await db
       .insert(keywordDmSends)
@@ -131,12 +158,13 @@ export async function handleComment(db: Db, env: Env, igAccountId: string, comme
       .returning({ id: keywordDmSends.id });
     // 같은 댓글 웹훅 재전송이면 무시, 같은 사람·게시물이면 already_sent 기록만
     if (inserted.length === 0 || dup) continue;
-    await deliver(db, env, rule, id, { commentId: comment.id, commentAt });
+    await logEvent(db, rule.workspaceId, "keyword_dm_matched", { rule_id: rule.id });
+    await deliver(db, env, rule, id, { commentId: comment.id, commentAt }, deps);
   }
 }
 
 // cron: 대기열(시간 한도·일시 오류) 재시도
-export async function retryQueuedDms(env: Env): Promise<void> {
+async function retryQueuedWith(env: Env, deps: Dependencies): Promise<void> {
   const db = getDb(env.DB);
   const rows = await db
     .select({ send: keywordDmSends, rule: keywordDmRules })
@@ -145,5 +173,26 @@ export async function retryQueuedDms(env: Env): Promise<void> {
     .where(and(eq(keywordDmSends.status, "queued"), eq(keywordDmRules.status, "on")))
     .orderBy(asc(keywordDmSends.commentAt))
     .limit(100);
-  for (const { send, rule } of rows) await deliver(db, env, rule, send.id, { commentId: send.commentId, commentAt: send.commentAt });
+  if (!deps.policy.configured) {
+    // Keep the existing 100-row bound within Free D1's invocation API budget.
+    // Each status/audit pair remains atomic, with no repeat terminal receipt.
+    if (rows.length) await db.$client.batch(blockStatements(db, rows.map(({ send, rule }) => ({ rule, sendId: send.id })), now()));
+    return;
+  }
+  for (const { send, rule } of rows) await deliver(db, env, rule, send.id, { commentId: send.commentId, commentAt: send.commentAt }, deps);
 }
+
+// Only trusted server constructors can inject a test policy and fake provider.
+// The real provider helpers independently enforce the production policy.
+export function createKeywordDmSender(policy: DmPolicy = productionDmPolicy, provider: DmProvider = { privateReply: sendPrivateReply, publicReply: sendPublicReply }) {
+  const deps = { policy, provider };
+  return {
+    handleComment: async (db: Db, env: Env, account: string, comment: IgComment, at: number) => {
+      try { await handleCommentWith(db, env, account, comment, at, deps); } catch { throw new Error("keyword_dm_processing_failed"); }
+    },
+    retryQueuedDms: async (env: Env) => {
+      try { await retryQueuedWith(env, deps); } catch { throw new Error("keyword_dm_processing_failed"); }
+    },
+  };
+}
+export const { handleComment, retryQueuedDms } = createKeywordDmSender();

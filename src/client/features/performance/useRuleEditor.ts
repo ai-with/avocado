@@ -33,7 +33,7 @@ function useRuleOptions(guideId: string) {
 }
 
 // 규칙 편집 폼 상태, 선택지 불러오기, 저장
-export function useRuleEditor(rule: Rule | null, onSaved: () => Promise<void>) {
+export function useRuleEditor(rule: Rule | null, onSaved: () => Promise<void>, canSend: boolean) {
   const toast = useToast();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [f, setF] = useState<RuleForm>(() => initialForm(rule));
@@ -45,10 +45,10 @@ export function useRuleEditor(rule: Rule | null, onSaved: () => Promise<void>) {
     try {
       if (rule) {
         const r = await api.patch<{ turnedOff: boolean }>(`/keyword-dm/${rule.id}`, body);
-        toast(r.turnedOff ? "저장했어요. 문구가 바뀌어 규칙을 껐어요. 확인 후 다시 켜 주세요." : "저장했어요.", "success");
+        toast(!canSend ? "저장했어요. 실제 발송 기준을 준비 중이에요." : r.turnedOff ? "저장했어요. 문구가 바뀌어 규칙을 껐어요. 확인 후 다시 켜 주세요." : "저장했어요.", "success");
       } else {
         await api.post("/keyword-dm", body);
-        toast("규칙을 만들었어요. 미리보기를 확인하고 켜 주세요.", "success");
+        toast(canSend ? "규칙을 만들었어요. 미리보기를 확인하고 켜 주세요." : "초안으로 저장했어요. 실제 발송 기준을 준비 중이에요.", "success");
       }
       await onSaved();
     } catch (err) {

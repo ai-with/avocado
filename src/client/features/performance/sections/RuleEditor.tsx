@@ -57,11 +57,14 @@ function PublicReplies({ f, setF, defaults }: Omit<FormProps, "fields"> & { defa
   );
 }
 
-type Props = { rule: Rule | null; defaults: string[]; brand: string; onClose: () => void; onSaved: () => Promise<void> };
+type Props = { rule: Rule | null; defaults: string[]; canSend: boolean; brand: string; onClose: () => void; onSaved: () => Promise<void> };
 
-export function RuleEditor({ rule, defaults, brand, onClose, onSaved }: Props) {
-  const { f, setF, fields, submit, guides, infs, media } = useRuleEditor(rule, onSaved);
+export function RuleEditor({ rule, defaults, canSend, brand, onClose, onSaved }: Props) {
+  const { f, setF, fields, submit, guides, infs, media } = useRuleEditor(rule, onSaved, canSend);
   const form = { f, setF, fields };
+  const saveNotice = canSend ? "규칙은 꺼진 상태로 저장돼요. 목록에서 '켜기'를 눌러야 DM이 나가요. 문구를 바꾸면 다시 꺼져요."
+    : rule ? "설정은 저장할 수 있어요. DM 발송 기준을 준비 중이라 실제 발송할 수 없어요."
+      : "규칙은 꺼진 상태로 저장돼요. DM 발송 기준을 준비 중이라 아직 켜거나 실제 발송할 수 없어요.";
   return (
     <Modal open title={rule ? "규칙 편집" : "규칙 만들기"} onClose={onClose} size="lg">
       <form className="stack" onSubmit={submit}>
@@ -74,7 +77,7 @@ export function RuleEditor({ rule, defaults, brand, onClose, onSaved }: Props) {
           <strong>미리보기</strong>
           <div className="kdm-preview">{renderDm(f.message, rule?.linkUrl ?? PREVIEW_LINK, brand)}</div>
         </div>
-        <p className="text-caption">규칙은 꺼진 상태로 저장돼요. 목록에서 '켜기'를 눌러야 DM이 나가요. 문구를 바꾸면 다시 꺼져요.</p>
+        <p className="text-caption">{saveNotice}</p>
         <div className="row row-end">
           <Button variant="ghost" onClick={onClose}>취소</Button>
           <Button type="submit">규칙 저장</Button>

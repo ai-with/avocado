@@ -12,3 +12,13 @@ export const messagePolicyStatus = () => ({ configured: productionMessagePolicy.
 export function requireMessagePolicy(policy: MessagePolicy = productionMessagePolicy): void {
   if (!policy.configured) throw new ApiError(503, "send_policy_unconfigured", messagePolicyStatus().message);
 }
+
+// DM classification, channel consent and withdrawal handling are not configured.
+// This is independent of email/alimtalk capacity policy. No Env or HTTP override.
+export type DmPolicy = { readonly configured: boolean };
+export const productionDmPolicy: DmPolicy = Object.freeze({ configured: false });
+export const dmPolicyStatus = (policy: DmPolicy = productionDmPolicy) => ({ configured: policy.configured, reason: "send_policy_unconfigured" as const,
+  message: "DM 발송 기준을 준비하고 있어요. 실제 DM과 후속 공개 답글은 아직 사용할 수 없어요." });
+export function requireDmPolicy(policy: DmPolicy = productionDmPolicy): void {
+  if (!policy.configured) throw new ApiError(503, "send_policy_unconfigured", dmPolicyStatus(policy).message);
+}

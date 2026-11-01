@@ -14,6 +14,7 @@ import { statsByLink } from "../lib/link-stats";
 import { brandSender } from "./instagram";
 import { DEFAULT_PUBLIC_REPLIES } from "../../shared/performance";
 import { igConnectionState, igConnectionUsable, igConnectionUsableSql } from "../lib/ig-connection-state";
+import { dmPolicyStatus, productionDmPolicy, requireDmPolicy, type DmPolicy } from "../lib/message-policy";
 
 const ruleSchema = z.object({
   guideId: z.string().min(1, "가이드를 골라 주세요."),
@@ -38,7 +39,8 @@ async function checkRefs(db: Db, workspaceId: string, guideId: string, influence
   if (!g || !i) throw new ApiError(404, "ref_not_found", "가이드 또는 인플루언서를 찾을 수 없어요.");
 }
 
-export const keywordDmRoutes = new Hono<AppEnv>()
+export function createKeywordDmRoutes(policy: DmPolicy = productionDmPolicy) {
+  return new Hono<AppEnv>()
   .get("/", async (c) => {
     const { workspace } = workspaceCtx(c);
     const db = c.var.db;
@@ -59,6 +61,7 @@ export const keywordDmRoutes = new Hono<AppEnv>()
     const conn = await brandSender(db, workspace.id);
     return c.json({
       configured: igConfigured(c.env),
+      sendPolicy: dmPolicyStatus(policy),
       connection: conn?.connectedAt ? { username: conn.username, ...igConnectionState(conn) } : null,
       defaultPublicReplies: DEFAULT_PUBLIC_REPLIES,
       rules: rules.map(({ rule, guideName, influencerName }) => {
@@ -115,6 +118,7 @@ export const keywordDmRoutes = new Hono<AppEnv>()
     const rule = await ownRule(db, workspace.id, c.req.param("id"));
     const { on } = parse(z.object({ on: z.boolean() }), await c.req.json());
     if (on) {
+      requireDmPolicy(policy);
       if (!igConfigured(c.env)) throw new ApiError(409, "not_configured", "인스타그램 연결 준비 중이라 아직 켤 수 없어요.");
       const conn = await brandSender(db, workspace.id);
       if (!conn || !igConnectionUsable(conn)) throw new ApiError(409, "not_connected", "먼저 연동 화면에서 브랜드 인스타그램 계정을 다시 연결해 주세요.");
@@ -142,3 +146,5 @@ export const keywordDmRoutes = new Hono<AppEnv>()
     const sends = await c.var.db.select().from(keywordDmSends).where(eq(keywordDmSends.ruleId, rule.id)).orderBy(desc(keywordDmSends.commentAt)).limit(200);
     return c.json({ sends });
   });
+}
+export const keywordDmRoutes = createKeywordDmRoutes();
