@@ -1,12 +1,11 @@
-# 379/380 local media preparation POC
+# Private media preparation (379/380)
 
-Private Worker/Container media preparation for AIWITH-379/380. Compute, the
-app-owned adapter and operational activation are separate concerns. Local Docker,
-Workerd RPC and synthetic-media checks passed. These compute checks created no
-Cloud resource, subscription or credential and used no real AI, Meta, SMS, email
-or browser. Cloud processing time and production behavior remain **unmeasured**.
-This directory supplies separate local and private production configurations.
-Operational activation is performed separately by Root.
+Private Worker/Container media preparation for AIWITH-379/380, connected to the
+[app-owned adapter](../../src/server/lib/media-preparation.ts). Local Docker,
+Workerd RPC and a bounded Cloud synthetic-media case passed. This directory
+supplies separate local and private production configurations. Compute receives
+byte streams and scoped callbacks; the app owns D1/R2 and all source permissions.
+Cloud validation below uses the account's existing Containers entitlement.
 
 ## What runs locally
 
@@ -176,8 +175,9 @@ and the app's atomic selection/purge checks.
 
 Native SDK support was checked in repository-pinned workers-types
 `5.20261014.1` (`Container`/`ExecProcess`, index.d.ts 3958–4000) and strict TS passed.
-The native options/methods are typed; wire JSON is runtime-validated. Actual
-Cloud exec/pipe semantics, alarms and resource enforcement remain untested.
+The native options/methods are typed; wire JSON is runtime-validated. Cloud exec
+and pipe transfer passed the case below. Deployed alarm/restart failure recovery
+and a full resource-enforcement matrix still need separate validation.
 
 The current pipeline already has consent/purge fencing, analysis generations and
 15-minute claims (`pipeline/analysis.ts`), immutable audio writes plus retirement
@@ -213,9 +213,9 @@ such a path needs bounded multipart/chunk requests. Workers RPC supports byte
 streams beyond its ordinary 32MiB serialized-value limit. Neither fact proves
 the eventual Worker→Container bridge can carry 2GiB unchanged: that transport
 uses ≤1MiB native exec stdin/stdout frames rather than that HTTP outbound path.
-The concrete bridge has local native-protocol and fake-API tests, but the Cloud
-streaming path is unmeasured; never expose an HTTP bypass.
-Future container policy must set `enableInternet=false`, one active job/instance,
+The concrete bridge has local native-protocol, fake-API and bounded Cloud stream
+checks. Do not expose an HTTP bypass. Container policy sets
+`enableInternet=false`, one active job/instance,
 short idle stop, no rootfs secrets, no bucket mount, and no unrestricted outbound
 proxy. The POC image has idle PID1 plus supervised CLIs, no private-port server.
 
@@ -226,10 +226,11 @@ That `basic` figure is only a separate legacy-policy measurement candidate.
 The **actual native release standard-2** at 180 seconds/full allocated CPU is
 180vCPU-seconds +1,080GiB-seconds +2,160GB-seconds, or **$0.0064512** compute overage.
 Both are rate calculations, **not measured runtime, per-job pricing, or a budget**.
-Actual Cloud cold-start, transfer throughput, CPU throttling, peak memory, failure
-rate, processing duration and billing remain unmeasured. Root subsequently verified
-the existing account's Containers entitlement and standard-2 capacity through
-read-only management GETs; no new plan, subscription or grants were created.
+The single Cloud case below measures its transfer and processing times. General
+cold-start distribution, throttling, peak memory, failure rate and actual billing
+remain unmeasured. Existing Containers entitlement and standard-2 capacity were
+verified through read-only management GETs; no new plan, subscription or grants
+were created.
 
 Primary references:
 
@@ -238,19 +239,40 @@ Primary references:
 - [private Service Binding RPC](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/rpc/), [byte-stream RPC](https://developers.cloudflare.com/workers/runtime-apis/rpc/), [ffprobe official options](https://www.ffmpeg.org/ffprobe-all.html), [FFmpeg source releases](https://www.ffmpeg.org/releases/)
 - [native Container API](https://developers.cloudflare.com/containers/api/durable-object-container/), [scheduling policy/basic limitations](https://developers.cloudflare.com/containers/configuration/scheduling-policy/), [local development](https://developers.cloudflare.com/containers/guides/local-dev/)
 
-## Operational activation checks
+## Cloud validation and remaining checks
 
-- Cloud validation of the concrete native supervisor, including deployed
-  disconnect/alarm/restart/teardown failures. Local Workerd RPC passed; these
-  checks created no Cloud resources.
-- App-owned atomic sink/consent-generation handling; no public debug route or
-  shared master key. The application adapter is a separate integration task.
-- Compressed-media manifest and exact-key purge integration, coexistence with
-  browser audio, timeout/retry policy and immutable request identities.
-- Real, licensed high-entropy >500MiB/2GiB edge samples and Cloud measurements.
+- Deployed disconnect/alarm/restart/teardown failure cases remain separate from
+  the successful exec/stream case below.
+- The app adapter implements atomic consent/generation/source selection, exact
+  purge keys, browser coexistence, immutable writes and bounded retry behavior.
+- Representative licensed workloads, all input codecs and the full2GiB/180s
+  boundaries still need measurement.
 - Review operational capacity, cost controls, deploy diff, final image digest,
   permissions and rollback. The existing Containers entitlement is verified;
-  actual Cloud behavior and consumption still need bounded validation.
+  general capacity and actual consumption still need measurement.
+
+On 2026-11-01, normal guest consent and multipart upload sent an owned synthetic
+30-second1080p H.264/AAC sine MP4 through58 acknowledged parts:
+
+| Evidence | Observed result |
+|---|---|
+| Input | 607,918,275 bytes; compute input SHA256 matched the local fixture; source ETag unchanged |
+| Input transfer | 28.837s to input EOF |
+| Compute transport completion | 146.794s; output streams, process exit0 and container teardown confirmed |
+| R2 MP4 copy | 9,634,112 bytes; downloaded SHA256 matched; H.264/AAC1280×720,30fps,yuv420p,30.016s |
+| R2 WAV | 960,590 bytes; downloaded SHA256 matched; PCM s16le,16kHz,mono,30.016s |
+| Analysis handoff | selected/current generation1 and audio present; sine transcription ended no_speech |
+| Withdrawal | Normal guest withdrawal, scheduled Cron purge success on its first attempt, source reference cleared |
+| Storage absence | Four exact possible-write keys returned404 in two independent post-lease checks |
+| Fixture cleanup | 44 scoped metadata rows removed, fresh scope0/FK0; no user/session/member SQL writes |
+
+Earlier small-chunk Cloud transfer attempts timed out. The deployed stream path
+batches at most1MiB using native BYOB reads across the app and compute boundaries.
+The successful result used standard-2; increasing CPU alone did not solve input
+throughput. This synthetic case is neither a general latency SLA nor real speech
+or visual accuracy evidence. No browser frames were fabricated; visual detection
+correctly remained frames_unavailable. Retrying the initial failed fake attempt
+was a scoped operator action, not proof of a normal user retry UI.
 
 Separate Root-owned native measurements now also cover actual high-entropy
 synthetic data: a 594,520,009-byte three-second 1080p FFV1+sine clip (15.021s ARM),
