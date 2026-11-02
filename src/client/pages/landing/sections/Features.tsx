@@ -49,7 +49,7 @@ function FeatureBlock({ f, flipped }: { f: FeatureSection; flipped: boolean }) {
   const Demo = DEMOS[f.id as FeatureId];
   const layout = Demo ? ` has-demo${flipped ? " is-flipped" : ""}` : "";
   return (
-    <section id={f.id} className="landing-section">
+    <section id={f.id} className="landing-section landing-feature-section">
       <div className={`landing-container landing-feature${layout}`}>
         <div className="landing-feature-text stack-loose">
           <SectionHead title={f.title} sub={f.sub} />

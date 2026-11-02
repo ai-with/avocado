@@ -93,6 +93,7 @@ html:has(.landing) { scroll-behavior: smooth; }
 .landing-card h3 { font-size: var(--text-h4-size); line-height: var(--text-h4-lh); letter-spacing: var(--text-h4-ls); }
 .landing-step-no { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent); font-weight: var(--weight-semibold); font-size: var(--text-body-sm-size); }
 /* 기능 블록: 데스크톱 2열(텍스트 + 데모). flipped면 데모가 왼쪽 */
+.landing-feature-section { padding-block: var(--space-12); }
 .landing-feature { --landing-demo-max: 620px; }
 .landing-feature.has-demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--landing-demo-max)); gap: var(--space-11); align-items: center; }
 .landing-feature.is-flipped { grid-template-columns: minmax(0, var(--landing-demo-max)) minmax(0, 1fr); }
@@ -136,6 +137,7 @@ html:has(.landing) { scroll-behavior: smooth; }
   .landing-feature.is-flipped .landing-feature-demo { order: 0; }
 }
 @media (max-width: 1023px) {
+  .landing-feature-section { padding-block: var(--space-11); }
   .landing-grid:not(.is-compact), .landing-grid.is-steps { grid-template-columns: repeat(2, 1fr); }
 }
 /* 목업 안 릴스와 카드를 세로로 쌓는다 */
@@ -145,6 +147,7 @@ html:has(.landing) { scroll-behavior: smooth; }
 }
 @media (max-width: 599px) {
   .landing { --landing-sub-size: 17px; --landing-sub-lh: 26px; }
+  .landing-feature-section { padding-block: var(--space-9); }
   .landing-grid, .landing-grid.is-steps { grid-template-columns: 1fr; }
   .landing-anchors, .landing-header-login { display: none; }
   .landing-showcase { --landing-showcase-title-size: 32px; --landing-showcase-title-lh: 40px; gap: var(--space-12); }
