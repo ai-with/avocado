@@ -82,9 +82,25 @@ export const keywordDmRules = sqliteTable(
     pausedReason: text("paused_reason"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    dmRevision: integer("dm_revision").notNull().default(0),
   },
   (t) => [index("keyword_dm_rules_ws_idx").on(t.workspaceId), index("keyword_dm_rules_media_idx").on(t.igMediaId)],
 );
+
+export const dmChannelConsents = sqliteTable("dm_channel_consents", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  connectionId: text("connection_id").notNull().references(() => igConnections.id, { onDelete: "cascade" }),
+  connectionGeneration: text("connection_generation").notNull(), appHmac: text("app_hmac").notNull(), recipientHmac: text("recipient_hmac").notNull(),
+  recipientNamespace: text("recipient_namespace").$type<"instagram_messaging_igsid">().notNull(),
+  revision: integer("revision").notNull(), status: text("status").$type<"granted" | "revoked">().notNull(),
+  noticeDigest: text("notice_digest").notNull(), proofHmac: text("proof_hmac").notNull(),
+  grantedAt: integer("granted_at"), revokedAt: integer("revoked_at"), createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
+}, (t) => [uniqueIndex("dm_channel_consents_scope_idx").on(t.workspaceId, t.connectionId, t.connectionGeneration, t.appHmac, t.recipientHmac)]);
+export const dmConsentReceipts = sqliteTable("dm_consent_receipts", {
+  proofHmac: text("proof_hmac").primaryKey(), consentId: text("consent_id").notNull().references(() => dmChannelConsents.id, { onDelete: "cascade" }),
+  fingerprint: text("fingerprint").notNull(), revision: integer("revision").notNull(), action: text("action").$type<"grant" | "revoke">().notNull(), createdAt: integer("created_at").notNull(),
+});
 
 export const keywordDmSends = sqliteTable(
   "keyword_dm_sends",
@@ -100,6 +116,10 @@ export const keywordDmSends = sqliteTable(
     status: text("status").$type<KeywordDmSendStatus>().notNull(),
     reason: text("reason"),
     linkId: text("link_id"),
+    dmConsentId: text("dm_consent_id").references(() => dmChannelConsents.id, { onDelete: "set null" }),
+    dmConsentRevision: integer("dm_consent_revision"), dmAppHmac: text("dm_app_hmac"), dmRecipientHmac: text("dm_recipient_hmac"),
+    dmSenderGeneration: text("dm_sender_generation"), dmRuleHmac: text("dm_rule_hmac"), dmAttemptToken: text("dm_attempt_token"), dmAttemptAt: integer("dm_attempt_at"),
   },
-  (t) => [uniqueIndex("keyword_dm_sends_comment_idx").on(t.ruleId, t.commentId), index("keyword_dm_sends_rule_user_idx").on(t.ruleId, t.igUserId), index("keyword_dm_sends_status_idx").on(t.status, t.sentAt)],
+  (t) => [uniqueIndex("keyword_dm_sends_comment_idx").on(t.ruleId, t.commentId), index("keyword_dm_sends_rule_user_idx").on(t.ruleId, t.igUserId), index("keyword_dm_sends_status_idx").on(t.status, t.sentAt),
+    index("keyword_dm_sends_consent_idx").on(t.dmConsentId, t.status), index("keyword_dm_sends_attempt_idx").on(t.status, t.dmAttemptAt)],
 );

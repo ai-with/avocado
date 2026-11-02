@@ -11,6 +11,7 @@ import { encryptToken } from "./crypto";
 import { ApiError, errorBody } from "./errors";
 import { igWebhookRoutes } from "../routes/instagram";
 import { hmacHex } from "./crypto";
+import { recordDmConsent, type DmRecipientVerifier } from "./dm-consent";
 
 const NOW = Date.parse("2026-11-01T05:00:00Z"), KEY = "local-dm-key";
 const closes: (() => void)[] = [];
@@ -39,7 +40,10 @@ async function setup() {
   };
   const sends = () => db.prepare("SELECT status,reason,sent_at,link_id FROM keyword_dm_sends ORDER BY id").all();
   const fake = { privateReply: vi.fn(async () => ({ ok: true as const, data: { message_id: "fake-private" } })), publicReply: vi.fn(async () => ({ ok: true as const, data: { id: "fake-public" } })) };
-  return { ...base, orm: getDb(base.d1), env, fetch, auth, appFor, sends, fake };
+  const verifyRecipient: DmRecipientVerifier = async (context) => ({ ...context, namespace: "instagram_messaging_igsid", appId: env.META_APP_ID!, recipientId: `mapped-${context.commentActorId}`, mappingDigest: "a".repeat(64) });
+  const grant = (actor: string) => recordDmConsent(getDb(base.d1), env, { identity: { workspaceId: "w", connectionId: "sender", connectionGeneration: "generation", senderAccountId: "123456", namespace: "instagram_messaging_igsid", appId: env.META_APP_ID!, recipientId: `mapped-${actor}` },
+    source: "verified_recipient_action", proofReference: `test-proof-${actor}`, identityProofDigest: "a".repeat(64), noticeDigest: "b".repeat(64), action: "grant", expectedRevision: 0 });
+  return { ...base, orm: getDb(base.d1), env, fetch, auth, appFor, sends, fake, verifyRecipient, grant };
 }
 
 describe("independent fail-closed production DM policy", () => {
@@ -96,22 +100,26 @@ describe("independent fail-closed production DM policy", () => {
   });
 
   it("trusted fake policy/provider can exercise a send and duplicate webhook without opening the real adapter", async () => {
-    const { env, orm, fake, sends, fetch } = await setup(), sender = createKeywordDmSender({ configured: true }, fake);
+    const { env, orm, fake, sends, fetch, verifyRecipient, grant, appFor } = await setup(); await grant(comment.from.id);
+    const sender = createKeywordDmSender({ configured: true }, fake, verifyRecipient);
     await sender.handleComment(orm, env, "123456", comment, NOW); await sender.handleComment(orm, env, "123456", comment, NOW);
     expect(fake.privateReply).toHaveBeenCalledOnce(); expect(fake.publicReply).toHaveBeenCalledOnce(); expect(sends()[0]).toMatchObject({ status: "sent", reason: null, sent_at: NOW }); expect(fetch).not.toHaveBeenCalled();
+    const dto = await (await appFor().request("/keyword-dm/rule/sends",undefined,env)).json() as { sends: Record<string,unknown>[] };
+    expect(Object.keys(dto.sends[0]!).sort()).toEqual(["commentAt","commentId","commentText","id","igUserId","linkId","reason","ruleId","sentAt","status","username"]);
     // A test policy alone cannot bypass the independent real-provider guard.
-    const actual = createKeywordDmSender({ configured: true });
+    await grant("recipient2");
+    const actual = createKeywordDmSender({ configured: true }, undefined, verifyRecipient);
     await actual.handleComment(orm, env, "123456", { ...comment, id: "comment2", from: { id: "recipient2" } }, NOW);
     expect(sends().some((s) => s.reason?.toString().startsWith("send_policy_unconfigured"))).toBe(true); expect(fetch).not.toHaveBeenCalled();
   });
 
   it("policy is checked immediately before private send and again before public followup", async () => {
-    const first = await setup(); let checks = 0;
-    const sender = createKeywordDmSender({ get configured() { return ++checks === 1; } }, first.fake);
+    const first = await setup(); await first.grant(comment.from.id); let checks = 0;
+    const sender = createKeywordDmSender({ get configured() { return ++checks === 1; } }, first.fake, first.verifyRecipient);
     await sender.handleComment(first.orm, first.env, "123456", comment, NOW); expect(first.fake.privateReply).not.toHaveBeenCalled();
-    const second = await setup(), policy = { configured: true };
+    const second = await setup(), policy = { configured: true }; await second.grant(comment.from.id);
     second.fake.privateReply.mockImplementation(async () => { policy.configured = false; return { ok: true, data: { message_id: "fake" } }; });
-    await createKeywordDmSender(policy, second.fake).handleComment(second.orm, second.env, "123456", comment, NOW);
+    await createKeywordDmSender(policy, second.fake, second.verifyRecipient).handleComment(second.orm, second.env, "123456", comment, NOW);
     expect(second.fake.privateReply).toHaveBeenCalledOnce(); expect(second.fake.publicReply).not.toHaveBeenCalled(); expect(second.sends()[0]?.status).toBe("sent");
   });
 
@@ -150,11 +158,12 @@ describe("independent fail-closed production DM policy", () => {
   });
 
   it("a policy-blocked comment is never reported as an already sent DM for the next comment", async () => {
-    const { env, orm, sends, fake } = await setup();
+    const { env, orm, sends, fake, grant, verifyRecipient } = await setup();
     await handleComment(orm, env, "123456", comment, NOW);
     await handleComment(orm, env, "123456", { ...comment, id: "another-comment" }, NOW);
     expect(sends().every((s) => s.status === "failed" && s.reason === "send_policy_unconfigured")).toBe(true);
-    await createKeywordDmSender({ configured: true }, fake).handleComment(orm, env, "123456", { ...comment, id: "fake-approved-later-comment" }, NOW);
+    await grant(comment.from.id);
+    await createKeywordDmSender({ configured: true }, fake, verifyRecipient).handleComment(orm, env, "123456", { ...comment, id: "fake-approved-later-comment" }, NOW);
     expect(fake.privateReply).toHaveBeenCalledOnce();
   });
 

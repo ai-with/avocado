@@ -518,13 +518,25 @@ AIWITH-347/280의 업무상 인원·월 한도·비용/환불 기준은 아직 �
 
 ## DM 발송 기준 준비 중
 
-AIWITH-409/296의 새 발송 차단은 광고성 여부를 임의로 분류하거나 동의·철회 처리 완료를 뜻하지 않는다. 제품의 구체적인 DM 분류·채널 동의·야간 처리·법률 검토 기준이 아직 미구성이라 중앙 `productionDmPolicy.configured=false`로 실제 private reply와 그 후속 public reply를 모두 HTTP 전에 차단한다. 모든 댓글 DM을 광고로 단정하거나 순수 서비스 DM 예외를 추정 허용하지 않는다. AIWITH-407의 외부 자문을 받았다고 주장하지 않으며, 409 전체 요구가 완료된 것도 아니다.
+AIWITH-409의 DM 동의 저장·발송 검사 core를 추가했지만, 검증된 수신자 연결과 실제 명시 동의 수집 producer는 아직 없다. **409 전체 완료가 아니다.** `productionDmPolicy.configured=false`를 유지해 실제 private reply와 그 후속 public reply를 모두 HTTP 전에 차단한다. 이메일의 `marketing_opt_in`, 알림톡의 `alimtalk_opt_in` 및 기존 발송 검사는 변경하지 않는다. DM 정책은 이메일/알림톡 업무 한도 정책과 독립이다. 광고/비광고·서비스 예외·야간 기준을 이 변경에서 정하지 않으며 AIWITH-407의 자문을 받았다고 주장하지 않는다.
 
 DM 정책은 기존 이메일/알림톡의 업무 한도 정책 `productionMessagePolicy`와 독립이다. Meta 키·유효 연결·기존 켜진 규칙·`IG_FAKE`가 있어도 운영 DM은 열리지 않고 Env/HTTP 허용 토글도 없다. 새 규칙 켜기는 503 `send_policy_unconfigured`와 준비 중 문구를 반환한다. 초안 작성·편집·끄기와 기존 설정 데이터는 유지한다. 과거 켜짐 값은 보존하지만 화면은 실제 발송 차단 상태를 표시한다. webhook/cron의 아직 보내지 않은 queued 행은 `failed/send_policy_unconfigured`, 발송 시각 없음으로 기록하며 같은 댓글 재전달이나 후속 cron은 실제 발송·실패 감사 기록을 중복 생성하지 않는다. DB 실패는 민감정보 없는 오류로 전파하고 원래 queued 행을 다음 실행에서 다시 확인한다. 허용 경로 테스트만 생성자 DI의 가짜 정책·가짜 provider를 쓰며, 실제 provider helper는 자체 운영 정책도 재검사한다.
 
 실 DM 진입점은 댓글 webhook과 기존 cron의 keyword DM 처리다. 가이드의 `channel=dm`은 사용자가 복사 후 직접 보냈다고 기록하는 경로라 provider HTTP가 없으며 변경하지 않았다. 별도 실제 DM 테스트 발송 API는 없다. 기존 이메일 테스트 발송과 transactional 이메일·인스타그램 연결 끊김 알림은 이 변경으로 허용/차단하지 않는다.
 
-현재 DM footer의 “더 받지 않으려면 답장으로 알려 주세요” 문구에 대응하는 수신거부 답장 처리와 영속 차단은 아직 구현되지 않았다. 발송 허용 전에는 구체적인 분류·필요 동의와 야간 기준·수신거부 처리를 구현·확인해야 한다. 이 차단으로 자문·동의·철회 인수를 완료했다고 주장하지 않는다. 마이그레이션·새 리소스·새 자격증명·Meta 실호출은 추가하지 않는다.
+`0038_dm_channel_consent.sql`은 DM 전용 동의와 명시 행동 영수증을 기존 D1에 저장한다. scope는 workspace·sender connection·연결 generation·Meta app·`instagram_messaging_igsid` namespace·수신자다. 앱/수신자/외부 proof 식별자는 기존 `hmacHex(TOKEN_ENC_KEY, ...)`로만 저장하고, 새 동의 원장에는 username·이메일·전화·댓글/메시지 원문을 복사하지 않는다. hash도 개인정보로 취급한다. sender connection/workspace 삭제는 동의·영수증을 cascade한다. 앱 또는 암호화 키가 바뀌거나 연결이 재등록되어 generation이 바뀌면 과거 scope의 동의가 자동 이전되지 않는다.
+
+`recordDmConsent`는 검증된 수신자의 명시 행동과 notice digest를 전달받는 **내부 저장 함수**다. 실제 검증자/수집 경로가 이 함수를 호출하지 않으며, HTTP grant API도 없다. proof receipt와 `expectedRevision`을 같은 native batch에 묶어 저장한다. 같은 proof/내용의 재전송은 옛 영수증만 반환하고, 다른 내용이나 오래된 revision은 충돌이다. 철회는 revision을 올려 옛 queued 작업을 영구 실패로 바꾸며, 재동의는 새 proof와 현재 revision이 필요하다. 예전 grant를 재전송해 철회를 덮거나 옛 queued/같은 댓글을 부활시키지 않는다. 이메일·알림톡 동의나 리드 재등록은 DM 동의를 만들지 않는다.
+
+댓글의 `from.id`, OAuth 계정 ID, messaging IGSID, username, 이메일을 같은 신원이라고 추정하지 않는다. 운영 `DmRecipientVerifier`는 검증된 bridge가 없으므로 항상 미확인을 반환한다. 테스트만 가짜 검증자를 주입한다. [Meta가 발행한 Send API 예제](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api)는 messaging 수신자로 `ig_scoped_id`를 사용하지만, 현재 댓글 작성자와 그 수신자의 연결 증명은 구현되지 않았다. `IG_FAKE`나 키/연결/OAuth 보유만으로 DM 동의를 부여하지 않는다.
+
+queued 행에는 동의 ID/revision·앱/수신자 HMAC·sender generation과 규칙 HMAC을 고정한다. 규칙의 대상·문구·상태가 바뀌면 DB의 기술 revision을 올리고 이전 queued 작업을 취소한다. 같은 밀리초 안에 off/on을 되돌려도 부활하지 않는다. 현재 동의와 명시 신원 scope를 확인한 뒤 마지막 native `queued→sending` claim에서 현재 연결의 승인 scope/만료, workspace·규칙·동의 revision을 다시 검사한다. 동의 없음·철회·오래된 동의/규칙·누락된 legacy snapshot은 provider 전에 닫는다. 이 claim보다 나중에 철회된, 이미 승인된 시도의 외부 접수를 사후 취소할 수는 없다.
+
+private 접수가 확인되면 후속 공개 답글보다 먼저 `sent` 사실을 저장한다. public 직전에도 같은 attempt와 현재 동의/규칙을 다시 확인하며, 철회·조회 실패·public 예외가 확정 private 접수 기록을 지우지 않는다. 후속 예외는 원문 없는 상수 로그만 남긴다. provider 결과가 불확실한 시도는 `unknown`이며 새 HTTP로 재시도하지 않는다. 20초 provider timeout보다 긴 기술 회복 경계 60초가 지난 `sending`도 기존 Cron에서 결과 미확인으로 끝낸다. 이는 발송 quota가 아니다. 기본 미구성 정책의 100건 처리에는 기존처럼 SELECT·bulk UPDATE·감사 INSERT의 물리 SQL 3문장을 사용한다.
+
+0038은 status CHECK를 확장하기 위해 기존 `keyword_dm_sends`를 복사하며 기존 11개 값·rule/link FK·3개 index를 보존한다. 로컬 실제 SQLite 회귀는 5개 legacy 상태의 보존, DROP 이후 실패의 batch rollback, FK, 동의 revision/replay, 최종 claim 경합, private 접수 중 철회, 후속 조회/provider 오류, 응답 소실·중복·미확인 재전송 차단을 검사한다. migration source를 추가한 것이며 운영 적용/실제 DM 검증 완료를 뜻하지 않는다. 새 리소스·자격증명·Meta 실호출은 추가하지 않는다.
+
+남은 통합은 검증된 댓글 작성자→messaging 수신자 bridge, 수신자에게 표시한 버전별 동의 내용과 명시 행동의 실제 capture, 엄격한 서명 검증과 provider event 소유권/중복 확인, 수신자의 철회/삭제 경로다. 기존 webhook은 댓글만 처리한다. 따라서 DM footer의 “더 받지 않으려면 답장으로 알려 주세요”에 대응하는 실제 답장 수신거부 producer도 아직 없다. 기존 `verifySignature`의 가짜 모드 우회를 동의 증거로 재사용해서는 안 된다. 현재 core가 이 통합이나 407을 완료했다고 해석하지 않는다.
 
 ## 화면 불러오기 실패 복구
 

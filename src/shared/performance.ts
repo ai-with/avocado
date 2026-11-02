@@ -91,8 +91,8 @@ export const DM_FOOTER = (brand: string) => `${brand} · 더 받지 않으려면
 export const renderDm = (message: string, link: string, brand: string) => `${message.replaceAll("{link}", link)}\n\n${DM_FOOTER(brand)}`;
 export const DEFAULT_PUBLIC_REPLIES = ["DM 보냈어요! 확인해 주세요", "메시지함을 확인해 주세요", "자료를 DM으로 보내 드렸어요"];
 
-export type KeywordDmSendStatus = "sent" | "already_sent" | "expired" | "failed" | "queued";
-export const SEND_STATUS_LABELS: Record<KeywordDmSendStatus, string> = { sent: "보냄", already_sent: "이미 보냄", expired: "기간 지남", failed: "실패", queued: "대기" };
+export type KeywordDmSendStatus = "sent" | "already_sent" | "expired" | "failed" | "queued" | "sending" | "unknown";
+export const SEND_STATUS_LABELS: Record<KeywordDmSendStatus, string> = { sent: "보냄", already_sent: "이미 보냄", expired: "기간 지남", failed: "실패", queued: "대기", sending: "발송 중", unknown: "결과 미확인" };
 
 export type IgTarget = "influencer" | "client_brand" | "brand_sender";
 export const IG_SCOPES: Record<IgTarget, string[]> = {

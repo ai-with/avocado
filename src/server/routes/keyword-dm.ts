@@ -143,7 +143,11 @@ export function createKeywordDmRoutes(policy: DmPolicy = productionDmPolicy) {
   .get("/:id/sends", async (c) => {
     const { workspace } = workspaceCtx(c);
     const rule = await ownRule(c.var.db, workspace.id, c.req.param("id"));
-    const sends = await c.var.db.select().from(keywordDmSends).where(eq(keywordDmSends.ruleId, rule.id)).orderBy(desc(keywordDmSends.commentAt)).limit(200);
+    // Keep the existing DTO; consent hashes and attempt authority stay internal.
+    const sends = await c.var.db.select({ id: keywordDmSends.id, ruleId: keywordDmSends.ruleId, commentId: keywordDmSends.commentId, igUserId: keywordDmSends.igUserId,
+      username: keywordDmSends.username, commentText: keywordDmSends.commentText, commentAt: keywordDmSends.commentAt, sentAt: keywordDmSends.sentAt,
+      status: keywordDmSends.status, reason: keywordDmSends.reason, linkId: keywordDmSends.linkId })
+      .from(keywordDmSends).where(eq(keywordDmSends.ruleId, rule.id)).orderBy(desc(keywordDmSends.commentAt)).limit(200);
     return c.json({ sends });
   });
 }
