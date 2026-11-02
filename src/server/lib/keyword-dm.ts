@@ -102,8 +102,13 @@ async function deliver(db: Db, env: Env, rule: Rule, send: Send, { policy, provi
   const sendId = send.id; let attempt: string | undefined;
   const set = async (status: KeywordDmSendStatus, reason: string | null, extra: { sentAt?: number; linkId?: string } = {}) => {
     const changed = await db.update(keywordDmSends).set({ status, reason, ...extra }).where(and(eq(keywordDmSends.id, sendId),
-      attempt ? and(eq(keywordDmSends.status, "sending"), eq(keywordDmSends.dmAttemptToken, attempt)) : eq(keywordDmSends.status, "queued"))).returning({ id: keywordDmSends.id });
-    if (!changed.length) return status;
+      attempt ? and(status === "sent" ? or(eq(keywordDmSends.status, "sending"), eq(keywordDmSends.status, "unknown")) : eq(keywordDmSends.status, "sending"),
+        eq(keywordDmSends.dmAttemptToken, attempt)) : eq(keywordDmSends.status, "queued"))).returning({ id: keywordDmSends.id });
+    if (!changed.length) {
+      const current = await db.select({ status: keywordDmSends.status }).from(keywordDmSends)
+        .where(and(eq(keywordDmSends.id, sendId), eq(keywordDmSends.ruleId, rule.id))).get();
+      return current?.status ?? "unknown";
+    }
     if (status === "sent") await logEvent(db, rule.workspaceId, "keyword_dm_sent", { rule_id: rule.id });
     if (status === "failed" || status === "expired" || status === "unknown") await logEvent(db, rule.workspaceId, "keyword_dm_failed", { rule_id: rule.id, reason });
     return status;
@@ -148,7 +153,10 @@ async function deliver(db: Db, env: Env, rule: Rule, send: Send, { policy, provi
     return set("failed", r.reason, { linkId: link.id });
   }
   // A followup lookup/provider failure cannot erase confirmed private acceptance.
-  await set("sent", null, { sentAt: now(), linkId: link.id });
+  // Recovery may have marked this exact in-flight attempt unknown while its
+  // confirmed private ACK was delayed. Only that token can promote it to sent.
+  const persisted = await set("sent", null, { sentAt: now(), linkId: link.id });
+  if (persisted !== "sent") return persisted;
   try {
     if (policy.configured && rule.publicReplyVariants.length > 0) {
       const pick = rule.publicReplyVariants[Math.floor(Math.random() * rule.publicReplyVariants.length)];

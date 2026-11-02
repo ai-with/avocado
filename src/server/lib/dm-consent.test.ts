@@ -176,6 +176,37 @@ describe("DM-only consent storage and actual keyword delivery guards", () => {
     vi.mocked(Date.now).mockReturnValue(NOW+60_001); await s.sender.retryQueuedDms(s.env); await s.sender.retryQueuedDms(s.env);
     expect(s.sends()[0]).toMatchObject({ status: "unknown", reason: "delivery_outcome_unknown" }); expect(s.provider.privateReply).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
   });
+  it.each([false,true])("a delayed same-attempt private ACK upgrades recovered unknown to sent (revoked=%s)", async (revoked) => {
+    const s = await setup(); await s.decision("grant",0); let entered!: () => void, finish!: (reply: Awaited<ReturnType<typeof sendPrivateReply>>) => void;
+    const ready = new Promise<void>((resolve) => { entered=resolve; });
+    s.provider.privateReply.mockImplementationOnce(async () => { entered(); return new Promise((resolve) => { finish=resolve; }); });
+    const pending=s.send(); await ready;
+    const token=s.sends()[0]!.dm_attempt_token;
+    vi.mocked(Date.now).mockReturnValue(NOW+60_001); await s.sender.retryQueuedDms(s.env);
+    expect(s.sends()[0]).toMatchObject({ status: "unknown", dm_attempt_token: token, sent_at: null });
+    if (revoked) await s.decision("revoke",1);
+    finish({ ok: true, data: { message_id: "fake-late-ack" } }); await pending;
+    expect(s.sends()[0]).toMatchObject({ status: "sent", dm_attempt_token: token, sent_at: NOW+60_001, reason: null });
+    await s.sender.retryQueuedDms(s.env); expect(s.provider.privateReply).toHaveBeenCalledOnce(); expect(s.provider.publicReply).toHaveBeenCalledTimes(revoked ? 0 : 1); expect(fetch).not.toHaveBeenCalled();
+  });
+  it("a late ACK cannot overwrite a different attempt token or run its public followup", async () => {
+    const s=await setup(); await s.decision("grant",0); let entered!: () => void, finish!: (reply: Awaited<ReturnType<typeof sendPrivateReply>>) => void;
+    const ready=new Promise<void>((resolve) => { entered=resolve; });
+    s.provider.privateReply.mockImplementationOnce(async () => { entered(); return new Promise((resolve) => { finish=resolve; }); });
+    const pending=s.send(); await ready;
+    s.db.exec("UPDATE keyword_dm_sends SET dm_attempt_token='different-attempt'");
+    finish({ ok: true, data: { message_id: "fake-old-ack" } }); await pending;
+    expect(s.sends()[0]).toMatchObject({ status: "sending", dm_attempt_token: "different-attempt", sent_at: null });
+    expect(s.provider.privateReply).toHaveBeenCalledOnce(); expect(s.provider.publicReply).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  });
+  it("a private ACK after parent deletion recreates no send row and performs no public followup", async () => {
+    const s=await setup(); await s.decision("grant",0); let entered!: () => void, finish!: (reply: Awaited<ReturnType<typeof sendPrivateReply>>) => void;
+    const ready=new Promise<void>((resolve) => { entered=resolve; });
+    s.provider.privateReply.mockImplementationOnce(async () => { entered(); return new Promise((resolve) => { finish=resolve; }); });
+    const pending=s.send(); await ready; s.db.exec("DELETE FROM keyword_dm_rules WHERE id='rule'");
+    finish({ ok: true, data: { message_id: "fake-deleted-parent-ack" } }); await pending;
+    expect(s.sends()).toEqual([]); expect(s.provider.privateReply).toHaveBeenCalledOnce(); expect(s.provider.publicReply).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+  });
   it("keeps the allowed fake path within the native D1 statement/bind budget", async () => {
     const s = await setup(); await s.decision("grant",0); let physical = 0, maxBinds = 0, maxSql = 0, maxBytes = 0;
     const wrap = (statement: D1PreparedStatement): D1PreparedStatement => new Proxy(statement,{ get(target,key) {
